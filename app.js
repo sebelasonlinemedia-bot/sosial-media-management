@@ -1211,7 +1211,7 @@ app.saveOfficeSettings = async function () {
 };
 
 app._llmProviderDefaults = {
-    gemini: { model: 'gemini-2.0-flash', hint: 'Free tier — aistudio.google.com' },
+    gemini: { model: 'gemini-2.5-flash', hint: 'Free tier — aistudio.google.com' },
     groq: { model: 'llama-3.3-70b-versatile', hint: 'Free tier — console.groq.com' },
     cursor: { model: 'composer-2.5', hint: 'CURSOR_API_KEY dari Cursor Dashboard' },
     openai: { model: 'gpt-4o-mini', hint: 'platform.openai.com' },
@@ -1227,7 +1227,7 @@ app._applyLlmProviderDefaults = function (provider, forceModel) {
     if (forceModel && model) model.value = def.model;
     if (list) {
         const models = {
-            gemini: ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash'],
+            gemini: ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-3.5-flash-lite', 'gemini-flash-latest'],
             groq: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'gemma2-9b-it'],
             cursor: ['composer-2.5', 'composer-2'],
             openai: ['gpt-4o-mini', 'gpt-4o'],
