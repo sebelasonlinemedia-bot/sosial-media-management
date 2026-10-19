@@ -1,22 +1,22 @@
 /**
  * PiK's Digital Lab — Kantor AI 3D viewport (vanilla Three.js CDN).
  *
- * Adapted conceptually from yugienugraha/ruang (MIT License, Copyright 2026 yugienugraha):
- * multi-zone room layout, low-poly crew, status→placement, idle wander route,
- * aisle walking, typing/chat poses, and speech-bubble activity labels.
- * This is a compact single-floor adaptation for 7 Tim Konten roles — not a
- * full port of Ruang's multi-floor / Hermes mission-control scene.
+ * Visual layout and prop language adapted from yugienugraha/ruang (MIT License,
+ * Copyright 2026 yugienugraha): isometric cut-away office on a grass plot, wood
+ * floor, white desks + monitors, lounge / pantry / game wing, outdoor street,
+ * low-poly crew, stacked activity labels, drag-orbit + zoom + reset view.
+ * Single-floor port for 7 Tim Konten roles — no R3F, no lantai 2, no Hermes.
  *
  * Work board remains the primary UI; this stage is decorative + focus helper.
  */
 (function (global) {
     'use strict';
 
-    const STORAGE_KEY = 'piks-digital-lab-office-3d';
-    const IDLE_STOP_MS = 28000;
-    const WALK_SPEED = 2.4;
+    var STORAGE_KEY = 'piks-digital-lab-office-3d';
+    var IDLE_STOP_MS = 28000;
+    var WALK_SPEED = 2.6;
 
-    const STATUS_AURA = {
+    var STATUS_AURA = {
         idle: 0x64748b,
         needs_info: 0xf59e0b,
         awaiting_approval: 0xea580c,
@@ -25,96 +25,176 @@
         failed: 0xef4444
     };
 
-    const STATUS_LABEL = {
-        idle: 'Siaga',
-        needs_info: 'Perlu info',
-        awaiting_approval: 'Approval',
-        working: 'Kerja',
-        done: 'Selesai',
-        failed: 'Gagal'
+    var STATUS_LABEL = {
+        idle: 'Idle',
+        needs_info: 'Reviewing',
+        awaiting_approval: 'Reviewing',
+        working: 'Working',
+        done: 'Done',
+        failed: 'Failed'
     };
 
-    /** Compact single-floor layout (inspired by Ruang zones, scaled for 7 roles). */
-    const LAYOUT = {
-        aisleZ: 0.85,
-        desks: [
-            [-4.2, -2.35], [-2.4, -2.35], [-0.6, -2.35], [1.2, -2.35],
-            [-4.2, -0.95], [-2.4, -0.95], [-0.6, -0.95]
-        ],
-        meeting: [
-            { x: 3.4, z: -0.4, facing: Math.PI / 2, seated: true },
-            { x: 4.6, z: -0.4, facing: -Math.PI / 2, seated: true },
-            { x: 4.0, z: 0.55, facing: Math.PI, seated: true },
-            { x: 4.0, z: -1.35, facing: 0, seated: false }
-        ],
-        idleStops: [
+    /* Ruang-inspired world units (y up, +z toward street). Sized for 7 agents. */
+    var PARTITION_X = 0.4;
+    var LOUNGE_PARTITION_END_Z = -0.5;
+    var GAME_ROOM = { minX: 9.5, maxX: 15.5, minZ: -5.2, maxZ: 0.6 };
+    var PING_PONG = [12.6, 0, -1.4];
+    var ARCADES = [[10.6, 0, -4.75], [11.6, 0, -4.75]];
+    var BEANBAGS = [[13.7, 0, -4.35], [14.7, 0, -4.35]];
+    var TV = [4.6, 0, -4.8];
+    var SOFA = [4.6, 0, -1.3];
+    var COFFEE_TABLE = [4.6, 0, -2.9];
+    var AISLE_Z = 0.4;
+    var WALL_H = 2.6;
+    var WALL = 0xefe6d6;
+    var WALL_TOP = 0xd9cdb8;
+
+    var LAYOUT = buildLayout(7);
+
+    function buildLayout(agentCount) {
+        var deskCount = Math.max(1, agentCount);
+        var columns = Math.max(3, Math.ceil(deskCount / 2));
+        var DESK_RIGHT_X = -2;
+        var DESK_PITCH = 2.6;
+        var DESK_ROWS_Z = [-3.5, -1];
+        var desks = [];
+        var i;
+        for (i = 0; i < deskCount; i += 1) {
+            var row = i < columns ? 0 : 1;
+            var column = row === 0 ? i : i - columns;
+            desks.push([DESK_RIGHT_X - column * DESK_PITCH, DESK_ROWS_Z[row]]);
+        }
+        var minX = DESK_RIGHT_X - (columns - 1) * DESK_PITCH - 2.3;
+        var building = { minX: minX, maxX: 9.5, minZ: -5.2, maxZ: 4.2 };
+        var meetingCenterX = (minX - 3.2) / 2;
+        if (meetingCenterX > -4.5) meetingCenterX = -5.5;
+
+        var meeting = [
+            { x: meetingCenterX - 0.85, z: 2.55, facing: Math.PI / 2, seated: true },
+            { x: meetingCenterX + 0.85, z: 2.55, facing: -Math.PI / 2, seated: true },
+            { x: meetingCenterX, z: 3.35, facing: Math.PI, seated: true },
+            { x: meetingCenterX, z: 1.75, facing: 0, seated: false }
+        ];
+
+        var idleStops = [
             {
                 key: 'lounge',
-                label: 'Istirahat di lounge',
+                label: 'Relaxing in the lounge',
                 spots: [
-                    { x: 3.6, z: 2.15, facing: Math.PI, seated: true },
-                    { x: 4.6, z: 2.15, facing: Math.PI, seated: true },
-                    { x: 5.4, z: 1.55, facing: -Math.PI / 2, seated: true }
+                    { x: 4.0, z: -1.8, facing: Math.PI, seated: true },
+                    { x: 2.5, z: -2.9, facing: Math.PI / 2, seated: true },
+                    { x: 6.7, z: -2.9, facing: -Math.PI / 2, seated: true }
                 ]
             },
             {
-                key: 'break',
-                label: 'Ambil air / coffee break',
+                key: 'galon',
+                label: 'Getting water from the galon',
                 spots: [
-                    { x: -5.1, z: 1.6, facing: Math.PI / 2, seated: false },
-                    { x: -5.1, z: 2.2, facing: Math.PI / 2, seated: false }
+                    { x: 8.35, z: -0.4, facing: Math.PI / 2, seated: false },
+                    { x: 8.2, z: -1.05, facing: 2.2, seated: false }
                 ]
             },
             {
-                key: 'walk',
-                label: 'Jalan di koridor',
+                key: 'dapur',
+                label: 'In the kitchen',
                 spots: [
-                    { x: -1.5, z: 0.85, facing: Math.PI / 2, seated: false },
-                    { x: 1.8, z: 0.85, facing: -Math.PI / 2, seated: false },
-                    { x: 0.2, z: 2.4, facing: Math.PI, seated: false }
+                    { x: 8.25, z: 2.6, facing: Math.PI / 2, seated: false },
+                    { x: 8.3, z: 0.65, facing: Math.PI / 2, seated: false }
                 ]
             },
             {
-                key: 'chat',
-                label: 'Ngobrol singkat',
+                key: 'game',
+                label: 'Playing ping-pong',
                 spots: [
-                    { x: 3.2, z: 0.9, facing: Math.PI / 2, seated: false },
-                    { x: 4.0, z: 0.9, facing: -Math.PI / 2, seated: false }
+                    { x: PING_PONG[0] - 1.75, z: PING_PONG[2], facing: Math.PI / 2, seated: false },
+                    { x: PING_PONG[0] + 1.75, z: PING_PONG[2], facing: -Math.PI / 2, seated: false },
+                    { x: BEANBAGS[0][0], z: BEANBAGS[0][2], facing: Math.PI, seated: true }
+                ]
+            },
+            {
+                key: 'arcade',
+                label: 'Playing arcade games',
+                spots: [
+                    { x: ARCADES[0][0], z: ARCADES[0][2] + 0.8, facing: Math.PI, seated: false },
+                    { x: ARCADES[1][0], z: ARCADES[1][2] + 0.8, facing: Math.PI, seated: false },
+                    { x: BEANBAGS[1][0], z: BEANBAGS[1][2], facing: Math.PI, seated: true }
+                ]
+            },
+            {
+                key: 'jalan',
+                label: 'Taking a stroll',
+                spots: [
+                    { x: 5.8, z: 5.2, facing: Math.PI, seated: false },
+                    { x: minX + 0.95, z: -0.9, facing: -Math.PI / 2, seated: false },
+                    { x: 1.3, z: -4.4, facing: Math.PI, seated: false }
+                ]
+            },
+            {
+                key: 'stall',
+                label: 'Street-side break',
+                spots: [
+                    { x: minX - 2.4, z: -1.2, facing: Math.PI / 2, seated: true },
+                    { x: minX - 2.1, z: 0.6, facing: Math.PI / 2, seated: false }
                 ]
             }
-        ],
-        idleRoute: ['lounge', 'break', 'walk', 'chat', 'lounge', 'walk', 'break', 'chat']
-    };
+        ];
 
-    let THREE = null;
-    let renderer = null;
-    let scene = null;
-    let camera = null;
-    let clock = null;
-    let rafId = 0;
-    let container = null;
-    let canvas = null;
-    let labelsRoot = null;
-    let raycaster = null;
-    let pointer = null;
-    let characters = [];
-    let roomProps = [];
-    let enabled = true;
-    let reduced = false;
-    let paused = false;
-    let onSelect = null;
-    let onActivity = null;
-    let resizeObserver = null;
-    let visibilityHandler = null;
-    let clickHandler = null;
-    let orbitAngle = 0.42;
-    let lastActivityDigest = '';
-    let lastIdleStep = -1;
-    let employeesCache = [];
+        return {
+            aisleZ: AISLE_Z,
+            desks: desks,
+            building: building,
+            meeting: meeting,
+            meetingTable: { x: meetingCenterX, z: 2.55, radius: 1.05 },
+            cameraTarget: [(minX + GAME_ROOM.maxX) / 2 - 0.15, 0.6, 0.2],
+            cameraOffset: [-3.9, 15.2, 18.8],
+            pan: { minX: minX - 4, maxX: 17, minZ: -7, maxZ: 11 },
+            idleStops: idleStops,
+            idleRoute: ['lounge', 'galon', 'game', 'arcade', 'dapur', 'jalan', 'stall', 'lounge']
+        };
+    }
+
+    var THREE = null;
+    var renderer = null;
+    var scene = null;
+    var camera = null;
+    var clock = null;
+    var rafId = 0;
+    var container = null;
+    var canvas = null;
+    var labelsRoot = null;
+    var hudRoot = null;
+    var raycaster = null;
+    var pointer = null;
+    var characters = [];
+    var roomRoot = null;
+    var enabled = true;
+    var reduced = false;
+    var paused = false;
+    var onSelect = null;
+    var onActivity = null;
+    var resizeObserver = null;
+    var visibilityHandler = null;
+    var clickHandler = null;
+    var lastActivityDigest = '';
+    var lastIdleStep = -1;
+    var employeesCache = [];
+
+    /* Orbit / pan / zoom (Ruang-like OrbitControls subset) */
+    var orbit = {
+        target: null,
+        spherical: { radius: 24, phi: 0.92, theta: 0.42 },
+        defaults: { radius: 24, phi: 0.92, theta: 0.42, target: [0, 0.6, 0.2] },
+        dragging: false,
+        panning: false,
+        moved: false,
+        lastX: 0,
+        lastY: 0,
+        listeners: null
+    };
 
     function loadPreference() {
         try {
-            const raw = localStorage.getItem(STORAGE_KEY);
+            var raw = localStorage.getItem(STORAGE_KEY);
             if (raw === '0') return false;
             if (raw === '1') return true;
         } catch (_) { /* ignore */ }
@@ -140,38 +220,38 @@
     }
 
     function statusSpeech(emp) {
-        const st = emp.status || 'idle';
-        const brief = (emp.latestJob && emp.latestJob.brief) ? String(emp.latestJob.brief).slice(0, 42) : '';
-        if (st === 'working') return brief ? ('Kerja: ' + brief) : 'Mengerjakan brief…';
-        if (st === 'needs_info') return 'Perlu info dari manusia';
-        if (st === 'awaiting_approval') return 'Menunggu approval';
+        var st = emp.status || 'idle';
+        var brief = (emp.latestJob && emp.latestJob.brief) ? String(emp.latestJob.brief).slice(0, 42) : '';
+        if (st === 'working') return brief ? ('Building: ' + brief) : 'Working on brief…';
+        if (st === 'needs_info') return 'Needs info from human';
+        if (st === 'awaiting_approval') return 'Awaiting approval';
         if (st === 'failed') return emp.latestJob && emp.latestJob.lastError
             ? String(emp.latestJob.lastError).slice(0, 40)
-            : 'Job gagal';
-        if (st === 'done') return 'Selesai — siap brief berikutnya';
+            : 'Job failed';
+        if (st === 'done') return 'Done — ready for next brief';
         return '';
     }
 
-    /** Deterministic idle assignment (Ruang-style idlePlan, decorative only). */
     function idlePlan(seatIndexes, nowMs) {
-        const plan = new Map();
-        const taken = new Map();
-        const step = Math.floor(nowMs / IDLE_STOP_MS);
-        const stopAt = function (index) {
-            const key = LAYOUT.idleRoute[index % LAYOUT.idleRoute.length];
+        var plan = new Map();
+        var taken = new Map();
+        var step = Math.floor(nowMs / IDLE_STOP_MS);
+        function stopAt(index) {
+            var key = LAYOUT.idleRoute[index % LAYOUT.idleRoute.length];
             return LAYOUT.idleStops.find(function (s) { return s.key === key; });
-        };
+        }
         seatIndexes.slice().sort(function (a, b) { return a - b; }).forEach(function (seat) {
-            const start = step + seat * 2;
-            let stop = stopAt(start);
-            for (let offset = 0; offset < LAYOUT.idleRoute.length; offset += 1) {
-                const candidate = stopAt(start + offset);
+            var start = step + seat * 2;
+            var stop = stopAt(start);
+            var offset;
+            for (offset = 0; offset < LAYOUT.idleRoute.length; offset += 1) {
+                var candidate = stopAt(start + offset);
                 if ((taken.get(candidate.key) || 0) < candidate.spots.length) {
                     stop = candidate;
                     break;
                 }
             }
-            const used = taken.get(stop.key) || 0;
+            var used = taken.get(stop.key) || 0;
             taken.set(stop.key, used + 1);
             plan.set(seat, { stop: stop, spot: stop.spots[used % stop.spots.length] });
         });
@@ -179,21 +259,18 @@
     }
 
     function aislePath(fromX, fromZ, toX, toZ) {
-        const ax = fromX;
-        const az = LAYOUT.aisleZ;
-        const bx = toX;
-        const bz = LAYOUT.aisleZ;
-        const pts = [];
-        if (Math.abs(fromZ - az) > 0.12) pts.push({ x: ax, z: az });
-        if (Math.abs(ax - bx) > 0.12) pts.push({ x: bx, z: bz });
+        var az = LAYOUT.aisleZ;
+        var pts = [];
+        if (Math.abs(fromZ - az) > 0.12) pts.push({ x: fromX, z: az });
+        if (Math.abs(fromX - toX) > 0.12) pts.push({ x: toX, z: az });
         pts.push({ x: toX, z: toZ });
         return pts;
     }
 
     function placementFor(emp, seatIndex, idleAssignment, meetingIndex) {
-        const st = emp.status || 'idle';
+        var st = emp.status || 'idle';
         if (st === 'awaiting_approval') {
-            const m = LAYOUT.meeting[meetingIndex % LAYOUT.meeting.length];
+            var m = LAYOUT.meeting[meetingIndex % LAYOUT.meeting.length];
             return {
                 x: m.x, z: m.z, facing: m.facing, seated: !!m.seated,
                 pose: m.seated ? 'sit' : 'stand',
@@ -203,9 +280,9 @@
             };
         }
         if (st === 'working' || st === 'needs_info' || st === 'failed' || st === 'done') {
-            const desk = LAYOUT.desks[seatIndex % LAYOUT.desks.length];
+            var desk = LAYOUT.desks[seatIndex % LAYOUT.desks.length];
             return {
-                x: desk[0], z: desk[1] - 0.55, facing: 0,
+                x: desk[0], z: desk[1] - 0.78, facing: 0,
                 seated: st === 'working' || st === 'needs_info',
                 pose: st === 'failed' ? 'slump' : (st === 'done' ? 'cheer' : 'sit'),
                 activity: st === 'working' ? 'work' : (st === 'needs_info' ? 'review' : st),
@@ -213,9 +290,8 @@
                 label: STATUS_LABEL[st]
             };
         }
-        // idle → wander
         if (idleAssignment) {
-            const spot = idleAssignment.spot;
+            var spot = idleAssignment.spot;
             return {
                 x: spot.x, z: spot.z, facing: spot.facing,
                 seated: !!spot.seated,
@@ -226,90 +302,558 @@
                 idleKey: idleAssignment.stop.key
             };
         }
-        const desk = LAYOUT.desks[seatIndex % LAYOUT.desks.length];
+        var desk2 = LAYOUT.desks[seatIndex % LAYOUT.desks.length];
         return {
-            x: desk[0], z: desk[1] - 0.55, facing: 0, seated: false,
+            x: desk2[0], z: desk2[1] - 0.78, facing: 0, seated: false,
             pose: 'stand', activity: 'idle', speech: '', label: STATUS_LABEL.idle
         };
     }
 
-    function createLimb(mat, w, h, d) {
-        const geo = new THREE.BoxGeometry(w, h, d);
-        geo.translate(0, -h / 2, 0);
-        const mesh = new THREE.Mesh(geo, mat);
+    /* ---------- Mesh helpers ---------- */
+
+    function mat(color, roughness, metalness, opts) {
+        var o = opts || {};
+        return new THREE.MeshStandardMaterial({
+            color: color,
+            roughness: roughness == null ? 0.75 : roughness,
+            metalness: metalness == null ? 0.04 : metalness,
+            transparent: o.opacity != null,
+            opacity: o.opacity != null ? o.opacity : 1,
+            emissive: o.emissive != null ? o.emissive : 0x000000,
+            emissiveIntensity: o.emissiveIntensity != null ? o.emissiveIntensity : 0,
+            flatShading: !!o.flatShading,
+            side: o.side != null ? o.side : THREE.FrontSide,
+            depthWrite: o.depthWrite != null ? o.depthWrite : true
+        });
+    }
+
+    function box(parent, x, y, z, w, h, d, color, roughness, metalness, opts) {
+        var mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(color, roughness, metalness, opts));
+        mesh.position.set(x, y, z);
         mesh.castShadow = false;
-        mesh.receiveShadow = false;
+        mesh.receiveShadow = true;
+        parent.add(mesh);
         return mesh;
     }
 
-    function createHumanoid(colorHex, look) {
-        const root = new THREE.Group();
-        const bodyMat = new THREE.MeshStandardMaterial({
-            color: colorHex,
-            roughness: 0.55,
-            metalness: 0.08
+    function cyl(parent, x, y, z, r, h, color, roughness, metalness, opts) {
+        var top = opts && opts.top != null ? opts.top : r;
+        var mesh = new THREE.Mesh(
+            new THREE.CylinderGeometry(top, r, h, (opts && opts.segments) || 16),
+            mat(color, roughness, metalness, opts)
+        );
+        mesh.position.set(x, y, z);
+        if (opts && opts.rotX) mesh.rotation.x = opts.rotX;
+        if (opts && opts.rotZ) mesh.rotation.z = opts.rotZ;
+        parent.add(mesh);
+        return mesh;
+    }
+
+    function groupAt(parent, x, y, z, rotY) {
+        var g = new THREE.Group();
+        g.position.set(x, y || 0, z);
+        if (rotY) g.rotation.y = rotY;
+        parent.add(g);
+        return g;
+    }
+
+    function addFloorPlane(parent, x, y, z, w, d, color, roughness) {
+        var mesh = new THREE.Mesh(
+            new THREE.PlaneGeometry(w, d),
+            mat(color, roughness == null ? 0.85 : roughness, 0.02)
+        );
+        mesh.rotation.x = -Math.PI / 2;
+        mesh.position.set(x, y, z);
+        mesh.receiveShadow = true;
+        parent.add(mesh);
+        return mesh;
+    }
+
+    function addWall(parent, x1, z1, x2, z2, height) {
+        var h = height == null ? WALL_H : height;
+        var thick = 0.25;
+        var len = Math.hypot(x2 - x1, z2 - z1);
+        var angle = Math.atan2(z2 - z1, x2 - x1);
+        var g = groupAt(parent, (x1 + x2) / 2, 0, (z1 + z2) / 2, -angle);
+        box(g, 0, h / 2, 0, len + thick, h, thick, WALL, 0.9);
+        box(g, 0, h + 0.02, 0, len + thick + 0.02, 0.05, thick + 0.04, WALL_TOP, 0.85);
+        return g;
+    }
+
+    function addWindow(parent, x, y, z, width, rotY) {
+        var g = groupAt(parent, x, y, z, rotY || 0);
+        var w = width || 1.8;
+        box(g, 0, 0, 0, w + 0.12, 1.22, 0.12, 0x5a4636, 0.8);
+        var glass = new THREE.Mesh(
+            new THREE.PlaneGeometry(w, 1.1),
+            mat(0x9fd3ea, 0.05, 0.2, { emissive: 0x6fb6d6, emissiveIntensity: 0.35 })
+        );
+        glass.position.z = 0.065;
+        g.add(glass);
+        box(g, 0, 0, 0.08, 0.05, 1.1, 0.03, 0x5a4636, 0.8);
+        return g;
+    }
+
+    function addGlassX(parent, x, fromZ, toZ, bottom) {
+        var top = WALL_H - 0.2;
+        box(parent, x, (bottom + top) / 2, (fromZ + toZ) / 2,
+            0.05, top - bottom, Math.abs(toZ - fromZ),
+            0xcfe8ee, 0.05, 0.1, { opacity: 0.28 });
+    }
+
+    function addPlant(parent, x, z, size) {
+        var s = size || 1;
+        var g = groupAt(parent, x, 0, z);
+        g.scale.setScalar(s);
+        cyl(g, 0, 0.22, 0, 0.2, 0.44, 0xb0643a, 0.8, 0, { top: 0.26 });
+        [[0, 0.75, 0, 0.32], [0.14, 0.95, 0.05, 0.22], [-0.12, 0.92, -0.06, 0.24], [0, 1.12, 0, 0.18]].forEach(function (p) {
+            var leaf = new THREE.Mesh(
+                new THREE.IcosahedronGeometry(p[3], 1),
+                mat(0x4f8a4a, 0.85, 0, { flatShading: true })
+            );
+            leaf.position.set(p[0], p[1], p[2]);
+            g.add(leaf);
         });
-        const darkMat = new THREE.MeshStandardMaterial({
-            color: look && look.pants ? look.pants : 0x1e293b,
-            roughness: 0.7,
-            metalness: 0.05
+    }
+
+    function addTree(parent, x, z, size) {
+        var g = groupAt(parent, x, 0, z);
+        g.scale.setScalar(size || 1);
+        cyl(g, 0, 0.9, 0, 0.16, 1.8, 0x6b4a32, 0.9, 0, { top: 0.12 });
+        [[0, 2.2, 0, 1], [0.5, 1.9, 0.2, 0.7], [-0.45, 2.0, -0.2, 0.75], [0.1, 2.7, 0.1, 0.7]].forEach(function (p) {
+            var canopy = new THREE.Mesh(
+                new THREE.IcosahedronGeometry(p[3], 1),
+                mat(0x3f7a3c, 0.9, 0, { flatShading: true })
+            );
+            canopy.position.set(p[0], p[1], p[2]);
+            g.add(canopy);
         });
-        const skinMat = new THREE.MeshStandardMaterial({
-            color: look && look.skin ? look.skin : 0xd4a574,
-            roughness: 0.65,
-            metalness: 0.02
+    }
+
+    function addStreetLamp(parent, x, z) {
+        var g = groupAt(parent, x, 0, z);
+        cyl(g, 0, 1.6, 0, 0.06, 3.2, 0x2f3336, 0.4, 0.5);
+        box(g, 0.35, 3.15, 0, 0.8, 0.06, 0.06, 0x2f3336, 0.4, 0.5);
+        box(g, 0.7, 3.05, 0, 0.3, 0.12, 0.2, 0xf5e6b8, 0.5, 0, { emissive: 0xffd98a, emissiveIntensity: 0.25 });
+    }
+
+    function addOfficeChair(parent, x, z, rotY, color) {
+        var g = groupAt(parent, x, 0, z, rotY || 0);
+        var c = color || 0x2f3a44;
+        box(g, 0, 0.48, 0, 0.52, 0.09, 0.5, c, 0.9);
+        box(g, 0, 0.85, -0.23, 0.5, 0.6, 0.07, c, 0.9);
+        cyl(g, 0, 0.25, 0, 0.035, 0.42, 0x8b9297, 0.3, 0.6);
+        var spoke;
+        for (spoke = 0; spoke < 5; spoke += 1) {
+            var a = (spoke / 5) * Math.PI * 2;
+            var sb = box(g, Math.sin(a) * 0.2, 0.05, Math.cos(a) * 0.2, 0.05, 0.04, 0.42, 0x2a2f33, 0.6);
+            sb.rotation.y = a;
+        }
+    }
+
+    function addWorkDesk(parent, x, z, active) {
+        var g = groupAt(parent, x, 0, z);
+        box(g, 0, 0.74, 0, 1.9, 0.07, 0.95, 0xf2f0ea, 0.55);
+        box(g, -0.9, 0.37, 0, 0.06, 0.72, 0.85, 0xe7e2d8, 0.7);
+        box(g, 0.9, 0.37, 0, 0.06, 0.72, 0.85, 0xe7e2d8, 0.7);
+        box(g, 0.55, 0.52, 0.02, 0.42, 0.4, 0.8, 0xe7e2d8, 0.7);
+        box(g, 0, 1.13, 0.22, 0.86, 0.52, 0.05, 0x1c2024, 0.4);
+        var screen = new THREE.Mesh(
+            new THREE.PlaneGeometry(0.8, 0.46),
+            mat(active ? 0x1a3a42 : 0x0a1014, 0.3, 0.1, {
+                emissive: active ? 0x2a8aa0 : 0x000000,
+                emissiveIntensity: active ? 0.7 : 0
+            })
+        );
+        screen.position.set(0, 1.13, 0.194);
+        screen.rotation.y = Math.PI;
+        g.add(screen);
+        cyl(g, 0, 0.88, 0.25, 0.03, 0.22, 0x2a2f33, 0.4);
+        box(g, 0, 0.785, 0.28, 0.3, 0.02, 0.18, 0x2a2f33, 0.4);
+        box(g, 0, 0.79, -0.18, 0.56, 0.025, 0.18, 0x3a4046, 0.5);
+        box(g, 0.42, 0.79, -0.18, 0.07, 0.03, 0.11, 0x3a4046, 0.5);
+        cyl(g, -0.65, 0.84, -0.1, 0.05, 0.12, 0xf4efe6, 0.7);
+        cyl(g, -0.65, 0.901, -0.1, 0.043, 0.005, 0x3b2415, 0.8);
+        addOfficeChair(g, 0, -0.78, 0);
+    }
+
+    function addSofa(parent, x, z, rotY) {
+        var g = groupAt(parent, x, 0, z, rotY || 0);
+        var c = 0x5b6f8c;
+        box(g, 0, 0.28, 0, 2.4, 0.36, 0.9, c, 0.95);
+        box(g, 0, 0.66, -0.36, 2.4, 0.62, 0.2, c, 0.95);
+        box(g, -1.12, 0.52, 0, 0.2, 0.42, 0.9, c, 0.95);
+        box(g, 1.12, 0.52, 0, 0.2, 0.42, 0.9, c, 0.95);
+        box(g, -0.5, 0.5, 0.05, 0.95, 0.14, 0.7, 0x6e83a2, 0.95);
+        box(g, 0.5, 0.5, 0.05, 0.95, 0.14, 0.7, 0x6e83a2, 0.95);
+        box(g, -0.7, 0.72, -0.18, 0.38, 0.34, 0.14, 0xe0a43a, 0.95);
+    }
+
+    function addArmchair(parent, x, z, rotY, color) {
+        var g = groupAt(parent, x, 0, z, rotY || 0);
+        box(g, 0, 0.3, 0, 0.9, 0.4, 0.85, color, 0.95);
+        box(g, 0, 0.66, -0.34, 0.9, 0.52, 0.18, color, 0.95);
+    }
+
+    function addCoffeeTable(parent, x, z) {
+        var g = groupAt(parent, x, 0, z);
+        box(g, 0, 0.36, 0, 1.3, 0.07, 0.7, 0x8a5a3a, 0.5);
+        [[-0.55, -0.27], [0.55, -0.27], [-0.55, 0.27], [0.55, 0.27]].forEach(function (p) {
+            cyl(g, p[0], 0.17, p[1], 0.03, 0.34, 0x2a2f33, 0.5);
         });
-        const hairMat = new THREE.MeshStandardMaterial({
-            color: look && look.hair ? look.hair : 0x1d293c,
-            roughness: 0.9,
-            metalness: 0.02
+    }
+
+    function addTelevision(parent, x, y, z) {
+        var g = groupAt(parent, x, y, z);
+        box(g, 0, 0, 0, 2, 1.15, 0.08, 0x111416, 0.3);
+        var screen = new THREE.Mesh(
+            new THREE.PlaneGeometry(1.88, 1.03),
+            mat(0x1d5a6b, 0.2, 0.1, { emissive: 0x2a8aa0, emissiveIntensity: 0.55 })
+        );
+        screen.position.z = 0.045;
+        g.add(screen);
+    }
+
+    function addRoundMeetingTable(parent, x, z, radius) {
+        var g = groupAt(parent, x, 0, z);
+        var r = radius || 1.05;
+        cyl(g, 0, 0.72, 0, r, 0.07, 0x6e4a30, 0.4, 0.05, { segments: 28 });
+        cyl(g, 0, 0.36, 0, 0.12, 0.68, 0x2a2f33, 0.5, 0.3);
+        cyl(g, 0, 0.06, 0, 0.55, 0.06, 0x2a2f33, 0.5);
+        addOfficeChair(g, -r * 0.85, 0, Math.PI / 2);
+        addOfficeChair(g, r * 0.85, 0, -Math.PI / 2);
+        addOfficeChair(g, 0, r * 0.8, Math.PI);
+        addOfficeChair(g, 0, -r * 0.8, 0);
+    }
+
+    function addPantryCounter(parent, x, z, rotY) {
+        var g = groupAt(parent, x, 0, z, rotY || 0);
+        box(g, 0, 0.45, 0, 2, 0.9, 0.6, 0xf2eee6, 0.7);
+        box(g, 0, 0.92, 0, 2.05, 0.05, 0.65, 0x3a3f44, 0.3, 0.2);
+        cyl(g, -0.6, 1.07, 0, 0.16, 0.24, 0xf5f5f2, 0.5);
+        cyl(g, -0.6, 1.2, 0, 0.14, 0.05, 0xd64545, 0.5, 0, { top: 0.1 });
+        cyl(g, 0.1, 1.05, 0, 0.1, 0.2, 0xdfe8e6, 0.2, 0, { opacity: 0.5 });
+        cyl(g, 0.62, 1.06, 0, 0.12, 0.22, 0xb9c0c4, 0.25, 0.7, { top: 0.08 });
+        /* sink basin */
+        box(g, 0.2, 0.88, 0.05, 0.35, 0.04, 0.28, 0x9aa2a6, 0.3, 0.4);
+    }
+
+    function addFridge(parent, x, z, rotY) {
+        var g = groupAt(parent, x, 0, z, rotY || 0);
+        box(g, 0, 0.9, 0, 0.75, 1.8, 0.7, 0xdfe3e4, 0.35, 0.2);
+        box(g, 0.28, 1.0, 0.37, 0.03, 0.4, 0.03, 0x9aa2a6, 0.4, 0.4);
+    }
+
+    function addGalon(parent, x, z, rotY) {
+        var g = groupAt(parent, x, 0, z, rotY || 0);
+        box(g, 0, 0.5, 0, 0.42, 1, 0.42, 0xeef0ee, 0.4);
+        cyl(g, 0, 1.33, 0, 0.19, 0.52, 0x5fb4f2, 0.08, 0, { opacity: 0.55, segments: 20 });
+        cyl(g, 0, 1.05, 0, 0.06, 0.1, 0x5fb4f2, 0.08, 0, { top: 0.17, opacity: 0.6 });
+    }
+
+    function addPingPong(parent, x, z) {
+        var g = groupAt(parent, x, 0, z);
+        box(g, 0, 0.74, 0, 2.74, 0.05, 1.52, 0x1f5f8b, 0.45);
+        box(g, 0, 0.768, 0, 2.7, 0.004, 0.03, 0xffffff, 0.5);
+        box(g, 0, 0.768, 0, 0.02, 0.004, 1.48, 0xffffff, 0.5);
+        box(g, 0, 0.85, 0, 0.02, 0.16, 1.62, 0xf4f4f0, 0.4, 0, { opacity: 0.75 });
+        [[-1.1, -0.6], [1.1, -0.6], [-1.1, 0.6], [1.1, 0.6]].forEach(function (p) {
+            cyl(g, p[0], 0.36, p[1], 0.035, 0.72, 0x2a2f33, 0.5);
+        });
+    }
+
+    function addArcade(parent, x, z, color) {
+        var g = groupAt(parent, x, 0, z);
+        box(g, 0, 0.85, 0, 0.72, 1.7, 0.62, color, 0.5);
+        box(g, 0, 0.95, 0.32, 0.66, 0.06, 0.22, 0x1c1f24, 0.4);
+        var screen = new THREE.Mesh(
+            new THREE.PlaneGeometry(0.56, 0.44),
+            mat(0x111827, 0.3, 0.1, { emissive: 0x22c55e, emissiveIntensity: 0.55 })
+        );
+        screen.position.set(0, 1.35, 0.315);
+        g.add(screen);
+        box(g, 0, 1.66, 0.3, 0.66, 0.14, 0.04, 0xf4d35e, 0.4, 0, { emissive: 0xf4d35e, emissiveIntensity: 0.5 });
+    }
+
+    function addBeanbag(parent, x, z, color) {
+        var g = groupAt(parent, x, 0, z);
+        var base = new THREE.Mesh(
+            new THREE.SphereGeometry(0.42, 16, 12),
+            mat(color, 0.95)
+        );
+        base.position.set(0, 0.24, 0);
+        base.scale.set(1, 0.62, 1);
+        g.add(base);
+        var back = new THREE.Mesh(
+            new THREE.SphereGeometry(0.36, 14, 10),
+            mat(color, 0.95)
+        );
+        back.position.set(0, 0.36, -0.18);
+        back.scale.set(1, 0.9, 0.55);
+        g.add(back);
+    }
+
+    function addAirConditioner(parent, x, y, z, rotY) {
+        var g = groupAt(parent, x, y, z, rotY || 0);
+        box(g, 0, 0, 0.13, 1.05, 0.32, 0.24, 0xf6f7f5, 0.35);
+        box(g, 0, -0.03, 0.255, 0.95, 0.02, 0.01, 0xdfe3e4, 0.4);
+    }
+
+    function addBookshelf(parent, x, z, rotY) {
+        var g = groupAt(parent, x, 0, z, rotY || 0);
+        box(g, 0, 1, 0, 1.4, 2, 0.4, 0x6b4a32, 0.7);
+        var colors = [0xb54b45, 0x2f6f8f, 0xe0a43a, 0x4f8a4a, 0x6a4d8d, 0xdcd6c8];
+        var shelf;
+        for (shelf = 0; shelf < 3; shelf += 1) {
+            var bi;
+            for (bi = 0; bi < 6; bi += 1) {
+                var bh = 0.26 + ((shelf * 6 + bi) % 5) * 0.03;
+                box(g, -0.5 + bi * 0.2, 0.35 + shelf * 0.6 + bh / 2, 0.08, 0.14, bh, 0.26, colors[bi % 6], 0.8);
+            }
+        }
+    }
+
+    function addFoodStall(parent, x, z) {
+        var g = groupAt(parent, x, 0, z, Math.PI / 2);
+        box(g, 0, 0.72, 0, 1.6, 0.8, 0.75, 0xf3efe4, 0.6);
+        box(g, 0, 0.34, 0, 1.65, 0.06, 0.8, 0xc62828, 0.5);
+        box(g, 0, 1.14, 0, 1.65, 0.05, 0.8, 0xc62828, 0.5);
+        [[-0.7, -0.35], [0.7, -0.35], [-0.7, 0.35], [0.7, 0.35]].forEach(function (p) {
+            cyl(g, p[0], 1.7, p[1], 0.025, 1.1, 0x6b4a32, 0.8);
+        });
+        box(g, 0, 2.28, 0, 1.9, 0.08, 1.0, 0xc62828, 0.5);
+        /* simple vendor */
+        box(g, -1.35, 0.98, 0, 0.42, 0.55, 0.28, 0xf1f1ec, 0.85);
+        box(g, -1.35, 1.48, 0, 0.36, 0.36, 0.34, 0xc98e5a, 0.7);
+        box(g, -1.35, 1.72, 0, 0.34, 0.12, 0.32, 0x1b1d20, 0.9);
+        /* bike hint */
+        var bike = groupAt(parent, x + 1.2, 0, z + 1.4);
+        var w1 = new THREE.Mesh(new THREE.TorusGeometry(0.28, 0.03, 8, 20), mat(0x1f2326, 0.8));
+        w1.position.set(-0.45, 0.3, 0);
+        w1.rotation.y = Math.PI / 2;
+        bike.add(w1);
+        var w2 = w1.clone();
+        w2.position.x = 0.45;
+        bike.add(w2);
+        box(bike, 0, 0.55, 0, 0.9, 0.04, 0.04, 0x3d7fd6, 0.4, 0.3);
+    }
+
+    function addOfficeLight(parent, x, y, z) {
+        var g = groupAt(parent, x, y, z);
+        box(g, 0, 0, 0, 1.4, 0.06, 0.16, 0xd9dde0, 0.35, 0.4);
+        var glow = new THREE.Mesh(
+            new THREE.PlaneGeometry(1.32, 0.11),
+            mat(0xffffff, 0.5, 0, { emissive: 0xf2f6ff, emissiveIntensity: 0.9, side: THREE.DoubleSide })
+        );
+        glow.position.y = -0.032;
+        glow.rotation.x = Math.PI / 2;
+        g.add(glow);
+    }
+
+    /* ---------- Scene ---------- */
+
+    function buildScene() {
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xb8d4e8);
+        scene.fog = new THREE.Fog(0xb8d4e8, 28, 55);
+
+        var ct = LAYOUT.cameraTarget;
+        camera = new THREE.PerspectiveCamera(40, 1, 0.4, 120);
+        orbit.target = new THREE.Vector3(ct[0], ct[1], ct[2]);
+        orbit.defaults.target = [ct[0], ct[1], ct[2]];
+        applyOrbitToCamera();
+
+        scene.add(new THREE.AmbientLight(0xffffff, 0.72));
+        var key = new THREE.DirectionalLight(0xfff5e8, 1.05);
+        key.position.set(8, 18, 10);
+        scene.add(key);
+        var fill = new THREE.DirectionalLight(0xa8c8e0, 0.4);
+        fill.position.set(-10, 8, -6);
+        scene.add(fill);
+        var hemi = new THREE.HemisphereLight(0xd8ecff, 0x8fbc8f, 0.35);
+        scene.add(hemi);
+
+        roomRoot = new THREE.Group();
+        scene.add(roomRoot);
+
+        var b = LAYOUT.building;
+        var shift = b.minX + 9.5;
+
+        /* Outdoors */
+        addFloorPlane(roomRoot, shift / 2, -0.02, 2, 52, 40, 0x6fa86a, 1);
+        addFloorPlane(roomRoot, shift / 2, -0.005, 7.1, 30, 5, 0x9aa0a6, 0.9);
+        addFloorPlane(roomRoot, shift / 2, -0.01, 12.1, 52, 5, 0x4a4e52, 0.95);
+        addFloorPlane(roomRoot, 5.8, 0, 4.7, 1.8, 1, 0x9aa0a6, 0.9);
+        addFloorPlane(roomRoot, b.minX - 2.2, -0.008, -0.4, 3.4, 10, 0x8e949a, 0.9);
+
+        addStreetLamp(roomRoot, -8 + shift * 0.3, 9.3);
+        addStreetLamp(roomRoot, 4, 9.3);
+        [
+            [b.minX - 3.2, -7.4, 1.25],
+            [13.5, -7.2, 1.15],
+            [b.minX - 4.8, 2.6, 1.05],
+            [18.2, 4.8, 1.25],
+            [b.minX - 1.5, 7.5, 1],
+            [12, 8, 1.1],
+            [-2, -8.5, 1.15],
+            [6, -8, 1.05]
+        ].forEach(function (t) { addTree(roomRoot, t[0], t[1], t[2]); });
+
+        addFoodStall(roomRoot, b.minX - 2.6, -2.0);
+
+        /* Building wood floor */
+        addFloorPlane(roomRoot, (b.minX + b.maxX) / 2, 0.005, (b.minZ + b.maxZ) / 2,
+            b.maxX - b.minX, b.maxZ - b.minZ, 0xc4a882, 0.55);
+
+        /* Lounge blue rug + meeting red round rug + pantry tiles + game carpet */
+        addFloorPlane(roomRoot, 4.6, 0.012, -2.9, 4.4, 2.8, 0x5b7c8c, 0.9);
+        addFloorPlane(roomRoot, LAYOUT.meetingTable.x, 0.014, LAYOUT.meetingTable.z,
+            3.2, 2.8, 0x8a4b3c, 0.9);
+        addFloorPlane(roomRoot, 8.35, 0.01, 1.4, 2.3, 5.4, 0xd8dde2, 0.35);
+        addFloorPlane(roomRoot,
+            (GAME_ROOM.minX + GAME_ROOM.maxX) / 2, 0.006,
+            (GAME_ROOM.minZ + GAME_ROOM.maxZ) / 2,
+            GAME_ROOM.maxX - GAME_ROOM.minX, GAME_ROOM.maxZ - GAME_ROOM.minZ,
+            0x3b4170, 0.9);
+
+        /* Walls — cut-away dollhouse */
+        addWall(roomRoot, b.minX, b.minZ, b.maxX, b.minZ);
+        addWall(roomRoot, b.minX, b.minZ, b.minX, b.maxZ);
+        addWall(roomRoot, b.minX, b.maxZ, 4.9, b.maxZ, 0.55);
+        addWall(roomRoot, 6.7, b.maxZ, b.maxX, b.maxZ, 0.55);
+        addWall(roomRoot, PARTITION_X, b.minZ, PARTITION_X, LOUNGE_PARTITION_END_Z, 0.9);
+        addGlassX(roomRoot, PARTITION_X, b.minZ, LOUNGE_PARTITION_END_Z, 0.9);
+
+        /* Game room walls */
+        addWall(roomRoot, GAME_ROOM.minX, GAME_ROOM.minZ, GAME_ROOM.maxX, GAME_ROOM.minZ);
+        addWall(roomRoot, GAME_ROOM.maxX, GAME_ROOM.minZ, GAME_ROOM.maxX, GAME_ROOM.maxZ);
+        addWall(roomRoot, GAME_ROOM.minX, GAME_ROOM.maxZ, GAME_ROOM.maxX, GAME_ROOM.maxZ, 0.55);
+        addWall(roomRoot, b.maxX, b.minZ, b.maxX, -4.4, 1.1);
+        addWall(roomRoot, b.maxX, -3.0, b.maxX, b.maxZ, 1.1);
+        addGlassX(roomRoot, b.maxX, b.minZ, -4.4, 1.1);
+        addGlassX(roomRoot, b.maxX, -3.0, GAME_ROOM.maxZ, 1.1);
+
+        /* Windows */
+        [-7, -3.6, 1.4, 6.6].forEach(function (wx) {
+            if (wx > b.minX + 1) addWindow(roomRoot, wx, 1.55, b.minZ + 0.14, 1.8, 0);
+        });
+        addWindow(roomRoot, b.minX + 0.14, 1.55, -3, 1.6, Math.PI / 2);
+        addWindow(roomRoot, GAME_ROOM.maxX - 0.14, 1.55, -2.2, 1.6, -Math.PI / 2);
+
+        /* Desks */
+        LAYOUT.desks.forEach(function (d) {
+            addWorkDesk(roomRoot, d[0], d[1], true);
         });
 
-        const body = new THREE.Group();
+        /* Meeting: round table on red carpet (screenshot cue) */
+        addRoundMeetingTable(roomRoot, LAYOUT.meetingTable.x, LAYOUT.meetingTable.z, LAYOUT.meetingTable.radius);
+
+        /* Lounge */
+        addSofa(roomRoot, SOFA[0], SOFA[2], Math.PI);
+        addArmchair(roomRoot, 2.1, -2.9, Math.PI / 2, 0xd9784a);
+        addArmchair(roomRoot, 7.1, -2.9, -Math.PI / 2, 0x3d7fd6);
+        addCoffeeTable(roomRoot, COFFEE_TABLE[0], COFFEE_TABLE[2]);
+        box(roomRoot, TV[0], 0.3, TV[2], 1.8, 0.6, 0.45, 0x6b4a32, 0.7);
+        addTelevision(roomRoot, TV[0], 1.35, b.minZ + 0.17);
+
+        /* Pantry */
+        addGalon(roomRoot, b.maxX - 0.45, -0.4, -Math.PI / 2);
+        addFridge(roomRoot, b.maxX - 0.5, 0.6, -Math.PI / 2);
+        addPantryCounter(roomRoot, b.maxX - 0.45, 2.6, -Math.PI / 2);
+
+        /* Game room */
+        addPingPong(roomRoot, PING_PONG[0], PING_PONG[2]);
+        addArcade(roomRoot, ARCADES[0][0], ARCADES[0][2], 0xc62828);
+        addArcade(roomRoot, ARCADES[1][0], ARCADES[1][2], 0x1d4ed8);
+        addBeanbag(roomRoot, BEANBAGS[0][0], BEANBAGS[0][2], 0xe76f51);
+        addBeanbag(roomRoot, BEANBAGS[1][0], BEANBAGS[1][2], 0x2a9d8f);
+        box(roomRoot, 14.2, 0.25, -4.85, 1.8, 0.5, 0.4, 0x1f2328, 0.5);
+        addTelevision(roomRoot, 14.2, 1.35, -5.03);
+
+        /* Accents */
+        addBookshelf(roomRoot, b.minX + 0.35, -0.9, Math.PI / 2);
+        addPlant(roomRoot, b.minX + 0.5, -4.6, 1);
+        addPlant(roomRoot, -0.4, -4.7, 0.9);
+        addPlant(roomRoot, 2.1, -4.6, 1);
+        addPlant(roomRoot, 0.9, 1.3, 0.8);
+        addPlant(roomRoot, 0.9, 2.3, 0.8);
+        addPlant(roomRoot, 0.9, 3.3, 0.8);
+        addPlant(roomRoot, GAME_ROOM.maxX - 0.5, GAME_ROOM.maxZ - 0.5, 0.9);
+        addAirConditioner(roomRoot, -5.3, 2.3, b.minZ + 0.125, 0);
+        addAirConditioner(roomRoot, TV[0], 2.3, b.minZ + 0.125, 0);
+
+        LAYOUT.desks.forEach(function (d) {
+            addOfficeLight(roomRoot, d[0], 2.4, d[1] + 0.2);
+        });
+        addOfficeLight(roomRoot, LAYOUT.meetingTable.x, 2.4, LAYOUT.meetingTable.z);
+        addOfficeLight(roomRoot, COFFEE_TABLE[0], 2.4, COFFEE_TABLE[2] + 0.4);
+        addOfficeLight(roomRoot, 8.2, 2.4, 1.2);
+        addOfficeLight(roomRoot, PING_PONG[0], 2.4, PING_PONG[2]);
+
+        /* Brand plaque */
+        box(roomRoot, 2.2, 2.35, b.minZ + 0.14, 2.6, 0.32, 0.04, 0x0f766e, 0.55);
+    }
+
+    /* ---------- Characters ---------- */
+
+    function createLimb(matBody, w, h, d) {
+        var geo = new THREE.BoxGeometry(w, h, d);
+        geo.translate(0, -h / 2, 0);
+        return new THREE.Mesh(geo, matBody);
+    }
+
+    function createHumanoid(colorHex, look) {
+        var root = new THREE.Group();
+        var bodyMat = mat(colorHex, 0.55, 0.08);
+        var darkMat = mat(look && look.pants ? look.pants : 0x1e293b, 0.7, 0.05);
+        var skinMat = mat(look && look.skin ? look.skin : 0xd4a574, 0.65, 0.02);
+        var hairMat = mat(look && look.hair ? look.hair : 0x1d293c, 0.9, 0.02);
+
+        var body = new THREE.Group();
         body.name = 'body';
         root.add(body);
 
-        const torsoGeo = THREE.CapsuleGeometry
-            ? new THREE.CapsuleGeometry(0.24, 0.42, 4, 8)
-            : new THREE.CylinderGeometry(0.24, 0.24, 0.72, 10);
-        const torso = new THREE.Mesh(torsoGeo, bodyMat);
-        torso.position.y = 1.05;
+        var torso = new THREE.Mesh(
+            THREE.CapsuleGeometry ? new THREE.CapsuleGeometry(0.22, 0.38, 4, 8) : new THREE.CylinderGeometry(0.22, 0.22, 0.68, 10),
+            bodyMat
+        );
+        torso.position.y = 1.0;
         body.add(torso);
 
-        const head = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.36, 0.34), skinMat);
-        head.position.y = 1.52;
+        var head = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.34, 0.32), skinMat);
+        head.position.y = 1.46;
         body.add(head);
 
-        const hair = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.12, 0.36), hairMat);
-        hair.position.y = 1.72;
+        var hair = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.12, 0.34), hairMat);
+        hair.position.y = 1.66;
         body.add(hair);
 
-        const leftArm = createLimb(bodyMat, 0.11, 0.48, 0.12);
-        leftArm.position.set(-0.3, 1.22, 0);
+        var leftArm = createLimb(bodyMat, 0.1, 0.46, 0.11);
+        leftArm.position.set(-0.28, 1.18, 0);
         leftArm.name = 'leftArm';
         body.add(leftArm);
 
-        const rightArm = createLimb(bodyMat, 0.11, 0.48, 0.12);
-        rightArm.position.set(0.3, 1.22, 0);
+        var rightArm = createLimb(bodyMat, 0.1, 0.46, 0.11);
+        rightArm.position.set(0.28, 1.18, 0);
         rightArm.name = 'rightArm';
         body.add(rightArm);
 
-        const leftLeg = createLimb(darkMat, 0.13, 0.55, 0.15);
-        leftLeg.position.set(-0.11, 0.72, 0);
+        var leftLeg = createLimb(darkMat, 0.12, 0.52, 0.14);
+        leftLeg.position.set(-0.1, 0.68, 0);
         leftLeg.name = 'leftLeg';
         body.add(leftLeg);
 
-        const rightLeg = createLimb(darkMat, 0.13, 0.55, 0.15);
-        rightLeg.position.set(0.11, 0.72, 0);
+        var rightLeg = createLimb(darkMat, 0.12, 0.52, 0.14);
+        rightLeg.position.set(0.1, 0.68, 0);
         rightLeg.name = 'rightLeg';
         body.add(rightLeg);
 
-        const aura = new THREE.Mesh(
-            new THREE.RingGeometry(0.4, 0.52, 24),
+        var aura = new THREE.Mesh(
+            new THREE.RingGeometry(0.38, 0.5, 24),
             new THREE.MeshBasicMaterial({
                 color: STATUS_AURA.idle,
                 transparent: true,
-                opacity: 0.55,
+                opacity: 0.5,
                 side: THREE.DoubleSide,
                 depthWrite: false
             })
@@ -329,17 +873,19 @@
             placementKey: '',
             placement: null,
             bodyMat: bodyMat,
-            skinMat: skinMat,
-            parts: { leftArm: leftArm, rightArm: rightArm, leftLeg: leftLeg, rightLeg: rightLeg, aura: aura, torso: torso, head: head, body: body }
+            parts: {
+                leftArm: leftArm, rightArm: rightArm, leftLeg: leftLeg, rightLeg: rightLeg,
+                aura: aura, torso: torso, head: head, body: body
+            }
         };
-
         return root;
     }
 
     function hashName(name) {
-        let hash = 2166136261;
-        const s = String(name || '');
-        for (let i = 0; i < s.length; i += 1) {
+        var hash = 2166136261;
+        var s = String(name || '');
+        var i;
+        for (i = 0; i < s.length; i += 1) {
             hash ^= s.charCodeAt(i);
             hash = Math.imul(hash, 16777619);
         }
@@ -347,10 +893,10 @@
     }
 
     function agentLook(id, avatarColor) {
-        const HAIR = ['#1d293c', '#b54b45', '#6a4d8d', '#3b2a20', '#c9a24a', '#2f4f3a'];
-        const SKIN = ['#e9b57d', '#c98e5a', '#f1c9a0', '#a8714a', '#dca06e'];
-        const PANTS = ['#36475d', '#374052', '#344349', '#4a3b2f'];
-        const hash = hashName(id);
+        var HAIR = [0x1d293c, 0xb54b45, 0x6a4d8d, 0x3b2a20, 0xc9a24a, 0x2f4f3a];
+        var SKIN = [0xe9b57d, 0xc98e5a, 0xf1c9a0, 0xa8714a, 0xdca06e];
+        var PANTS = [0x36475d, 0x374052, 0x344349, 0x4a3b2f];
+        var hash = hashName(id);
         return {
             hair: HAIR[hash % HAIR.length],
             skin: SKIN[(hash >>> 4) % SKIN.length],
@@ -360,26 +906,25 @@
     }
 
     function syncCharacter(ch, emp) {
-        const ud = ch.userData;
+        var ud = ch.userData;
         ud.roleId = emp.id;
         ud.status = emp.status || 'idle';
-        const color = emp.avatarColor || '#0d9488';
-        ud.bodyMat.color.set(color);
-        const auraColor = STATUS_AURA[ud.status] || STATUS_AURA.idle;
+        ud.bodyMat.color.set(emp.avatarColor || '#0d9488');
+        var auraColor = STATUS_AURA[ud.status] || STATUS_AURA.idle;
         ud.parts.aura.material.color.setHex(auraColor);
         ud.parts.aura.material.opacity = ud.status === 'idle' ? 0.35 : 0.7;
     }
 
     function setDestination(ch, placement) {
-        const ud = ch.userData;
-        const key = [placement.x, placement.z, placement.activity, placement.pose].join('|');
+        var ud = ch.userData;
+        var key = [placement.x, placement.z, placement.activity, placement.pose].join('|');
         if (ud.placementKey === key) {
             ud.placement = placement;
             return;
         }
-        const fromX = ch.position.x;
-        const fromZ = ch.position.z;
-        const dist = Math.hypot(placement.x - fromX, placement.z - fromZ);
+        var fromX = ch.position.x;
+        var fromZ = ch.position.z;
+        var dist = Math.hypot(placement.x - fromX, placement.z - fromZ);
         ud.placementKey = key;
         ud.placement = placement;
         ud.targetFacing = placement.facing || 0;
@@ -392,21 +937,25 @@
         ud.path = aislePath(fromX, fromZ, placement.x, placement.z);
     }
 
+    function roleBadge(emp) {
+        /* Black role chip mirrors Ruang (role id / short slug). */
+        return String(emp.id || emp.name || 'agent').slice(0, 16);
+    }
+
     function rebuildLabels(employees) {
         if (!labelsRoot) return;
         labelsRoot.innerHTML = '';
         employees.forEach(function (emp) {
-            const el = document.createElement('button');
+            var el = document.createElement('button');
             el.type = 'button';
             el.className = 'office-3d-label';
             el.dataset.roleId = emp.id;
             el.innerHTML =
-                '<span class="office-3d-speech hidden" aria-hidden="true"></span>' +
-                '<span class="office-3d-label-row">' +
-                '<span class="office-3d-label-name">' + escapeHtml(emp.name || emp.id) + '</span>' +
-                '<span class="office-3d-label-status" data-status="' + escapeHtml(emp.status || 'idle') + '">' +
-                escapeHtml(STATUS_LABEL[emp.status] || emp.status || 'Siaga') +
-                '</span></span>';
+                '<span class="office-3d-action hidden" aria-hidden="true"></span>' +
+                '<span class="office-3d-status-pill" data-status="' + escapeHtml(emp.status || 'idle') + '">' +
+                escapeHtml(STATUS_LABEL[emp.status] || emp.status || 'Idle') +
+                '</span>' +
+                '<span class="office-3d-role-badge">' + escapeHtml(roleBadge(emp)) + '</span>';
             el.addEventListener('click', function (e) {
                 e.stopPropagation();
                 if (typeof onSelect === 'function') onSelect(emp.id);
@@ -417,53 +966,76 @@
 
     function updateLabelPositions() {
         if (!labelsRoot || !camera || !renderer) return;
-        const rect = renderer.domElement.getBoundingClientRect();
-        const labels = labelsRoot.querySelectorAll('.office-3d-label');
+        var rect = renderer.domElement.getBoundingClientRect();
+        var labels = labelsRoot.querySelectorAll('.office-3d-label');
         characters.forEach(function (ch, i) {
-            const el = labels[i];
+            var el = labels[i];
             if (!el) return;
-            const pos = ch.position.clone();
+            var pos = ch.position.clone();
             pos.y = 2.05;
             pos.project(camera);
-            const x = (pos.x * 0.5 + 0.5) * rect.width;
-            const y = (-pos.y * 0.5 + 0.5) * rect.height;
-            const visible = pos.z < 1;
+            var x = (pos.x * 0.5 + 0.5) * rect.width;
+            var y = (-pos.y * 0.5 + 0.5) * rect.height;
+            var visible = pos.z < 1;
             el.style.display = visible ? 'flex' : 'none';
             el.style.transform = 'translate(-50%, -100%) translate(' + x + 'px, ' + y + 'px)';
 
-            const st = ch.userData.status || 'idle';
-            const statusEl = el.querySelector('.office-3d-label-status');
-            if (statusEl && statusEl.dataset.status !== st) {
-                statusEl.dataset.status = st;
-                statusEl.textContent = STATUS_LABEL[st] || st;
+            var st = ch.userData.status || 'idle';
+            var pill = el.querySelector('.office-3d-status-pill');
+            if (pill && pill.dataset.status !== st) {
+                pill.dataset.status = st;
+                pill.textContent = STATUS_LABEL[st] || st;
             }
 
-            const placement = ch.userData.placement;
-            const speechEl = el.querySelector('.office-3d-speech');
-            if (speechEl) {
-                const text = placement && placement.speech ? placement.speech : '';
+            var placement = ch.userData.placement;
+            var actionEl = el.querySelector('.office-3d-action');
+            if (actionEl) {
+                var text = placement && placement.speech ? placement.speech : '';
                 if (text) {
-                    speechEl.textContent = text;
-                    speechEl.classList.remove('hidden');
-                    speechEl.classList.toggle('is-idle', st === 'idle');
+                    actionEl.textContent = text;
+                    actionEl.classList.remove('hidden');
+                    actionEl.classList.toggle('is-idle', st === 'idle');
                 } else {
-                    speechEl.textContent = '';
-                    speechEl.classList.add('hidden');
+                    actionEl.textContent = '';
+                    actionEl.classList.add('hidden');
                 }
             }
         });
     }
 
+    function updateHud() {
+        if (!hudRoot && container) {
+            hudRoot = container.querySelector('#office-3d-hud') || container.querySelector('.office-3d-hud');
+        }
+        if (!hudRoot) return;
+        var list = employeesCache;
+        var total = list.length;
+        var active = list.filter(function (e) {
+            var s = e.status || 'idle';
+            return s === 'working' || s === 'needs_info' || s === 'awaiting_approval';
+        }).length;
+        var running = list.filter(function (e) { return e.status === 'working'; }).length;
+        var open = list.filter(function (e) {
+            return e.status === 'needs_info' || e.status === 'awaiting_approval';
+        }).length;
+        var crewEl = hudRoot.querySelector('[data-hud="crew"]');
+        var tasksEl = hudRoot.querySelector('[data-hud="tasks"]');
+        if (crewEl) crewEl.textContent = active + '/' + total;
+        if (tasksEl) {
+            tasksEl.textContent = running + ' running · ' + open + ' open';
+        }
+    }
+
     function applyPose(ch, t, walking) {
-        const ud = ch.userData;
-        const parts = ud.parts;
-        const placement = ud.placement || {};
-        const pose = placement.pose || 'stand';
-        const activity = placement.activity || 'idle';
-        const seated = !!placement.seated && !walking;
+        var ud = ch.userData;
+        var parts = ud.parts;
+        var placement = ud.placement || {};
+        var pose = placement.pose || 'stand';
+        var activity = placement.activity || 'idle';
+        var seated = !!placement.seated && !walking;
 
         if (walking) {
-            const swing = Math.sin(t * 10 + ud.phase) * 0.55;
+            var swing = Math.sin(t * 10 + ud.phase) * 0.55;
             parts.leftLeg.rotation.x = swing;
             parts.rightLeg.rotation.x = -swing;
             parts.leftArm.rotation.x = -swing * 0.85;
@@ -514,7 +1086,7 @@
             return;
         }
 
-        if (activity === 'chat') {
+        if (activity === 'chat' || activity === 'game' || activity === 'arcade') {
             parts.leftLeg.rotation.x = seated ? -Math.PI / 2.2 : 0;
             parts.rightLeg.rotation.x = seated ? -Math.PI / 2.2 : 0;
             parts.leftArm.rotation.x = -0.45 + Math.sin(t * 3.2) * 0.28;
@@ -524,8 +1096,7 @@
             return;
         }
 
-        // idle / lounge / break / walk stand or sit
-        const breathe = Math.sin(t * 2 + ud.phase) * 0.015;
+        var breathe = Math.sin(t * 2 + ud.phase) * 0.015;
         parts.leftLeg.rotation.x = seated ? -Math.PI / 2.2 : 0;
         parts.rightLeg.rotation.x = seated ? -Math.PI / 2.2 : 0;
         parts.leftArm.rotation.x = Math.sin(t * 1.4 + ud.phase) * 0.08;
@@ -536,23 +1107,23 @@
     }
 
     function animateCharacter(ch, t, dt) {
-        const ud = ch.userData;
-        let walking = false;
+        var ud = ch.userData;
+        var walking = false;
 
         if (ud.path && ud.path.length) {
-            const next = ud.path[0];
-            const dx = next.x - ch.position.x;
-            const dz = next.z - ch.position.z;
-            const dist = Math.hypot(dx, dz);
+            var next = ud.path[0];
+            var dx = next.x - ch.position.x;
+            var dz = next.z - ch.position.z;
+            var dist = Math.hypot(dx, dz);
             if (dist < 0.05) {
                 ud.path.shift();
             } else {
                 walking = true;
-                const step = Math.min(dist, dt * WALK_SPEED);
+                var step = Math.min(dist, dt * WALK_SPEED);
                 ch.position.x += (dx / dist) * step;
                 ch.position.z += (dz / dist) * step;
-                const heading = Math.atan2(dx, dz);
-                let dy = heading - ch.rotation.y;
+                var heading = Math.atan2(dx, dz);
+                var dy = heading - ch.rotation.y;
                 while (dy > Math.PI) dy -= Math.PI * 2;
                 while (dy < -Math.PI) dy += Math.PI * 2;
                 ch.rotation.y += dy * 0.22;
@@ -560,30 +1131,30 @@
         }
 
         if (!walking) {
-            let dy = (ud.targetFacing || 0) - ch.rotation.y;
-            while (dy > Math.PI) dy -= Math.PI * 2;
-            while (dy < -Math.PI) dy += Math.PI * 2;
-            ch.rotation.y += dy * 0.12;
+            var dy2 = (ud.targetFacing || 0) - ch.rotation.y;
+            while (dy2 > Math.PI) dy2 -= Math.PI * 2;
+            while (dy2 < -Math.PI) dy2 += Math.PI * 2;
+            ch.rotation.y += dy2 * 0.12;
         }
 
         applyPose(ch, t, walking);
-        const auraPulse = ud.status === 'working' ? 1 + Math.sin(t * 4) * 0.08 : 1;
+        var auraPulse = ud.status === 'working' ? 1 + Math.sin(t * 4) * 0.08 : 1;
         ud.parts.aura.scale.setScalar(auraPulse);
     }
 
     function emitActivityIfChanged() {
         if (typeof onActivity !== 'function') return;
-        const rows = characters.map(function (ch) {
-            const p = ch.userData.placement || {};
+        var rows = characters.map(function (ch) {
+            var p = ch.userData.placement || {};
             return {
                 roleId: ch.userData.roleId,
                 status: ch.userData.status,
                 activity: p.activity || 'idle',
                 speech: p.speech || '',
-                label: p.label || STATUS_LABEL[ch.userData.status] || 'Siaga'
+                label: p.label || STATUS_LABEL[ch.userData.status] || 'Idle'
             };
         });
-        const digest = rows.map(function (r) {
+        var digest = rows.map(function (r) {
             return r.roleId + ':' + r.status + ':' + r.activity + ':' + r.speech;
         }).join('|');
         if (digest === lastActivityDigest) return;
@@ -592,34 +1163,35 @@
     }
 
     function recomputePlacements() {
-        const list = employeesCache;
-        const now = Date.now();
-        const idleSeats = [];
+        var list = employeesCache;
+        var now = Date.now();
+        var idleSeats = [];
         list.forEach(function (emp, i) {
             if ((emp.status || 'idle') === 'idle') idleSeats.push(i);
         });
-        const plan = idlePlan(idleSeats, now);
-        let meetingIndex = 0;
+        var plan = idlePlan(idleSeats, now);
+        var meetingIndex = 0;
         list.forEach(function (emp, i) {
-            const ch = characters[i];
+            var ch = characters[i];
             if (!ch) return;
-            const idle = (emp.status || 'idle') === 'idle' ? plan.get(i) : null;
-            const meetIdx = (emp.status === 'awaiting_approval') ? meetingIndex++ : 0;
-            const placement = placementFor(emp, i, idle, meetIdx);
+            var idle = (emp.status || 'idle') === 'idle' ? plan.get(i) : null;
+            var meetIdx = (emp.status === 'awaiting_approval') ? meetingIndex++ : 0;
+            var placement = placementFor(emp, i, idle, meetIdx);
             setDestination(ch, placement);
         });
         emitActivityIfChanged();
+        updateHud();
     }
 
     function layoutCharacters(employees) {
         employeesCache = employees.slice();
         employees.forEach(function (emp, i) {
-            let ch = characters[i];
+            var ch = characters[i];
             if (!ch) {
-                const look = agentLook(emp.id, emp.avatarColor);
+                var look = agentLook(emp.id, emp.avatarColor);
                 ch = createHumanoid(emp.avatarColor || look.shirt, look);
-                const desk = LAYOUT.desks[i % LAYOUT.desks.length];
-                ch.position.set(desk[0], 0, desk[1] - 0.55);
+                var desk = LAYOUT.desks[i % LAYOUT.desks.length];
+                ch.position.set(desk[0], 0, desk[1] - 0.78);
                 scene.add(ch);
                 characters.push(ch);
             }
@@ -628,9 +1200,9 @@
         });
 
         while (characters.length > employees.length) {
-            const ch = characters.pop();
-            scene.remove(ch);
-            disposeObject(ch);
+            var ch2 = characters.pop();
+            scene.remove(ch2);
+            disposeObject(ch2);
         }
 
         rebuildLabels(employees);
@@ -647,93 +1219,127 @@
         });
     }
 
-    function addBox(x, y, z, w, h, d, color, roughness) {
-        const mesh = new THREE.Mesh(
-            new THREE.BoxGeometry(w, h, d),
-            new THREE.MeshStandardMaterial({
-                color: color,
-                roughness: roughness == null ? 0.85 : roughness,
-                metalness: 0.04
-            })
+    /* ---------- Orbit ---------- */
+
+    function applyOrbitToCamera() {
+        if (!camera || !orbit.target) return;
+        var s = orbit.spherical;
+        var sinPhi = Math.sin(s.phi);
+        camera.position.set(
+            orbit.target.x + s.radius * sinPhi * Math.sin(s.theta),
+            orbit.target.y + s.radius * Math.cos(s.phi),
+            orbit.target.z + s.radius * sinPhi * Math.cos(s.theta)
         );
-        mesh.position.set(x, y, z);
-        scene.add(mesh);
-        roomProps.push(mesh);
-        return mesh;
+        camera.lookAt(orbit.target);
     }
 
-    function buildScene() {
-        scene = new THREE.Scene();
-        scene.background = new THREE.Color(0xe8eef5);
-        scene.fog = new THREE.Fog(0xe8eef5, 16, 32);
-
-        camera = new THREE.PerspectiveCamera(40, 1, 0.1, 50);
-        camera.position.set(-1.2, 7.2, 10.5);
-
-        scene.add(new THREE.AmbientLight(0xffffff, 0.7));
-        const key = new THREE.DirectionalLight(0xfff5e8, 0.95);
-        key.position.set(5, 10, 6);
-        scene.add(key);
-        const fill = new THREE.DirectionalLight(0xb8d4d0, 0.35);
-        fill.position.set(-6, 4, -3);
-        scene.add(fill);
-
-        // Floor zones
-        addBox(0, -0.02, -0.4, 12.5, 0.04, 7.2, 0xdce3ec, 0.95);
-        // Workspace rug
-        addBox(-1.5, 0.01, -1.65, 7.2, 0.02, 3.2, 0xc5d0dc, 1);
-        // Lounge rug
-        addBox(4.4, 0.01, 1.9, 3.4, 0.02, 2.2, 0xd4c4b0, 1);
-        // Aisle strip
-        addBox(0, 0.015, LAYOUT.aisleZ, 11.5, 0.01, 0.55, 0xb8c4d0, 1);
-
-        // Back wall + partition hint
-        addBox(0, 1.4, -3.55, 12.2, 2.8, 0.12, 0xe2e8f0, 1);
-        addBox(2.5, 1.1, -0.2, 0.08, 2.2, 3.6, 0xcbd5e1, 0.6);
-
-        // Desks + chairs markers
-        LAYOUT.desks.forEach(function (d) {
-            addBox(d[0], 0.42, d[1], 1.15, 0.08, 0.62, 0xa8b4c4, 0.75);
-            addBox(d[0], 0.22, d[1] + 0.28, 0.08, 0.4, 0.08, 0x64748b, 0.8);
-            addBox(d[0], 0.22, d[1] - 0.28, 0.08, 0.4, 0.08, 0x64748b, 0.8);
-            addBox(d[0], 0.28, d[1] - 0.85, 0.42, 0.08, 0.42, 0x94a3b8, 0.85);
-        });
-
-        // Meeting table
-        addBox(4.0, 0.4, -0.4, 2.2, 0.08, 1.4, 0x9aa8b8, 0.7);
-        // Lounge sofa
-        addBox(4.1, 0.28, 2.2, 2.4, 0.35, 0.7, 0x7c8fa6, 0.9);
-        addBox(4.1, 0.55, 2.45, 2.4, 0.35, 0.18, 0x647890, 0.9);
-        // Break counter / galon stand
-        addBox(-5.15, 0.45, 1.9, 0.7, 0.9, 0.7, 0xb0bec9, 0.8);
-        addBox(-5.15, 1.05, 1.9, 0.35, 0.35, 0.35, 0x90caf9, 0.4);
-
-        // Brand plaque on back wall
-        addBox(0, 2.35, -3.46, 2.8, 0.35, 0.04, 0x0f766e, 0.55);
+    function clampPan() {
+        var p = LAYOUT.pan;
+        orbit.target.x = Math.min(p.maxX, Math.max(p.minX, orbit.target.x));
+        orbit.target.z = Math.min(p.maxZ, Math.max(p.minZ, orbit.target.z));
     }
+
+    function resetView() {
+        var d = orbit.defaults;
+        orbit.spherical.radius = d.radius;
+        orbit.spherical.phi = d.phi;
+        orbit.spherical.theta = d.theta;
+        if (orbit.target) {
+            orbit.target.set(d.target[0], d.target[1], d.target[2]);
+        }
+        applyOrbitToCamera();
+    }
+
+    function bindOrbit(el) {
+        unbindOrbit();
+        function onDown(e) {
+            if (e.button === 2 || e.button === 1 || (e.button === 0 && e.shiftKey)) {
+                orbit.panning = true;
+            } else if (e.button === 0) {
+                orbit.dragging = true;
+            } else {
+                return;
+            }
+            orbit.moved = false;
+            orbit.lastX = e.clientX;
+            orbit.lastY = e.clientY;
+            el.setPointerCapture(e.pointerId);
+            e.preventDefault();
+        }
+        function onMove(e) {
+            if (!orbit.dragging && !orbit.panning) return;
+            var dx = e.clientX - orbit.lastX;
+            var dy = e.clientY - orbit.lastY;
+            if (Math.abs(dx) + Math.abs(dy) > 3) orbit.moved = true;
+            orbit.lastX = e.clientX;
+            orbit.lastY = e.clientY;
+            if (orbit.panning) {
+                var panScale = orbit.spherical.radius * 0.0018;
+                var right = new THREE.Vector3();
+                var forward = new THREE.Vector3();
+                camera.getWorldDirection(forward);
+                forward.y = 0;
+                forward.normalize();
+                right.crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
+                orbit.target.addScaledVector(right, -dx * panScale);
+                orbit.target.addScaledVector(forward, dy * panScale);
+                clampPan();
+            } else {
+                orbit.spherical.theta -= dx * 0.005;
+                orbit.spherical.phi = Math.min(1.32, Math.max(0.25, orbit.spherical.phi + dy * 0.004));
+            }
+            applyOrbitToCamera();
+        }
+        function onUp(e) {
+            orbit.dragging = false;
+            orbit.panning = false;
+            try { el.releasePointerCapture(e.pointerId); } catch (_) { /* ignore */ }
+        }
+        function onWheel(e) {
+            e.preventDefault();
+            var factor = e.deltaY > 0 ? 1.08 : 0.92;
+            orbit.spherical.radius = Math.min(48, Math.max(8, orbit.spherical.radius * factor));
+            applyOrbitToCamera();
+        }
+        function onContext(e) { e.preventDefault(); }
+
+        el.addEventListener('pointerdown', onDown);
+        el.addEventListener('pointermove', onMove);
+        el.addEventListener('pointerup', onUp);
+        el.addEventListener('pointercancel', onUp);
+        el.addEventListener('wheel', onWheel, { passive: false });
+        el.addEventListener('contextmenu', onContext);
+        orbit.listeners = { el: el, onDown: onDown, onMove: onMove, onUp: onUp, onWheel: onWheel, onContext: onContext };
+    }
+
+    function unbindOrbit() {
+        var L = orbit.listeners;
+        if (!L) return;
+        L.el.removeEventListener('pointerdown', L.onDown);
+        L.el.removeEventListener('pointermove', L.onMove);
+        L.el.removeEventListener('pointerup', L.onUp);
+        L.el.removeEventListener('pointercancel', L.onUp);
+        L.el.removeEventListener('wheel', L.onWheel);
+        L.el.removeEventListener('contextmenu', L.onContext);
+        orbit.listeners = null;
+        orbit.dragging = false;
+        orbit.panning = false;
+    }
+
+    /* ---------- Loop / lifecycle ---------- */
 
     function tick() {
         rafId = 0;
         if (!renderer || !scene || !camera || paused || !enabled) return;
 
-        const dt = Math.min(clock.getDelta(), 0.05);
-        const t = clock.elapsedTime;
+        var dt = Math.min(clock.getDelta(), 0.05);
+        var t = clock.elapsedTime;
 
-        // Re-run idle wander when the decorative stop clock advances
-        const idleStep = Math.floor(Date.now() / IDLE_STOP_MS);
+        var idleStep = Math.floor(Date.now() / IDLE_STOP_MS);
         if (idleStep !== lastIdleStep) {
             lastIdleStep = idleStep;
             recomputePlacements();
         }
-
-        if (!reduced) {
-            orbitAngle += dt * 0.045;
-        }
-        const radius = 11.2;
-        camera.position.x = Math.sin(orbitAngle) * radius * 0.38 - 0.4;
-        camera.position.z = Math.cos(orbitAngle) * radius * 0.72 + 4.2;
-        camera.position.y = 6.8;
-        camera.lookAt(0.4, 0.9, -0.2);
 
         characters.forEach(function (ch) { animateCharacter(ch, t, dt); });
         updateLabelPositions();
@@ -757,9 +1363,9 @@
 
     function handleResize() {
         if (!container || !renderer || !camera) return;
-        const w = container.clientWidth || 1;
-        const h = container.clientHeight || 1;
-        const dpr = reduced ? 1 : Math.min(window.devicePixelRatio || 1, 1.5);
+        var w = container.clientWidth || 1;
+        var h = container.clientHeight || 1;
+        var dpr = reduced ? 1 : Math.min(window.devicePixelRatio || 1, 1.75);
         renderer.setPixelRatio(dpr);
         renderer.setSize(w, h, false);
         camera.aspect = w / h;
@@ -768,13 +1374,13 @@
 
     function pick(clientX, clientY) {
         if (!renderer || !camera || !characters.length) return null;
-        const rect = renderer.domElement.getBoundingClientRect();
+        var rect = renderer.domElement.getBoundingClientRect();
         pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
         pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
         raycaster.setFromCamera(pointer, camera);
-        const hits = raycaster.intersectObjects(characters, true);
+        var hits = raycaster.intersectObjects(characters, true);
         if (!hits.length) return null;
-        let obj = hits[0].object;
+        var obj = hits[0].object;
         while (obj && !obj.userData.roleId) obj = obj.parent;
         return obj && obj.userData.roleId ? obj.userData.roleId : null;
     }
@@ -793,6 +1399,7 @@
         container = el;
         canvas = options.canvas || el.querySelector('canvas');
         labelsRoot = options.labelsRoot || el.querySelector('.office-3d-labels');
+        hudRoot = el.querySelector('#office-3d-hud') || el.querySelector('.office-3d-hud');
         onSelect = typeof options.onSelect === 'function' ? options.onSelect : null;
         onActivity = typeof options.onActivity === 'function' ? options.onActivity : null;
         reduced = !!(options.reduced ||
@@ -810,13 +1417,22 @@
             alpha: false,
             powerPreference: 'low-power'
         });
-        renderer.setClearColor(0xe8eef5, 1);
+        renderer.setClearColor(0xb8d4e8, 1);
         if (!canvas) {
             canvas = renderer.domElement;
             container.appendChild(canvas);
         }
 
         handleResize();
+        bindOrbit(renderer.domElement);
+
+        var resetBtn = container.querySelector('#office-3d-reset');
+        if (resetBtn) {
+            resetBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                resetView();
+            });
+        }
 
         if (typeof ResizeObserver !== 'undefined') {
             resizeObserver = new ResizeObserver(function () { handleResize(); });
@@ -833,7 +1449,8 @@
         document.addEventListener('visibilitychange', visibilityHandler);
 
         clickHandler = function (e) {
-            const roleId = pick(e.clientX, e.clientY);
+            if (orbit.moved) return;
+            var roleId = pick(e.clientX, e.clientY);
             if (roleId && typeof onSelect === 'function') onSelect(roleId);
         };
         renderer.domElement.addEventListener('click', clickHandler);
@@ -850,15 +1467,15 @@
 
     function getActivitySnapshot() {
         return characters.map(function (ch) {
-            const p = ch.userData.placement || {};
-            const emp = employeesCache.find(function (e) { return e.id === ch.userData.roleId; }) || {};
+            var p = ch.userData.placement || {};
+            var emp = employeesCache.find(function (e) { return e.id === ch.userData.roleId; }) || {};
             return {
                 roleId: ch.userData.roleId,
                 name: emp.name || ch.userData.roleId,
                 status: ch.userData.status,
                 activity: p.activity || 'idle',
                 speech: p.speech || '',
-                label: p.label || STATUS_LABEL[ch.userData.status] || 'Siaga'
+                label: p.label || STATUS_LABEL[ch.userData.status] || 'Idle'
             };
         });
     }
@@ -883,6 +1500,7 @@
 
     function dispose() {
         stopLoop();
+        unbindOrbit();
         if (visibilityHandler) {
             document.removeEventListener('visibilitychange', visibilityHandler);
             visibilityHandler = null;
@@ -902,7 +1520,6 @@
             disposeObject(ch);
         });
         characters = [];
-        roomProps = [];
         employeesCache = [];
         lastActivityDigest = '';
         lastIdleStep = -1;
@@ -926,6 +1543,8 @@
         container = null;
         canvas = null;
         labelsRoot = null;
+        hudRoot = null;
+        roomRoot = null;
         onActivity = null;
     }
 
@@ -937,6 +1556,7 @@
         isEnabled: isEnabled,
         loadPreference: loadPreference,
         getActivitySnapshot: getActivitySnapshot,
-        resize: handleResize
+        resize: handleResize,
+        resetView: resetView
     };
 })(typeof window !== 'undefined' ? window : globalThis);

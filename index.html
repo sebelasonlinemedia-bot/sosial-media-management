@@ -760,8 +760,15 @@
                                 </div>
                                 <div class="office-3d-viewport" id="office-3d-viewport">
                                     <canvas id="office-3d-canvas" aria-label="Viewport Ruang Kantor AI PiK's Digital Lab"></canvas>
+                                    <div class="office-3d-hud" id="office-3d-hud" aria-hidden="true">
+                                        <span class="office-hud-chip"><b>CREW ACTIVE</b> <span data-hud="crew">0/7</span></span>
+                                        <span class="office-hud-chip"><b>TASKS</b> <span data-hud="tasks">0 running · 0 open</span></span>
+                                    </div>
                                     <div class="office-3d-labels" id="office-3d-labels" aria-hidden="true"></div>
-                                    <p class="office-3d-hint">Klik avatar untuk fokus job · zona: meja kerja · meeting · lounge · break · koridor</p>
+                                    <div class="office-3d-tools">
+                                        <button type="button" class="office-3d-tool-btn" id="office-3d-reset" title="Kembali ke sudut pandang awal">Reset view</button>
+                                    </div>
+                                    <p class="office-3d-hint">Drag to rotate · right-drag / Shift-drag to pan · scroll to zoom · klik agen untuk detail</p>
                                     <div class="office-3d-fallback" id="office-3d-fallback">
                                         <p>Tampilan kantor dimatikan. Work board dan kartu tim di atas tetap ruang kerja utama.</p>
                                     </div>
