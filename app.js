@@ -31,10 +31,15 @@ const appState = {
         activityLive: [],
         auditEntries: []
     },
+    mission: {
+        panelOpen: true,
+        tab: 'crew',
+        syncedAt: null
+    },
     serverMode: 'sandbox',  // 'sandbox' | 'real'
     authStatus: null,
     user: null,
-    currentView: 'dashboard',
+    currentView: 'mission',
     composerSelectedPlatforms: [],
     composerMedia: null,
     composerPublishMode: 'now',
@@ -149,12 +154,15 @@ const app = {
             openOfficeBtn.addEventListener('click', () => this.switchView('office'));
         }
         this.setupOfficeEvents();
+        this.setupMissionEvents();
 
         // Periksa jika ada callback OAuth dari server di URL
         this.handleOAuthCallback();
 
-        // Render pertama
-        this.switchView('dashboard');
+        // Render pertama — Mission Control sebagai halaman depan
+        const hashView = (location.hash || '').replace(/^#/, '').trim();
+        const allowed = ['mission', 'dashboard', 'composer', 'queue', 'office', 'accounts', 'analytics'];
+        this.switchView(allowed.includes(hashView) ? hashView : 'mission');
         lucide.createIcons();
     },
 
@@ -178,6 +186,9 @@ const app = {
         }
     },
     showLoginGate(message) {
+        document.body.classList.remove('is-mission-mode');
+        const missionEl = document.getElementById('view-mission');
+        if (missionEl) missionEl.classList.add('hidden');
         if (typeof PiksAuthUI !== 'undefined') return PiksAuthUI.showLoginGate(this, message);
         const gate = document.getElementById('app-login-gate');
         const appRoot = document.querySelector('.app-container');
@@ -347,11 +358,20 @@ const app = {
     // --- Pengalih View ---
     switchView(viewName) {
         appState.currentView = viewName;
+        const isMission = viewName === 'mission';
+        const missionEl = document.getElementById('view-mission');
+        document.body.classList.toggle('is-mission-mode', isMission);
+        if (missionEl) missionEl.classList.toggle('hidden', !isMission);
+
         document.querySelectorAll('.sidebar-menu li').forEach(li => {
             li.classList.toggle('active', li.getAttribute('data-view') === viewName);
         });
         document.querySelectorAll('.view-panel').forEach(panel => {
             panel.classList.toggle('active', panel.id === `view-${viewName}`);
+        });
+
+        document.querySelectorAll('[data-mission-nav]').forEach(btn => {
+            btn.classList.toggle('is-active', btn.getAttribute('data-mission-nav') === viewName);
         });
 
         // Jika keluar dari view composer, hapus status edit
@@ -360,11 +380,20 @@ const app = {
             this.showCancelEditButton(false);
         }
 
-        if (viewName !== 'office') {
+        // Scene 3D hanya di Mission Control
+        if (!isMission) {
             this.teardownOffice3D();
+            this.closeMissionNavMenu();
+        }
+
+        if (location.hash.replace(/^#/, '') !== viewName) {
+            try {
+                history.replaceState(null, '', `#${viewName}`);
+            } catch (_) { /* ignore */ }
         }
 
         const titles = {
+            mission: { title: 'Ruang / Office', subtitle: 'Mission Control — Tim Konten AI PiK\'s Digital Lab.' },
             dashboard: { title: 'Dasbor Utama', subtitle: 'Ikhtisar saluran terhubung dan antrean postingan terjadwal Anda.' },
             composer: { title: 'Buat Postingan Baru', subtitle: 'Tulis, unggah media, dan kirim postingan secara bersamaan ke berbagai sosmed.' },
             queue: { title: 'Jadwal & Kalender', subtitle: 'Atur kalender konten Anda di masa mendatang secara presisi.' },
@@ -373,16 +402,19 @@ const app = {
             analytics: { title: 'Analisis Konten', subtitle: 'Analisis jangkauan, impresi, interaksi, dan rasio keberhasilan postingan.' }
         };
 
+        const titleEl = document.getElementById('view-title');
+        const subtitleEl = document.getElementById('view-subtitle');
         if (viewName === 'composer' && appState.editingPostId) {
-            document.getElementById('view-title').innerText = 'Edit Postingan';
-            document.getElementById('view-subtitle').innerText = 'Ubah detail, ganti jadwal, atau ubah saluran tujuan untuk postingan ini.';
+            if (titleEl) titleEl.innerText = 'Edit Postingan';
+            if (subtitleEl) subtitleEl.innerText = 'Ubah detail, ganti jadwal, atau ubah saluran tujuan untuk postingan ini.';
         } else if (titles[viewName]) {
-            document.getElementById('view-title').innerText = titles[viewName].title;
-            document.getElementById('view-subtitle').innerText = titles[viewName].subtitle;
+            if (titleEl) titleEl.innerText = titles[viewName].title;
+            if (subtitleEl) subtitleEl.innerText = titles[viewName].subtitle;
         }
 
         // Render konten per view
-        if (viewName === 'dashboard') this.renderDashboard();
+        if (viewName === 'mission') this.renderMission();
+        else if (viewName === 'dashboard') this.renderDashboard();
         else if (viewName === 'composer') {
             if (!appState.editingPostId) {
                 this.resetComposerForm();
@@ -617,27 +649,284 @@ app.setupOfficeEvents = function () {
     if (dashInsightsOffice) {
         dashInsightsOffice.addEventListener('click', () => this.switchView('office'));
     }
+    const openMissionFromOffice = document.getElementById('office-open-mission-btn');
+    if (openMissionFromOffice) {
+        openMissionFromOffice.addEventListener('click', () => this.switchView('mission'));
+    }
     const toggle3d = document.getElementById('office-3d-toggle');
     if (toggle3d) {
         const prefOn = (typeof AiOffice3D !== 'undefined' && AiOffice3D.loadPreference)
             ? AiOffice3D.loadPreference()
-            : false;
+            : true;
         toggle3d.checked = !!prefOn;
         toggle3d.addEventListener('change', () => {
-            const viewport = document.getElementById('office-3d-viewport');
-            if (typeof AiOffice3D === 'undefined' || typeof THREE === 'undefined') {
-                toggle3d.checked = false;
-                if (viewport) viewport.classList.add('is-3d-off');
-                this.showToast('Modul 3D gagal dimuat. Muat ulang halaman.', 'red');
-                return;
-            }
-            AiOffice3D.setEnabled(toggle3d.checked);
-            if (toggle3d.checked && !appState.office.stageReady) {
-                this.initOffice3D();
-            }
-            this.syncOffice3DEmployees();
+            this.applyMission3DMode(toggle3d.checked);
         });
     }
+};
+
+// ============================================================
+// Mission Control (halaman depan)
+// ============================================================
+app.setupMissionEvents = function () {
+    const menuBtn = document.getElementById('mission-menu-btn');
+    const navMenu = document.getElementById('mission-nav-menu');
+    if (menuBtn && navMenu) {
+        menuBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const open = navMenu.classList.toggle('hidden') === false;
+            menuBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        });
+        document.addEventListener('click', (e) => {
+            if (!navMenu.classList.contains('hidden') && !navMenu.contains(e.target) && e.target !== menuBtn) {
+                this.closeMissionNavMenu();
+            }
+        });
+    }
+    document.querySelectorAll('[data-mission-nav]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const view = btn.getAttribute('data-mission-nav');
+            this.closeMissionNavMenu();
+            if (view) this.switchView(view);
+        });
+    });
+    const logoutBtn = document.getElementById('mission-logout-btn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', async () => {
+            await api.post('/api/auth/logout', {});
+            appState.user = null;
+            this.teardownOffice3D();
+            this.showLoginGate('Anda telah keluar.');
+        });
+    }
+    const refreshBtn = document.getElementById('mission-refresh-btn');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', () => this.renderMission());
+    }
+    const tasksBtn = document.getElementById('mission-tasks-btn');
+    if (tasksBtn) {
+        tasksBtn.addEventListener('click', () => this.switchView('office'));
+    }
+    const calendarBtn = document.getElementById('mission-calendar-btn');
+    if (calendarBtn) {
+        calendarBtn.addEventListener('click', () => this.switchView('queue'));
+    }
+    const panelBtn = document.getElementById('mission-panel-btn');
+    const panelClose = document.getElementById('mission-panel-close');
+    if (panelBtn) {
+        panelBtn.addEventListener('click', () => this.setMissionPanelOpen(!appState.mission.panelOpen));
+    }
+    if (panelClose) {
+        panelClose.addEventListener('click', () => this.setMissionPanelOpen(false));
+    }
+    document.querySelectorAll('[data-mission-tab]').forEach(tab => {
+        tab.addEventListener('click', () => this.setMissionTab(tab.getAttribute('data-mission-tab')));
+    });
+    const mode2d = document.getElementById('mission-mode-2d');
+    const mode3d = document.getElementById('mission-mode-3d');
+    if (mode2d) mode2d.addEventListener('click', () => this.applyMission3DMode(false));
+    if (mode3d) mode3d.addEventListener('click', () => this.applyMission3DMode(true));
+    const panBtn = document.getElementById('mission-pan-btn');
+    if (panBtn) {
+        panBtn.addEventListener('click', () => {
+            if (typeof AiOffice3D === 'undefined' || !AiOffice3D.setPanMode) return;
+            const next = !AiOffice3D.isPanMode();
+            AiOffice3D.setPanMode(next);
+            panBtn.classList.toggle('is-active', next);
+            panBtn.setAttribute('aria-pressed', next ? 'true' : 'false');
+        });
+    }
+    const resetBtn = document.getElementById('mission-reset-btn');
+    if (resetBtn) {
+        resetBtn.addEventListener('click', () => {
+            if (typeof AiOffice3D !== 'undefined' && AiOffice3D.resetView) AiOffice3D.resetView();
+        });
+    }
+    window.addEventListener('hashchange', () => {
+        if (!appState.user) return;
+        const hashView = (location.hash || '').replace(/^#/, '').trim();
+        const allowed = ['mission', 'dashboard', 'composer', 'queue', 'office', 'accounts', 'analytics'];
+        if (allowed.includes(hashView) && hashView !== appState.currentView) {
+            this.switchView(hashView);
+        }
+    });
+};
+
+app.closeMissionNavMenu = function () {
+    const navMenu = document.getElementById('mission-nav-menu');
+    const menuBtn = document.getElementById('mission-menu-btn');
+    if (navMenu) navMenu.classList.add('hidden');
+    if (menuBtn) menuBtn.setAttribute('aria-expanded', 'false');
+};
+
+app.setMissionPanelOpen = function (open) {
+    appState.mission.panelOpen = !!open;
+    const shell = document.getElementById('view-mission');
+    const btn = document.getElementById('mission-panel-btn');
+    if (shell) shell.classList.toggle('is-panel-collapsed', !appState.mission.panelOpen);
+    if (btn) {
+        btn.classList.toggle('is-active', appState.mission.panelOpen);
+        btn.setAttribute('aria-pressed', appState.mission.panelOpen ? 'true' : 'false');
+    }
+    if (typeof AiOffice3D !== 'undefined' && appState.office.stageReady) {
+        requestAnimationFrame(() => AiOffice3D.resize());
+    }
+};
+
+app.setMissionTab = function (tab) {
+    const next = tab || 'crew';
+    appState.mission.tab = next;
+    document.querySelectorAll('[data-mission-tab]').forEach(el => {
+        const on = el.getAttribute('data-mission-tab') === next;
+        el.classList.toggle('is-active', on);
+        el.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    ['crew', 'stats', 'activity'].forEach(id => {
+        const pane = document.getElementById(`mission-tab-${id}`);
+        if (!pane) return;
+        const on = id === next;
+        pane.classList.toggle('is-active', on);
+        pane.hidden = !on;
+    });
+};
+
+app.applyMission3DMode = function (enabled3d) {
+    const toggle = document.getElementById('office-3d-toggle');
+    const viewport = document.getElementById('office-3d-viewport');
+    const mode2d = document.getElementById('mission-mode-2d');
+    const mode3d = document.getElementById('mission-mode-3d');
+    if (toggle) toggle.checked = !!enabled3d;
+    if (mode2d) mode2d.classList.toggle('is-active', !enabled3d);
+    if (mode3d) mode3d.classList.toggle('is-active', !!enabled3d);
+
+    if (typeof AiOffice3D === 'undefined' || typeof THREE === 'undefined') {
+        if (toggle) toggle.checked = false;
+        if (viewport) viewport.classList.add('is-3d-off');
+        if (mode2d) mode2d.classList.add('is-active');
+        if (mode3d) mode3d.classList.remove('is-active');
+        this.showToast('Modul 3D gagal dimuat. Muat ulang halaman.', 'red');
+        return;
+    }
+    AiOffice3D.setEnabled(!!enabled3d);
+    if (enabled3d && appState.currentView === 'mission' && !appState.office.stageReady) {
+        this.initOffice3D();
+    }
+    this.syncOffice3DEmployees();
+};
+
+app.updateMissionSynced = function () {
+    appState.mission.syncedAt = new Date();
+    const el = document.getElementById('mission-synced-time');
+    if (el) {
+        el.textContent = appState.mission.syncedAt.toLocaleTimeString('en-US', {
+            hour: 'numeric', minute: '2-digit', second: '2-digit'
+        });
+    }
+};
+
+app._nextCronLabel = function () {
+    const sched = appState.authStatus && appState.authStatus.scheduler;
+    if (sched && sched.kind === 'local-interval') {
+        return `every ${sched.everySeconds || 60}s`;
+    }
+    // Vercel cron: 0 12 * * * (12:00 UTC)
+    const now = new Date();
+    const next = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 12, 0, 0));
+    if (next <= now) next.setUTCDate(next.getUTCDate() + 1);
+    return next.toLocaleString('en-US');
+};
+
+app.updateMissionPills = function () {
+    const employees = appState.office.employees || [];
+    const totalCrew = employees.length || 7;
+    const activeCrew = employees.filter(e => {
+        const s = e.status || 'idle';
+        return s === 'working' || s === 'needs_info' || s === 'awaiting_approval';
+    }).length;
+    const idleCrew = employees.filter(e => (e.status || 'idle') === 'idle').length;
+    const counts = appState.office.jobCounts || {};
+    const running = (counts.publishing || 0);
+    const open = (counts.queued || 0) + (counts.needs_info || 0) + (counts.awaiting_approval || 0);
+    const connected = appState.accounts.filter(a => a.connected).length;
+    const gatewayTotal = 4;
+
+    const setPill = (key, value) => {
+        document.querySelectorAll(`[data-mission-pill="${key}"]`).forEach(el => {
+            el.textContent = value;
+        });
+    };
+    setPill('crew', `${activeCrew}/${totalCrew}`);
+    setPill('gateways', `${connected}/${gatewayTotal}`);
+    setPill('tasks', `${running} running · ${open} open`);
+    setPill('cron', this._nextCronLabel());
+
+    const setStat = (key, value) => {
+        const el = document.querySelector(`[data-mission-stat="${key}"]`);
+        if (el) el.textContent = value;
+    };
+    setStat('gateways', `${connected} / ${gatewayTotal}`);
+    setStat('crew', `${activeCrew} / ${totalCrew}`);
+    setStat('crew-sub', `${idleCrew} idle`);
+    setStat('open', String(open));
+    setStat('open-sub', `${counts.total || 0} total · ${running} running`);
+    setStat('jobs', String(counts.total || 0));
+    setStat('jobs-sub', `${counts.done || 0} done · ${counts.failed || 0} failed`);
+};
+
+app.renderMissionCrew = function () {
+    const list = document.getElementById('mission-crew-list');
+    if (!list) return;
+    const employees = appState.office.employees || [];
+    if (!employees.length) {
+        list.innerHTML = '<p class="mission-empty">Belum ada peran terdaftar.</p>';
+        return;
+    }
+    list.innerHTML = employees.map(emp => {
+        const workload = emp.workload || (emp.activeCount ? `${emp.activeCount} tugas` : 'idle');
+        const brief = emp.latestJob
+            ? this._escapeHtml((emp.latestJob.brief || '').slice(0, 72))
+            : 'Belum ada job';
+        const focused = appState.office.focusRoleId === emp.id ? ' is-focused' : '';
+        return `<button type="button" class="mission-crew-card${focused}" data-role-id="${this._escapeHtml(emp.id)}">
+            <div class="mission-crew-avatar" style="background:${emp.avatarColor || 'var(--indigo)'}">
+                <span>${emp.emoji || '🤖'}</span>
+            </div>
+            <div class="mission-crew-info">
+                <span class="mission-crew-name">${this._escapeHtml(emp.name)}</span>
+                <span class="mission-crew-title">${this._escapeHtml(emp.title)}</span>
+                <span class="mission-crew-meta">${this._escapeHtml(workload)} · ${this._escapeHtml(this._statusLabel(emp.status))}</span>
+                <span class="mission-crew-meta">${brief}</span>
+            </div>
+        </button>`;
+    }).join('');
+    list.querySelectorAll('.mission-crew-card').forEach(card => {
+        card.addEventListener('click', () => {
+            const roleId = card.getAttribute('data-role-id');
+            this.focusOfficeEmployee(roleId);
+            this.renderMissionCrew();
+        });
+    });
+};
+
+app.renderMission = async function () {
+    this.setMissionPanelOpen(appState.mission.panelOpen);
+    this.setMissionTab(appState.mission.tab || 'crew');
+    await this.loadOfficeFromServer();
+    this.renderMissionCrew();
+    this.updateMissionPills();
+    await this.loadAndRenderInsights('mission-insights-body');
+    await this.loadOfficeActivityLog();
+
+    const prefOn = (typeof AiOffice3D !== 'undefined' && AiOffice3D.loadPreference)
+        ? AiOffice3D.loadPreference()
+        : true;
+    this.applyMission3DMode(prefOn !== false);
+    if (prefOn !== false) {
+        this.initOffice3D();
+        this.syncOffice3DEmployees();
+    }
+    this.updateMissionSynced();
+    lucide.createIcons();
 };
 
 // Office API → js/office-api.js (P3 modularize); fallback jika skrip gagal dimuat
@@ -669,9 +958,6 @@ app.renderOffice = async function () {
     this.renderOfficeRoleSelect();
     this.renderOfficeAnswerPanel();
     await this.loadAndRenderInsights('office-nextup-body');
-    this.initOffice3D();
-    this.syncOffice3DEmployees();
-    await this.loadOfficeActivityLog();
     lucide.createIcons();
 };
 
@@ -1039,12 +1325,17 @@ app.focusOfficeEmployee = function (roleId) {
     document.querySelectorAll('.office-employee-card').forEach(card => {
         card.classList.toggle('is-focused', card.dataset.roleId === roleId);
     });
+    document.querySelectorAll('.mission-crew-card').forEach(card => {
+        card.classList.toggle('is-focused', card.getAttribute('data-role-id') === roleId);
+    });
 
     this.renderOfficeBoard();
     this.renderOfficeAnswerPanel();
 
-    const boardCard = document.querySelector('.office-board-card');
-    if (boardCard) boardCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    if (appState.currentView === 'office') {
+        const boardCard = document.querySelector('.office-board-card');
+        if (boardCard) boardCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
 
     if (emp) {
         this.showToast(`Fokus: ${emp.name} — ${this._statusLabel(emp.status)}`, 'emerald');

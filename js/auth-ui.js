@@ -25,6 +25,9 @@
         },
 
         showLoginGate(app, message) {
+            document.body.classList.remove('is-mission-mode');
+            const missionEl = document.getElementById('view-mission');
+            if (missionEl) missionEl.classList.add('hidden');
             const gate = document.getElementById('app-login-gate');
             const appRoot = document.querySelector('.app-container');
             const err = document.getElementById('app-login-error');

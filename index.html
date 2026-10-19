@@ -42,6 +42,138 @@
         </div>
     </div>
 
+    <!-- Mission Control — halaman depan (full-bleed, tanpa sidebar) -->
+    <section id="view-mission" class="mission-shell hidden" aria-label="Mission Control PiK's Digital Lab">
+        <header class="mission-topbar">
+            <div class="mission-topbar-left">
+                <button type="button" class="mission-icon-btn" id="mission-menu-btn" title="Menu navigasi" aria-expanded="false" aria-controls="mission-nav-menu">
+                    <i data-lucide="menu"></i>
+                </button>
+                <div class="mission-brand">
+                    <span class="mission-brand-name">PiK's Digital Lab</span>
+                    <span class="mission-brand-sep">/</span>
+                    <span class="mission-brand-office">OFFICE</span>
+                </div>
+                <div class="mission-pills" id="mission-status-pills" aria-live="polite">
+                    <span class="mission-pill"><b>CREW ACTIVE</b> <span data-mission-pill="crew">0/7</span></span>
+                    <span class="mission-pill"><b>GATEWAYS</b> <span data-mission-pill="gateways">0/4</span></span>
+                    <span class="mission-pill"><b>TASKS</b> <span data-mission-pill="tasks">0 running · 0 open</span></span>
+                    <span class="mission-pill"><b>NEXT CRON</b> <span data-mission-pill="cron">—</span></span>
+                </div>
+            </div>
+            <div class="mission-topbar-right">
+                <div class="mission-mode-toggle" role="group" aria-label="Mode tampilan">
+                    <button type="button" class="mission-mode-btn" id="mission-mode-2d" data-mode="2d">2D</button>
+                    <button type="button" class="mission-mode-btn is-active" id="mission-mode-3d" data-mode="3d">3D</button>
+                </div>
+                <button type="button" class="mission-tool-btn" id="mission-tasks-btn" title="Work Board / Tasks">
+                    <i data-lucide="list-checks"></i>
+                    <span>Tasks</span>
+                </button>
+                <button type="button" class="mission-tool-btn" id="mission-calendar-btn" title="Jadwal &amp; Kalender">
+                    <i data-lucide="calendar"></i>
+                    <span>Calendar</span>
+                </button>
+                <button type="button" class="mission-tool-btn is-active" id="mission-panel-btn" title="Panel kanan" aria-pressed="true">
+                    <i data-lucide="panel-right"></i>
+                    <span>Panel</span>
+                </button>
+                <span class="mission-synced" id="mission-synced" title="Terakhir disinkronkan">
+                    <i data-lucide="radio"></i>
+                    <span>SYNCED <time id="mission-synced-time">—</time></span>
+                </span>
+                <button type="button" class="mission-tool-btn mission-refresh-btn" id="mission-refresh-btn" title="Segarkan">
+                    <i data-lucide="refresh-cw"></i>
+                    <span>REFRESH</span>
+                </button>
+            </div>
+            <nav class="mission-nav-menu hidden" id="mission-nav-menu" aria-label="Navigasi aplikasi">
+                <button type="button" data-mission-nav="mission" class="is-active">Ruang / Office</button>
+                <button type="button" data-mission-nav="dashboard">Dasbor</button>
+                <button type="button" data-mission-nav="composer">Buat Postingan</button>
+                <button type="button" data-mission-nav="queue">Jadwal &amp; Kalender</button>
+                <button type="button" data-mission-nav="office">Work Board Kantor AI</button>
+                <button type="button" data-mission-nav="accounts">Akun Terhubung</button>
+                <button type="button" data-mission-nav="analytics">Analisis Konten</button>
+                <hr>
+                <button type="button" id="mission-logout-btn" class="mission-nav-logout">Keluar</button>
+            </nav>
+        </header>
+
+        <div class="mission-body">
+            <div class="mission-stage">
+                <div class="office-3d-viewport mission-3d-viewport" id="office-3d-viewport">
+                    <canvas id="office-3d-canvas" aria-label="Viewport Ruang Kantor AI PiK's Digital Lab"></canvas>
+                    <div class="office-3d-hud mission-3d-hud-hidden" id="office-3d-hud" aria-hidden="true">
+                        <span class="office-hud-chip"><b>CREW ACTIVE</b> <span data-hud="crew">0/7</span></span>
+                        <span class="office-hud-chip"><b>TASKS</b> <span data-hud="tasks">0 running · 0 open</span></span>
+                    </div>
+                    <div class="office-3d-labels" id="office-3d-labels" aria-hidden="true"></div>
+                    <div class="office-3d-tools mission-3d-tools-hidden">
+                        <button type="button" class="office-3d-tool-btn" id="office-3d-reset" title="Kembali ke sudut pandang awal">Reset view</button>
+                    </div>
+                    <p class="office-3d-hint mission-3d-hint-hidden">Drag to rotate · right-drag / Shift-drag to pan · scroll to zoom · klik agen untuk detail</p>
+                    <div class="office-3d-fallback" id="office-3d-fallback">
+                        <p>Mode 2D aktif. Nyalakan 3D untuk Ruang Kantor, atau buka Work Board lewat Tasks.</p>
+                    </div>
+                </div>
+                <input type="checkbox" id="office-3d-toggle" class="mission-3d-pref" checked hidden aria-hidden="true">
+            </div>
+
+            <aside class="mission-panel" id="mission-panel" aria-label="Panel misi">
+                <div class="mission-panel-head">
+                    <div class="mission-panel-tabs" role="tablist">
+                        <button type="button" class="mission-panel-tab is-active" role="tab" aria-selected="true" data-mission-tab="crew">Crew</button>
+                        <button type="button" class="mission-panel-tab" role="tab" aria-selected="false" data-mission-tab="stats">Stats</button>
+                        <button type="button" class="mission-panel-tab" role="tab" aria-selected="false" data-mission-tab="activity">Activity</button>
+                    </div>
+                    <button type="button" class="mission-panel-close" id="mission-panel-close" title="Tutup panel" aria-label="Tutup panel">
+                        <i data-lucide="x"></i>
+                    </button>
+                </div>
+                <div class="mission-panel-body">
+                    <div class="mission-tab-pane is-active" id="mission-tab-crew" role="tabpanel">
+                        <div class="mission-crew-list" id="mission-crew-list">
+                            <p class="mission-empty">Memuat tim…</p>
+                        </div>
+                    </div>
+                    <div class="mission-tab-pane" id="mission-tab-stats" role="tabpanel" hidden>
+                        <div class="mission-stats-grid" id="mission-stats-grid">
+                            <div class="mission-stat"><span class="mission-stat-label">Gateways running</span><span class="mission-stat-value" data-mission-stat="gateways">0 / 4</span></div>
+                            <div class="mission-stat"><span class="mission-stat-label">Crew active</span><span class="mission-stat-value" data-mission-stat="crew">0 / 7</span><span class="mission-stat-sub" data-mission-stat="crew-sub"></span></div>
+                            <div class="mission-stat"><span class="mission-stat-label">Open tasks</span><span class="mission-stat-value" data-mission-stat="open">0</span><span class="mission-stat-sub" data-mission-stat="open-sub"></span></div>
+                            <div class="mission-stat"><span class="mission-stat-label">Job totals</span><span class="mission-stat-value" data-mission-stat="jobs">0</span><span class="mission-stat-sub" data-mission-stat="jobs-sub"></span></div>
+                        </div>
+                        <div class="mission-insights" id="mission-insights-body">
+                            <p class="mission-empty">Memuat insights…</p>
+                        </div>
+                    </div>
+                    <div class="mission-tab-pane" id="mission-tab-activity" role="tabpanel" hidden>
+                        <div class="office-activity-panel mission-activity">
+                            <div class="office-activity-head">
+                                <h3>Live</h3>
+                                <span class="text-secondary font-sm" id="office-activity-meta">Live dari status job</span>
+                            </div>
+                            <ul class="office-activity-live" id="office-activity-live" aria-live="polite"></ul>
+                            <div class="office-activity-head">
+                                <h3>Audit</h3>
+                            </div>
+                            <ul class="office-activity-audit" id="office-activity-audit"></ul>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+        </div>
+
+        <footer class="mission-footer">
+            <p class="mission-footer-hint">Drag to rotate · right-drag, two fingers or Geser to pan · scroll to zoom · click an agent for details.</p>
+            <div class="mission-footer-actions">
+                <button type="button" class="mission-footer-btn" id="mission-pan-btn" aria-pressed="false" title="Mode geser / pan">Geser</button>
+                <button type="button" class="mission-footer-btn" id="mission-reset-btn" title="Reset sudut pandang">Reset view</button>
+            </div>
+        </footer>
+    </section>
+
     <div class="app-container">
         <!-- Navigasi Sidebar -->
         <aside class="sidebar">
@@ -65,7 +197,13 @@
 
             <nav class="sidebar-menu">
                 <ul>
-                    <li class="active" data-view="dashboard">
+                    <li data-view="mission">
+                        <a href="#mission">
+                            <i data-lucide="radar"></i>
+                            <span>Ruang / Office</span>
+                        </a>
+                    </li>
+                    <li data-view="dashboard">
                         <a href="#dashboard">
                             <i data-lucide="layout-dashboard"></i>
                             <span>Dasbor</span>
@@ -782,34 +920,13 @@
                             <div class="card office-stage-card office-stage-optional" id="office-stage-card">
                                 <div class="card-header">
                                     <h2>Ruang Kantor AI</h2>
-                                    <label class="office-3d-toggle" title="Nonaktifkan di perangkat lemah / hemat baterai">
-                                        <input type="checkbox" id="office-3d-toggle" checked>
-                                        <span>Tampilan kantor</span>
-                                    </label>
+                                    <span class="badge badge-emerald">Mission Control</span>
                                 </div>
-                                <div class="office-3d-viewport" id="office-3d-viewport">
-                                    <canvas id="office-3d-canvas" aria-label="Viewport Ruang Kantor AI PiK's Digital Lab"></canvas>
-                                    <div class="office-3d-hud" id="office-3d-hud" aria-hidden="true">
-                                        <span class="office-hud-chip"><b>CREW ACTIVE</b> <span data-hud="crew">0/7</span></span>
-                                        <span class="office-hud-chip"><b>TASKS</b> <span data-hud="tasks">0 running · 0 open</span></span>
-                                    </div>
-                                    <div class="office-3d-labels" id="office-3d-labels" aria-hidden="true"></div>
-                                    <div class="office-3d-tools">
-                                        <button type="button" class="office-3d-tool-btn" id="office-3d-reset" title="Kembali ke sudut pandang awal">Reset view</button>
-                                    </div>
-                                    <p class="office-3d-hint">Drag to rotate · right-drag / Shift-drag to pan · scroll to zoom · klik agen untuk detail</p>
-                                    <div class="office-3d-fallback" id="office-3d-fallback">
-                                        <p>Tampilan kantor dimatikan. Work board dan kartu tim di atas tetap ruang kerja utama.</p>
-                                    </div>
-                                </div>
-                                <div class="office-activity-panel" id="office-activity-panel">
-                                    <div class="office-activity-head">
-                                        <h3>Activity log</h3>
-                                        <span class="text-secondary font-sm" id="office-activity-meta">Live dari status job</span>
-                                    </div>
-                                    <ul class="office-activity-live" id="office-activity-live" aria-live="polite"></ul>
-                                    <ul class="office-activity-audit" id="office-activity-audit"></ul>
-                                </div>
+                                <p class="text-secondary font-sm mb-3">Scene 3D full-bleed ada di halaman depan Mission Control. Work board di sini tetap ruang kerja utama untuk brief &amp; approval.</p>
+                                <button type="button" class="btn btn-secondary" id="office-open-mission-btn">
+                                    <i data-lucide="radar"></i>
+                                    <span>Buka Ruang / Office</span>
+                                </button>
                             </div>
 
                             <div class="card office-nextup-card" id="office-insights-card">

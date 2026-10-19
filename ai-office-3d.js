@@ -1250,10 +1250,21 @@
         applyOrbitToCamera();
     }
 
+    var forcePanMode = false;
+
+    function setPanMode(on) {
+        forcePanMode = !!on;
+        return forcePanMode;
+    }
+
+    function isPanMode() {
+        return !!forcePanMode;
+    }
+
     function bindOrbit(el) {
         unbindOrbit();
         function onDown(e) {
-            if (e.button === 2 || e.button === 1 || (e.button === 0 && e.shiftKey)) {
+            if (e.button === 2 || e.button === 1 || (e.button === 0 && (e.shiftKey || forcePanMode))) {
                 orbit.panning = true;
             } else if (e.button === 0) {
                 orbit.dragging = true;
@@ -1501,6 +1512,7 @@
     function dispose() {
         stopLoop();
         unbindOrbit();
+        forcePanMode = false;
         if (visibilityHandler) {
             document.removeEventListener('visibilitychange', visibilityHandler);
             visibilityHandler = null;
@@ -1557,6 +1569,8 @@
         loadPreference: loadPreference,
         getActivitySnapshot: getActivitySnapshot,
         resize: handleResize,
-        resetView: resetView
+        resetView: resetView,
+        setPanMode: setPanMode,
+        isPanMode: isPanMode
     };
 })(typeof window !== 'undefined' ? window : globalThis);
