@@ -28,3 +28,16 @@ CREATE TABLE IF NOT EXISTS posts (
 
 CREATE INDEX IF NOT EXISTS idx_posts_status_publish ON posts (status, publish_date);
 CREATE INDEX IF NOT EXISTS idx_accounts_connected ON accounts (connected);
+
+-- Job/brief AI (gaya kantor-ai) — otak tetap Cursor di luar server
+CREATE TABLE IF NOT EXISTS ai_jobs (
+  id TEXT PRIMARY KEY,
+  brief TEXT,
+  status TEXT NOT NULL DEFAULT 'queued',
+  data JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_ai_jobs_status ON ai_jobs (status);
+CREATE INDEX IF NOT EXISTS idx_ai_jobs_created ON ai_jobs (created_at DESC);

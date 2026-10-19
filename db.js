@@ -10,7 +10,7 @@ const fs = require('fs');
 const path = require('path');
 
 const DB_PATH = path.join(__dirname, 'db.json');
-const DEFAULT_DB = { users: [], accounts: [], posts: [] };
+const DEFAULT_DB = { users: [], accounts: [], posts: [], aiJobs: [] };
 
 class JsonDatabase {
     constructor() {
@@ -24,6 +24,7 @@ class JsonDatabase {
                 if (!this._data.users) this._data.users = [];
                 if (!this._data.accounts) this._data.accounts = [];
                 if (!this._data.posts) this._data.posts = [];
+                if (!this._data.aiJobs) this._data.aiJobs = [];
             } else {
                 this._data = JSON.parse(JSON.stringify(DEFAULT_DB));
                 await this.save();
@@ -136,11 +137,58 @@ class JsonDatabase {
     }
 
     async getDueScheduledPosts() {
+        if (!this._data) return [];
         const now = new Date();
         return (this._data.posts || []).filter(p => {
             if (p.status !== 'scheduled') return false;
             return new Date(p.publishDate) <= now;
         });
+    }
+
+    async getAiJobs() {
+        return this._data.aiJobs || [];
+    }
+
+    async getAiJobById(id) {
+        return (this._data.aiJobs || []).find(j => j.id === id) || null;
+    }
+
+    async addAiJob(jobData) {
+        const now = new Date().toISOString();
+        const job = {
+            id: 'job-' + Date.now(),
+            brief: '',
+            status: 'queued',
+            questions: [],
+            draftHistory: [],
+            caption: '',
+            platforms: [],
+            mediaUrl: '',
+            mediaType: '',
+            employeeName: 'Karyawan AI',
+            employeeRole: 'content',
+            runId: null,
+            version: 1,
+            publishResults: {},
+            ...jobData,
+            createdAt: now,
+            updatedAt: now
+        };
+        this._data.aiJobs.push(job);
+        await this.save();
+        return job;
+    }
+
+    async updateAiJob(id, updates) {
+        const idx = (this._data.aiJobs || []).findIndex(j => j.id === id);
+        if (idx === -1) return null;
+        this._data.aiJobs[idx] = {
+            ...this._data.aiJobs[idx],
+            ...updates,
+            updatedAt: new Date().toISOString()
+        };
+        await this.save();
+        return this._data.aiJobs[idx];
     }
 }
 

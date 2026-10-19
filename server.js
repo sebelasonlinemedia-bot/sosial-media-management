@@ -756,6 +756,7 @@ function generateMockStats() {
 // Background Scheduler (cek setiap 60 detik)
 // ============================================================
 async function runScheduler() {
+    await ensureDb();
     const duePosts = await db.getDueScheduledPosts();
     if (duePosts.length > 0) {
         console.log(`[SCHEDULER] ${duePosts.length} postingan siap diterbitkan...`);
@@ -820,6 +821,20 @@ app.get('/api/ai/employee/context', async (req, res) => {
             publishResults: p.publishResults || {}
         }));
 
+    const recentAiJobs = (await db.getAiJobs())
+        .slice()
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+        .slice(0, 10)
+        .map(j => ({
+            id: j.id,
+            brief: (j.brief || '').slice(0, 120),
+            status: j.status,
+            questions: j.questions || [],
+            employeeName: j.employeeName,
+            createdAt: j.createdAt,
+            updatedAt: j.updatedAt
+        }));
+
     res.json({
         success: true,
         mode: SANDBOX_MODE ? 'sandbox' : 'real',
@@ -827,7 +842,8 @@ app.get('/api/ai/employee/context', async (req, res) => {
         baseUrl: `http://localhost:${PORT}`,
         connectedPlatforms: accounts.map(a => a.platform),
         accounts,
-        recentAiPosts
+        recentAiPosts,
+        recentAiJobs
     });
 });
 
@@ -913,6 +929,313 @@ app.post('/api/ai/employee/publish', async (req, res) => {
         });
     } catch (err) {
         console.error('🤖 [AI-EMPLOYEE] Error:', err.message);
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// ============================================================
+// AI Jobs (brief → needs_info | queued → run → publish)
+// Otak tetap Cursor; server hanya simpan status + eksekusi publish.
+// ============================================================
+
+/**
+ * Deteksi brief tipis: panjang minimal + sedikit fakta actionable.
+ * Tidak menebak — hanya flag needs_info + pertanyaan klarifikasi.
+ */
+function assessBrief(brief) {
+    const text = String(brief || '').trim();
+    const words = text.split(/\s+/).filter(Boolean);
+    const questions = [];
+
+    if (!text) {
+        questions.push('Brief kosong. Apa topik, produk, atau acara yang ingin diposting?');
+        questions.push('Platform mana yang dituju (instagram/facebook/tiktok/youtube)?');
+        return { thin: true, questions };
+    }
+
+    if (text.length < 40 || words.length < 6) {
+        questions.push('Brief terlalu pendek. Jelaskan topik/produk, sudut pesan, dan CTA yang diinginkan.');
+    }
+
+    const hasFactCue = /\b(produk|promo|diskon|event|launch|rilis|brand|aplikasi|fitur|tips|cara|tutorial|harga|lokasi|tanggal|jam|link|hashtag|instagram|facebook|tiktok|youtube|caption)\b/i.test(text)
+        || /\d/.test(text)
+        || words.length >= 12;
+
+    if (!hasFactCue) {
+        questions.push('Tambahkan minimal satu fakta konkret (nama produk/event, tanggal, harga, CTA, atau audience).');
+    }
+
+    if (!/\b(instagram|facebook|tiktok|youtube|semua|all)\b/i.test(text) && words.length < 10) {
+        questions.push('Platform mana yang dituju? (opsional — default: semua akun terhubung)');
+    }
+
+    return { thin: questions.length > 0, questions };
+}
+
+function captionFromBrief(brief, caption) {
+    const fromBody = String(caption || '').trim();
+    if (fromBody) return fromBody;
+    const text = String(brief || '').trim();
+    if (!text) return '';
+    // Server tidak pakai LLM — caption dari Cursor lewat body, fallback ringkas dari brief
+    return text.length > 500 ? text.slice(0, 497) + '...' : text;
+}
+
+app.get('/api/ai/jobs', async (req, res) => {
+    try {
+        const jobs = await db.getAiJobs();
+        const sorted = [...jobs].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        res.json({ success: true, jobs: sorted });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+app.get('/api/ai/jobs/:id', async (req, res) => {
+    try {
+        const job = await db.getAiJobById(req.params.id);
+        if (!job) return res.status(404).json({ success: false, message: 'Job tidak ditemukan.' });
+        res.json({ success: true, job });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+app.post('/api/ai/jobs', async (req, res) => {
+    try {
+        const {
+            brief,
+            platforms,
+            mediaUrl,
+            mediaType,
+            employeeName,
+            employeeRole,
+            forceQueued
+        } = req.body || {};
+
+        const briefText = String(brief || '').trim();
+        if (!briefText && !forceQueued) {
+            return res.status(400).json({
+                success: false,
+                message: 'Wajib isi brief.'
+            });
+        }
+
+        const assessment = forceQueued
+            ? { thin: false, questions: [] }
+            : assessBrief(briefText);
+
+        const status = assessment.thin ? 'needs_info' : 'queued';
+        const job = await db.addAiJob({
+            brief: briefText,
+            status,
+            questions: assessment.questions,
+            draftHistory: [{ at: new Date().toISOString(), type: 'created', brief: briefText }],
+            platforms: Array.isArray(platforms) ? platforms.map(p => String(p).toLowerCase()) : [],
+            mediaUrl: mediaUrl || '',
+            mediaType: mediaType || '',
+            employeeName: (employeeName || 'Karyawan AI').trim(),
+            employeeRole: (employeeRole || 'content').trim(),
+            runId: null,
+            version: 1,
+            publishResults: {}
+        });
+
+        console.log(`📋 [AI-JOB] ${job.id} status=${status} thin=${assessment.thin}`);
+        res.status(201).json({
+            success: true,
+            needsInfo: assessment.thin,
+            job
+        });
+    } catch (err) {
+        console.error('📋 [AI-JOB] create error:', err.message);
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+app.post('/api/ai/jobs/:id/answer', async (req, res) => {
+    try {
+        const job = await db.getAiJobById(req.params.id);
+        if (!job) return res.status(404).json({ success: false, message: 'Job tidak ditemukan.' });
+
+        const { answers, brief } = req.body || {};
+        let nextBrief = String(brief || job.brief || '').trim();
+        const answerList = Array.isArray(answers)
+            ? answers.map(a => String(a || '').trim()).filter(Boolean)
+            : (typeof answers === 'string' && answers.trim() ? [answers.trim()] : []);
+
+        if (answerList.length) {
+            const qaBlock = (job.questions || [])
+                .map((q, i) => answerList[i] ? `Q: ${q}\nA: ${answerList[i]}` : null)
+                .filter(Boolean)
+                .join('\n');
+            const fallback = answerList.map((a, i) => `Jawaban ${i + 1}: ${a}`).join('\n');
+            nextBrief = [nextBrief, qaBlock || fallback].filter(Boolean).join('\n\n').trim();
+        }
+
+        if (!nextBrief) {
+            return res.status(400).json({
+                success: false,
+                message: 'Berikan answers[] atau brief yang diperbarui.'
+            });
+        }
+
+        const history = Array.isArray(job.draftHistory) ? [...job.draftHistory] : [];
+        history.push({
+            at: new Date().toISOString(),
+            type: 'answer',
+            answers: answerList,
+            brief: nextBrief
+        });
+
+        const updated = await db.updateAiJob(job.id, {
+            brief: nextBrief,
+            status: 'queued',
+            questions: [],
+            draftHistory: history,
+            version: (job.version || 1) + 1
+        });
+
+        console.log(`📋 [AI-JOB] ${job.id} answered → queued`);
+        res.json({ success: true, job: updated });
+    } catch (err) {
+        console.error('📋 [AI-JOB] answer error:', err.message);
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+app.post('/api/ai/jobs/:id/run', async (req, res) => {
+    try {
+        const job = await db.getAiJobById(req.params.id);
+        if (!job) return res.status(404).json({ success: false, message: 'Job tidak ditemukan.' });
+
+        if (job.status === 'needs_info') {
+            return res.status(400).json({
+                success: false,
+                message: 'Job masih needs_info. Jawab pertanyaan dulu via POST /api/ai/jobs/:id/answer.',
+                questions: job.questions || []
+            });
+        }
+
+        if (job.status === 'publishing') {
+            return res.status(409).json({ success: false, message: 'Job sedang publishing.' });
+        }
+
+        const {
+            caption,
+            platforms,
+            mediaUrl,
+            mediaType,
+            employeeName
+        } = req.body || {};
+
+        const finalCaption = captionFromBrief(job.brief, caption || job.caption);
+        if (!finalCaption) {
+            return res.status(400).json({
+                success: false,
+                message: 'Caption kosong. Kirim caption di body atau pastikan brief terisi.'
+            });
+        }
+
+        const connected = (await db.getAccounts()).filter(a => a.connected).map(a => a.platform);
+        let targetPlatforms = Array.isArray(platforms) && platforms.length
+            ? platforms.map(p => String(p).toLowerCase())
+            : (Array.isArray(job.platforms) && job.platforms.length ? job.platforms : connected);
+
+        targetPlatforms = [...new Set(targetPlatforms)].filter(p => connected.includes(p));
+
+        if (targetPlatforms.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: connected.length
+                    ? 'Tidak ada platform target yang terhubung.'
+                    : 'Belum ada akun terhubung. Hubungkan akun dulu di UI PostSphere.'
+            });
+        }
+
+        const name = (employeeName || job.employeeName || 'Karyawan AI').trim();
+        const runId = 'run-' + Date.now();
+        const history = Array.isArray(job.draftHistory) ? [...job.draftHistory] : [];
+        history.push({ at: new Date().toISOString(), type: 'run_start', caption: finalCaption, runId });
+
+        await db.updateAiJob(job.id, {
+            status: 'publishing',
+            caption: finalCaption,
+            platforms: targetPlatforms,
+            mediaUrl: mediaUrl != null ? mediaUrl : (job.mediaUrl || ''),
+            mediaType: mediaType != null ? mediaType : (job.mediaType || ''),
+            employeeName: name,
+            runId,
+            draftHistory: history
+        });
+
+        console.log(`📋 [AI-JOB] ${job.id} publishing → ${targetPlatforms.join(', ')}`);
+
+        const newPost = await db.addPost({
+            caption: finalCaption,
+            mediaUrl: mediaUrl != null ? mediaUrl : (job.mediaUrl || ''),
+            mediaType: mediaType != null ? mediaType : (job.mediaType || ''),
+            platforms: targetPlatforms,
+            status: 'posted',
+            publishDate: new Date().toISOString(),
+            stats: null,
+            publishResults: {},
+            createdBy: 'ai-employee',
+            employeeName: name,
+            brief: job.brief || '',
+            jobId: job.id,
+            runId
+        });
+
+        const results = await publishToAllPlatforms(newPost);
+        const failed = Object.values(results).some(r => r && r.status === 'error');
+        await db.updatePost(newPost.id, {
+            status: failed ? 'failed' : 'posted',
+            publishResults: results,
+            stats: generateMockStats(),
+            lastError: failed
+                ? Object.entries(results)
+                    .filter(([, r]) => r && r.status === 'error')
+                    .map(([plat, r]) => `${plat}: ${r.message || 'gagal'}`)
+                    .join('; ')
+                : undefined
+        });
+
+        history.push({
+            at: new Date().toISOString(),
+            type: failed ? 'run_failed' : 'run_done',
+            postId: newPost.id,
+            runId
+        });
+
+        const updatedJob = await db.updateAiJob(job.id, {
+            status: failed ? 'failed' : 'done',
+            caption: finalCaption,
+            platforms: targetPlatforms,
+            publishResults: results,
+            postId: newPost.id,
+            draftHistory: history,
+            version: (job.version || 1) + 1
+        });
+
+        const post = await db.getPostById(newPost.id);
+        console.log(`📋 [AI-JOB] ${job.id} → ${updatedJob.status}`);
+
+        res.json({
+            success: !failed,
+            policy: 'auto_publish',
+            job: updatedJob,
+            post,
+            results
+        });
+    } catch (err) {
+        console.error('📋 [AI-JOB] run error:', err.message);
+        try {
+            await db.updateAiJob(req.params.id, {
+                status: 'failed',
+                publishResults: { error: err.message }
+            });
+        } catch (_) { /* ignore */ }
         res.status(500).json({ success: false, message: err.message });
     }
 });

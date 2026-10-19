@@ -33,6 +33,18 @@ function rowToPost(r) {
     };
 }
 
+function rowToAiJob(r) {
+    const data = typeof r.data === 'object' && r.data ? r.data : {};
+    return {
+        id: r.id,
+        ...data,
+        brief: r.brief != null ? r.brief : data.brief,
+        status: r.status || data.status,
+        createdAt: r.created_at,
+        updatedAt: r.updated_at
+    };
+}
+
 class PostgresDatabase {
     async load() {
         const sql = getSql();
@@ -66,6 +78,18 @@ class PostgresDatabase {
         `;
         await sql`CREATE INDEX IF NOT EXISTS idx_posts_status_publish ON posts (status, publish_date)`;
         await sql`CREATE INDEX IF NOT EXISTS idx_accounts_connected ON accounts (connected)`;
+        await sql`
+            CREATE TABLE IF NOT EXISTS ai_jobs (
+                id TEXT PRIMARY KEY,
+                brief TEXT,
+                status TEXT NOT NULL DEFAULT 'queued',
+                data JSONB NOT NULL DEFAULT '{}'::jsonb,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                updated_at TIMESTAMPTZ
+            )
+        `;
+        await sql`CREATE INDEX IF NOT EXISTS idx_ai_jobs_status ON ai_jobs (status)`;
+        await sql`CREATE INDEX IF NOT EXISTS idx_ai_jobs_created ON ai_jobs (created_at DESC)`;
         console.log('✅ [DB] Terhubung ke Neon Postgres');
         return this;
     }
@@ -219,6 +243,75 @@ class PostgresDatabase {
             WHERE status = 'scheduled' AND publish_date <= ${now}
         `;
         return rows.map(rowToPost);
+    }
+
+    async getAiJobs() {
+        const sql = getSql();
+        const rows = await sql`
+            SELECT id, brief, status, data, created_at, updated_at
+            FROM ai_jobs ORDER BY created_at DESC
+        `;
+        return rows.map(rowToAiJob);
+    }
+
+    async getAiJobById(id) {
+        const sql = getSql();
+        const rows = await sql`
+            SELECT id, brief, status, data, created_at, updated_at
+            FROM ai_jobs WHERE id = ${id} LIMIT 1
+        `;
+        return rows[0] ? rowToAiJob(rows[0]) : null;
+    }
+
+    async addAiJob(jobData) {
+        const sql = getSql();
+        const id = 'job-' + Date.now();
+        const now = new Date().toISOString();
+        const job = {
+            brief: '',
+            status: 'queued',
+            questions: [],
+            draftHistory: [],
+            caption: '',
+            platforms: [],
+            mediaUrl: '',
+            mediaType: '',
+            employeeName: 'Karyawan AI',
+            employeeRole: 'content',
+            runId: null,
+            version: 1,
+            publishResults: {},
+            ...jobData,
+            id,
+            createdAt: now,
+            updatedAt: now
+        };
+        const { id: _i, brief, status, createdAt, updatedAt, ...rest } = job;
+        const data = { ...rest, brief, status };
+        await sql`
+            INSERT INTO ai_jobs (id, brief, status, data, created_at, updated_at)
+            VALUES (${id}, ${brief || ''}, ${status || 'queued'}, ${data}, ${now}, ${now})
+        `;
+        return job;
+    }
+
+    async updateAiJob(id, updates) {
+        const existing = await this.getAiJobById(id);
+        if (!existing) return null;
+        const sql = getSql();
+        const now = new Date().toISOString();
+        const merged = { ...existing, ...updates, updatedAt: now };
+        const { id: _i, brief, status, createdAt, updatedAt, ...rest } = merged;
+        const data = { ...rest, brief, status };
+        await sql`
+            UPDATE ai_jobs
+            SET brief = ${brief || ''},
+                status = ${status || 'queued'},
+                data = ${data},
+                updated_at = ${now}
+            WHERE id = ${id}
+        `;
+        return this.getAiJobById(id);
     }
 }
 

@@ -2741,3 +2741,52 @@ button, input, textarea, select {
     font-size: 0.875rem;
     max-width: 320px;
 }
+
+/* Job AI panel (dashboard) */
+.ai-jobs-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 280px;
+    overflow-y: auto;
+}
+
+.ai-job-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.ai-job-row:last-child {
+    border-bottom: none;
+}
+
+.ai-job-meta {
+    flex: 1;
+    min-width: 0;
+}
+
+.ai-job-brief {
+    display: block;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--text-primary, #e5e7eb);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ai-job-id {
+    display: block;
+    margin-top: 2px;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+.badge-violet {
+    background: rgba(139, 92, 246, 0.15);
+    color: #a78bfa;
+}

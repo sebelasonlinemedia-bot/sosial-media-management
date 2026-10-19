@@ -16,6 +16,7 @@ const appState = {
     },
     accounts: [],
     posts: [],
+    aiJobs: [],
     serverMode: 'sandbox',  // 'sandbox' | 'real'
     currentView: 'dashboard',
     composerSelectedPlatforms: [],
@@ -73,6 +74,7 @@ const app = {
         // Muat data awal dari backend
         await this.loadAccountsFromServer();
         await this.loadPostsFromServer();
+        await this.loadAiJobsFromServer();
 
         // Atur jam
         this.updateClock();
@@ -84,6 +86,14 @@ const app = {
         this.setupAccountsEvents();
         this.setupQueueEvents();
         this.setupModals();
+        const refreshJobsBtn = document.getElementById('dashboard-refresh-jobs-btn');
+        if (refreshJobsBtn) {
+            refreshJobsBtn.addEventListener('click', async () => {
+                await this.loadAiJobsFromServer();
+                this.renderAiJobs();
+                lucide.createIcons();
+            });
+        }
 
         // Periksa jika ada callback OAuth dari server di URL
         this.handleOAuthCallback();
@@ -140,6 +150,16 @@ const app = {
             if (data.success) appState.posts = data.posts || [];
         } catch (e) {
             console.error('[APP] Gagal memuat postingan dari server:', e);
+        }
+    },
+
+    async loadAiJobsFromServer() {
+        try {
+            const data = await api.get('/api/ai/jobs');
+            if (data.success) appState.aiJobs = data.jobs || [];
+        } catch (e) {
+            console.error('[APP] Gagal memuat job AI dari server:', e);
+            appState.aiJobs = [];
         }
     },
 
@@ -335,7 +355,58 @@ app.renderDashboard = function () {
     }
 
     this.renderChannelShareChart();
+    this.renderAiJobs();
     lucide.createIcons();
+};
+
+app.renderAiJobs = function () {
+    const list = document.getElementById('dashboard-ai-jobs-list');
+    if (!list) return;
+
+    const empty = document.getElementById('dashboard-empty-jobs');
+    list.querySelectorAll('.ai-job-row').forEach(el => el.remove());
+
+    const jobs = (appState.aiJobs || []).slice(0, 5);
+    if (jobs.length === 0) {
+        if (empty) empty.classList.remove('hidden');
+        return;
+    }
+    if (empty) empty.classList.add('hidden');
+
+    const badgeFor = (status) => {
+        const map = {
+            queued: 'badge-indigo',
+            needs_info: 'badge-yellow',
+            publishing: 'badge-violet',
+            done: 'badge-emerald',
+            failed: 'badge-red'
+        };
+        return map[status] || 'badge-indigo';
+    };
+
+    const labelFor = (status) => {
+        const map = {
+            queued: 'Antri',
+            needs_info: 'Perlu info',
+            publishing: 'Publish…',
+            done: 'Selesai',
+            failed: 'Gagal'
+        };
+        return map[status] || status;
+    };
+
+    jobs.forEach(job => {
+        const row = document.createElement('div');
+        row.className = 'ai-job-row';
+        const brief = (job.brief || '(tanpa brief)').replace(/</g, '&lt;');
+        row.innerHTML = `
+            <div class="ai-job-meta">
+                <span class="ai-job-brief" title="${brief}">${brief}</span>
+                <span class="ai-job-id">${job.id}</span>
+            </div>
+            <span class="badge ${badgeFor(job.status)}">${labelFor(job.status)}</span>`;
+        list.appendChild(row);
+    });
 };
 
 app.renderChannelShareChart = function () {

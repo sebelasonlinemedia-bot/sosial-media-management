@@ -8,6 +8,8 @@ alwaysApply: true
 Saat user meminta posting, publish, brief konten, atau operasi PostSphere:
 
 1. Ikuti skill proyek **postsphere-ai-employee**.
-2. Kebijakan: **langsung publish** — jangan minta approval kecuali user bilang draft/jangan publish.
-3. Pastikan `npm run dev` / server di port 3000 aktif, lalu pakai `scripts/ai-employee-publish.js` atau `POST /api/ai/employee/publish`.
-4. Laporkan hasil per platform setelah selesai.
+2. Kebijakan:
+   - Brief **cukup** → **langsung publish** (job + `/run` atau `POST /api/ai/employee/publish`). Jangan minta approval kecuali user bilang draft/jangan publish.
+   - Brief **tipis** → buat job `needs_info` / tanya user dulu; **jangan nebak** dan **jangan publish**.
+3. Pastikan `npm run dev` / server di port 3000 aktif.
+4. Laporkan hasil per platform (atau pertanyaan klarifikasi) setelah selesai.
