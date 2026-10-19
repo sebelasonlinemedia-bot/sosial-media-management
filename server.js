@@ -21,18 +21,24 @@ const fs = require('fs');
 
 const db = require('./db');
 
+const IS_VERCEL = !!process.env.VERCEL;
+
 // ============================================================
-// Modul Otomasi Browser (Puppeteer) — tanpa API key
+// Modul Otomasi Browser (Puppeteer) — tidak dimuat di Vercel
 // ============================================================
 let automationModules = {};
-try {
-    automationModules.instagram = require('./automation/instagram');
-    automationModules.facebook  = require('./automation/facebook');
-    automationModules.tiktok    = require('./automation/tiktok');
-    automationModules.youtube   = require('./automation/youtube');
-    console.log('🤖 [AUTOMATION] Modul browser automation berhasil dimuat.');
-} catch (e) {
-    console.warn('⚠️  [AUTOMATION] Modul browser automation tidak tersedia:', e.message);
+if (!IS_VERCEL) {
+    try {
+        automationModules.instagram = require('./automation/instagram');
+        automationModules.facebook  = require('./automation/facebook');
+        automationModules.tiktok    = require('./automation/tiktok');
+        automationModules.youtube   = require('./automation/youtube');
+        console.log('🤖 [AUTOMATION] Modul browser automation berhasil dimuat.');
+    } catch (e) {
+        console.warn('⚠️  [AUTOMATION] Modul browser automation tidak tersedia:', e.message);
+    }
+} else {
+    console.log('ℹ️  [AUTOMATION] Dilewati di Vercel (serverless).');
 }
 
 // ============================================================
@@ -41,8 +47,20 @@ try {
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Muat database dari file
-db.load();
+let dbReady = null;
+function ensureDb() {
+    if (!dbReady) dbReady = db.load();
+    return dbReady;
+}
+app.use(async (req, res, next) => {
+    try {
+        await ensureDb();
+        next();
+    } catch (err) {
+        console.error('[DB] Init gagal:', err.message);
+        res.status(500).json({ success: false, message: 'Database belum siap: ' + err.message });
+    }
+});
 
 // Deteksi apakah ada kredensial API (Mode REAL vs SANDBOX)
 const SANDBOX_MODE = !(
@@ -65,8 +83,8 @@ app.use(cors());
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '50mb' }));
 
-// Setup storage media lokal dengan multer
-const uploadDir = path.join(__dirname, 'uploads');
+// Setup storage media (lokal /tmp di Vercel — ephemeral)
+const uploadDir = IS_VERCEL ? path.join('/tmp', 'uploads') : path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
 const storage = multer.diskStorage({
@@ -107,8 +125,8 @@ app.get('/api/status', (req, res) => {
 // ============================================================
 
 // GET: Daftar semua akun terhubung (tanpa token sensitif)
-app.get('/api/accounts', (req, res) => {
-    const accounts = db.getAccounts().map(a => {
+app.get('/api/accounts', async (req, res) => {
+    const accounts = (await db.getAccounts()).map(a => {
         const { accessToken, refreshToken, ...safe } = a;
         return safe;
     });
@@ -116,9 +134,9 @@ app.get('/api/accounts', (req, res) => {
 });
 
 // DELETE: Putuskan akun dari platform tertentu
-app.delete('/api/accounts/:platform', (req, res) => {
+app.delete('/api/accounts/:platform', async (req, res) => {
     const { platform } = req.params;
-    const ok = db.disconnectAccount(platform);
+    const ok = await db.disconnectAccount(platform);
     if (ok) {
         res.json({ success: true, message: `Akun ${platform} berhasil diputuskan.` });
     } else {
@@ -163,7 +181,7 @@ app.get('/api/auth/meta/callback', async (req, res) => {
                 sandbox: true
             };
             // Juga simpan akun Facebook
-            db.upsertAccount({
+            await db.upsertAccount({
                 platform: 'facebook',
                 name: SANDBOX_PROFILES.meta.name + ' (FB)',
                 handle: SANDBOX_PROFILES.meta.handle,
@@ -230,7 +248,7 @@ app.get('/api/auth/meta/callback', async (req, res) => {
             };
 
             // Simpan juga akun Facebook
-            db.upsertAccount({
+            await db.upsertAccount({
                 platform: 'facebook',
                 name: page ? page.name : meRes.data.name,
                 handle: page ? page.name : meRes.data.name,
@@ -242,7 +260,7 @@ app.get('/api/auth/meta/callback', async (req, res) => {
         }
 
         // Simpan profil Instagram ke database
-        db.upsertAccount({ ...profileData, connected: true });
+        await db.upsertAccount({ ...profileData, connected: true });
         console.log(`[AUTH] Meta terhubung: ${profileData.handle}`);
         res.redirect(`/?auth=meta&status=success`);
 
@@ -321,7 +339,7 @@ app.get('/api/auth/youtube/callback', async (req, res) => {
             };
         }
 
-        db.upsertAccount(profileData);
+        await db.upsertAccount(profileData);
         console.log(`[AUTH] YouTube terhubung: ${profileData.handle}`);
         res.redirect('/?auth=youtube&status=success');
 
@@ -397,7 +415,7 @@ app.get('/api/auth/tiktok/callback', async (req, res) => {
             };
         }
 
-        db.upsertAccount(profileData);
+        await db.upsertAccount(profileData);
         console.log(`[AUTH] TikTok terhubung: ${profileData.handle}`);
         res.redirect('/?auth=tiktok&status=success');
 
@@ -437,7 +455,7 @@ app.post('/api/auth/browser-login', async (req, res) => {
             default: throw new Error('Platform tidak dikenal.');
         }
         profileData.sandbox = false;
-        db.upsertAccount(profileData);
+        await db.upsertAccount(profileData);
         console.log(`[AUTH-BROWSER] ${platform} terhubung: ${profileData.handle}`);
         res.json({ success: true, account: { ...profileData, password: undefined } });
     } catch (err) {
@@ -450,12 +468,12 @@ app.post('/api/auth/browser-login', async (req, res) => {
  * DELETE /api/auth/browser-logout/:platform
  * Menghapus session browser dan memutuskan akun.
  */
-app.delete('/api/auth/browser-logout/:platform', (req, res) => {
+app.delete('/api/auth/browser-logout/:platform', async (req, res) => {
     const { platform } = req.params;
     try {
         const { clearSession } = require('./automation/browser');
         clearSession(platform);
-        db.disconnectAccount(platform);
+        await db.disconnectAccount(platform);
         res.json({ success: true, message: `Session ${platform} dihapus.` });
     } catch (err) {
         res.status(500).json({ success: false, message: err.message });
@@ -481,8 +499,8 @@ app.post('/api/media/upload', upload.single('file'), (req, res) => {
 // ============================================================
 
 // GET: Daftar semua postingan
-app.get('/api/posts', (req, res) => {
-    const posts = db.getPosts();
+app.get('/api/posts', async (req, res) => {
+    const posts = await db.getPosts();
     res.json({ success: true, posts });
 });
 
@@ -498,7 +516,7 @@ app.post('/api/posts', async (req, res) => {
     let finalPublishDate = publishDate || new Date().toISOString();
 
     // Simpan postingan ke database
-    const newPost = db.addPost({
+    const newPost = await db.addPost({
         caption: caption || '',
         mediaUrl: mediaUrl || '',
         mediaType: mediaType || '',
@@ -512,20 +530,20 @@ app.post('/api/posts', async (req, res) => {
     // Jika langsung dikirim, proses sekarang
     if (postStatus === 'posted') {
         const results = await publishToAllPlatforms(newPost);
-        db.updatePost(newPost.id, {
+        await db.updatePost(newPost.id, {
             status: 'posted',
             publishResults: results,
             stats: generateMockStats()
         });
-        return res.json({ success: true, post: db.getPostById(newPost.id), results });
+        return res.json({ success: true, post: await db.getPostById(newPost.id), results });
     }
 
     res.json({ success: true, post: newPost });
 });
 
 // DELETE: Hapus satu postingan
-app.delete('/api/posts/:id', (req, res) => {
-    const ok = db.deletePost(req.params.id);
+app.delete('/api/posts/:id', async (req, res) => {
+    const ok = await db.deletePost(req.params.id);
     if (ok) {
         res.json({ success: true });
     } else {
@@ -538,7 +556,7 @@ app.put('/api/posts/:id', async (req, res) => {
     const { id } = req.params;
     const { caption, mediaUrl, mediaType, platforms, status, publishDate } = req.body;
 
-    const post = db.getPostById(id);
+    const post = await db.getPostById(id);
     if (!post) {
         return res.status(404).json({ success: false, message: 'Postingan tidak ditemukan.' });
     }
@@ -552,15 +570,15 @@ app.put('/api/posts/:id', async (req, res) => {
     if (publishDate !== undefined) updates.publishDate = publishDate;
 
     // Jika diedit dan status diubah menjadi langsung dikirim (posted), jalankan mesin publikasi
-    const updatedPost = db.updatePost(id, updates);
+    const updatedPost = await db.updatePost(id, updates);
     if (status === 'posted' && post.status !== 'posted') {
         const results = await publishToAllPlatforms(updatedPost);
-        db.updatePost(id, {
+        await db.updatePost(id, {
             status: 'posted',
             publishResults: results,
             stats: generateMockStats()
         });
-        return res.json({ success: true, post: db.getPostById(id), results });
+        return res.json({ success: true, post: await db.getPostById(id), results });
     }
 
     res.json({ success: true, post: updatedPost });
@@ -568,18 +586,18 @@ app.put('/api/posts/:id', async (req, res) => {
 
 // POST: Publikasikan postingan terjadwal secara langsung
 app.post('/api/posts/:id/publish', async (req, res) => {
-    const post = db.getPostById(req.params.id);
+    const post = await db.getPostById(req.params.id);
     if (!post) {
         return res.status(404).json({ success: false, message: 'Postingan tidak ditemukan.' });
     }
     const results = await publishToAllPlatforms(post);
-    db.updatePost(post.id, {
+    await db.updatePost(post.id, {
         status: 'posted',
         publishDate: new Date().toISOString(),
         publishResults: results,
         stats: generateMockStats()
     });
-    res.json({ success: true, post: db.getPostById(post.id), results });
+    res.json({ success: true, post: await db.getPostById(post.id), results });
 });
 
 // ============================================================
@@ -592,7 +610,7 @@ app.post('/api/posts/:id/publish', async (req, res) => {
  */
 async function publishToAllPlatforms(post) {
     const results = {};
-    const accounts = db.getAccounts();
+    const accounts = await db.getAccounts();
 
     for (const platform of post.platforms) {
         const acc = accounts.find(a => a.platform === platform && a.connected);
@@ -738,14 +756,14 @@ function generateMockStats() {
 // Background Scheduler (cek setiap 60 detik)
 // ============================================================
 async function runScheduler() {
-    const duePosts = db.getDueScheduledPosts();
+    const duePosts = await db.getDueScheduledPosts();
     if (duePosts.length > 0) {
         console.log(`[SCHEDULER] ${duePosts.length} postingan siap diterbitkan...`);
         for (const post of duePosts) {
             console.log(`[SCHEDULER] Memproses: ${post.id} - ${post.caption ? post.caption.substring(0, 50) : 'tanpa keterangan'}...`);
             try {
                 const results = await publishToAllPlatforms(post);
-                db.updatePost(post.id, {
+                await db.updatePost(post.id, {
                     status: 'posted',
                     publishDate: new Date().toISOString(),
                     publishResults: results,
@@ -754,16 +772,18 @@ async function runScheduler() {
                 console.log(`[SCHEDULER] ✅ Berhasil diterbitkan: ${post.id}`);
             } catch (err) {
                 console.error(`[SCHEDULER] ❌ Gagal: ${post.id}`, err.message);
-                db.updatePost(post.id, { status: 'failed', lastError: err.message });
+                await db.updatePost(post.id, { status: 'failed', lastError: err.message });
             }
         }
     }
 }
 
-// Jalankan scheduler pertama kali, lalu setiap 60 detik
-runScheduler();
-setInterval(runScheduler, 60 * 1000);
-console.log('[SCHEDULER] Background scheduler aktif — mengecek setiap 60 detik.');
+// Scheduler lokal saja (di Vercel pakai Cron → /api/cron/publish)
+if (!IS_VERCEL) {
+    runScheduler();
+    setInterval(runScheduler, 60 * 1000);
+    console.log('[SCHEDULER] Background scheduler aktif — mengecek setiap 60 detik.');
+}
 
 // ============================================================
 // API: Karyawan AI (dioperasikan agen Cursor — publish langsung)
@@ -772,8 +792,8 @@ console.log('[SCHEDULER] Background scheduler aktif — mengecek setiap 60 detik
 /**
  * Konteks cepat untuk agen: mode server + akun siap pakai
  */
-app.get('/api/ai/employee/context', (req, res) => {
-    const accounts = db.getAccounts()
+app.get('/api/ai/employee/context', async (req, res) => {
+    const accounts = (await db.getAccounts())
         .filter(a => a.connected)
         .map(a => {
             const { accessToken, refreshToken, sessionState, password, ...safe } = a;
@@ -786,7 +806,7 @@ app.get('/api/ai/employee/context', (req, res) => {
             };
         });
 
-    const recentAiPosts = db.getPosts()
+    const recentAiPosts = (await db.getPosts())
         .filter(p => p.createdBy === 'ai-employee')
         .slice(-10)
         .reverse()
@@ -834,7 +854,7 @@ app.post('/api/ai/employee/publish', async (req, res) => {
             });
         }
 
-        const connected = db.getAccounts().filter(a => a.connected).map(a => a.platform);
+        const connected = (await db.getAccounts()).filter(a => a.connected).map(a => a.platform);
         let targetPlatforms = Array.isArray(platforms) && platforms.length
             ? platforms.map(p => String(p).toLowerCase())
             : connected;
@@ -853,7 +873,7 @@ app.post('/api/ai/employee/publish', async (req, res) => {
         const name = (employeeName || 'Karyawan AI').trim();
         console.log(`🤖 [AI-EMPLOYEE] ${name} publish → ${targetPlatforms.join(', ')}`);
 
-        const newPost = db.addPost({
+        const newPost = await db.addPost({
             caption: finalCaption,
             mediaUrl: mediaUrl || '',
             mediaType: mediaType || '',
@@ -869,7 +889,7 @@ app.post('/api/ai/employee/publish', async (req, res) => {
 
         const results = await publishToAllPlatforms(newPost);
         const failed = Object.values(results).some(r => r && r.status === 'error');
-        db.updatePost(newPost.id, {
+        await db.updatePost(newPost.id, {
             status: failed ? 'failed' : 'posted',
             publishResults: results,
             stats: generateMockStats(),
@@ -881,7 +901,7 @@ app.post('/api/ai/employee/publish', async (req, res) => {
                 : undefined
         });
 
-        const post = db.getPostById(newPost.id);
+        const post = await db.getPostById(newPost.id);
         console.log(`🤖 [AI-EMPLOYEE] Selesai ${post.id} — ${failed ? 'ADA GAGAL' : 'OK'}`);
 
         res.json({
@@ -897,6 +917,16 @@ app.post('/api/ai/employee/publish', async (req, res) => {
     }
 });
 
+// Cron Vercel: publish postingan terjadwal yang jatuh tempo
+app.get('/api/cron/publish', async (req, res) => {
+    const auth = req.headers.authorization || '';
+    if (process.env.CRON_SECRET && auth !== `Bearer ${process.env.CRON_SECRET}`) {
+        return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+    await runScheduler();
+    res.json({ success: true, message: 'Scheduler dijalankan' });
+});
+
 // ============================================================
 // Serve Frontend (Fallback ke index.html)
 // ============================================================
@@ -905,14 +935,19 @@ app.get('*', (req, res) => {
 });
 
 // ============================================================
-// Start Server
+// Start Server (lokal) / Export untuk Vercel
 // ============================================================
-app.listen(PORT, () => {
-    console.log('');
-    console.log('╔════════════════════════════════════════════╗');
-    console.log(`║  PostSphere Server berjalan di port ${PORT}    ║`);
-    console.log(`║  Buka: http://localhost:${PORT}               ║`);
-    console.log(`║  Mode: ${SANDBOX_MODE ? 'SANDBOX (simulasi)       ' : 'REAL (API terhubung)    '} ║`);
-    console.log('╚════════════════════════════════════════════╝');
-    console.log('');
-});
+module.exports = app;
+
+if (require.main === module) {
+    app.listen(PORT, () => {
+        console.log('');
+        console.log('╔════════════════════════════════════════════╗');
+        console.log(`║  PostSphere Server berjalan di port ${PORT}    ║`);
+        console.log(`║  Buka: http://localhost:${PORT}               ║`);
+        console.log(`║  Mode: ${SANDBOX_MODE ? 'SANDBOX (simulasi)       ' : 'REAL (API terhubung)    '} ║`);
+        console.log(`║  DB: ${process.env.DATABASE_URL ? 'Neon Postgres          ' : 'db.json (lokal)        '} ║`);
+        console.log('╚════════════════════════════════════════════╝');
+        console.log('');
+    });
+}

@@ -9,7 +9,11 @@
     "ai:context": "node scripts/ai-employee-publish.js --context",
     "ai:publish": "node scripts/ai-employee-publish.js"
   },
+  "engines": {
+    "node": ">=18"
+  },
   "dependencies": {
+    "@neondatabase/serverless": "^1.2.0",
     "axios": "^1.6.0",
     "bcryptjs": "^3.0.3",
     "body-parser": "^1.20.2",
