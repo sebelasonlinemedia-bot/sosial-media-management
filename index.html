@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PostSphere - Pengelola Media Sosial Multi-Akun Profesional</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Stylesheet -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="dark-theme">
+    <div class="app-container">
+        <!-- Navigasi Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <div class="logo-icon">
+                        <i data-lucide="layers"></i>
+                    </div>
+                    <span class="logo-text">PostSphere</span>
+                </div>
+                <div class="workspace-badge">
+                    <span class="badge-dot"></span>
+                    <span class="badge-text">Ruang Kerja Pribadi</span>
+                </div>
+            </div>
+
+            <nav class="sidebar-menu">
+                <ul>
+                    <li class="active" data-view="dashboard">
+                        <a href="#dashboard">
+                            <i data-lucide="layout-dashboard"></i>
+                            <span>Dasbor</span>
+                        </a>
+                    </li>
+                    <li data-view="composer">
+                        <a href="#composer">
+                            <i data-lucide="pen-tool"></i>
+                            <span>Buat Postingan</span>
+                        </a>
+                    </li>
+                    <li data-view="queue">
+                        <a href="#queue">
+                            <i data-lucide="calendar"></i>
+                            <span>Jadwal & Kalender</span>
+                        </a>
+                    </li>
+                    <li data-view="accounts">
+                        <a href="#accounts">
+                            <i data-lucide="users"></i>
+                            <span>Akun Terhubung</span>
+                            <span class="menu-counter" id="active-accounts-count">0</span>
+                        </a>
+                    </li>
+                    <li data-view="analytics">
+                        <a href="#analytics">
+                            <i data-lucide="bar-chart-3"></i>
+                            <span>Analisis Konten</span>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="user-profile">
+                    <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=256&auto=format&fit=crop" alt="Avatar pengguna" class="user-avatar">
+                    <div class="user-info">
+                        <span class="user-name">Jane Doe</span>
+                        <span class="user-role">Editor Sosial</span>
+                    </div>
+                    <button class="settings-btn" id="open-settings-btn" title="Pengaturan">
+                        <i data-lucide="settings"></i>
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Area Konten Utama -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="main-header">
+                <div class="header-left">
+                    <h1 id="view-title">Dasbor</h1>
+                    <p id="view-subtitle" class="text-secondary">Ikhtisar saluran terhubung dan antrean postingan terjadwal Anda.</p>
+                </div>
+                <div class="header-right">
+                    <div class="date-time-display" id="current-time-display">
+                        <i data-lucide="clock"></i>
+                        <span id="header-time">Sabtu, 07:40 AM</span>
+                    </div>
+                    <button class="btn btn-primary" id="header-create-post-btn">
+                        <i data-lucide="plus"></i>
+                        <span>Buat Post</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Scrollable View Container -->
+            <div class="view-viewport">
+                
+                <!-- VIEW 1: DASHBOARD -->
+                <section id="view-dashboard" class="view-panel active">
+                    <!-- Grid Statistik -->
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-icon icon-indigo">
+                                <i data-lucide="send"></i>
+                            </div>
+                            <div class="stat-data">
+                                <span class="stat-value" id="stats-total-posts">0</span>
+                                <span class="stat-label">Total Postingan</span>
+                            </div>
+                            <div class="stat-trend trend-up">
+                                <i data-lucide="trending-up"></i>
+                                <span>+12%</span>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon icon-violet">
+                                <i data-lucide="clock-4"></i>
+                            </div>
+                            <div class="stat-data">
+                                <span class="stat-value" id="stats-scheduled-posts">0</span>
+                                <span class="stat-label">Postingan Terjadwal</span>
+                            </div>
+                            <div class="stat-trend text-secondary">
+                                <span>Antrean</span>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon icon-emerald">
+                                <i data-lucide="link-2"></i>
+                            </div>
+                            <div class="stat-data">
+                                <span class="stat-value" id="stats-active-channels">0</span>
+                                <span class="stat-label">Saluran Aktif</span>
+                            </div>
+                            <div class="stat-trend trend-up">
+                                <i data-lucide="check-circle-2"></i>
+                                <span>100% Ok</span>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon icon-pink">
+                                <i data-lucide="eye"></i>
+                            </div>
+                            <div class="stat-data">
+                                <span class="stat-value" id="stats-total-reach">142.8K</span>
+                                <span class="stat-label">Total Jangkauan</span>
+                            </div>
+                            <div class="stat-trend trend-up">
+                                <i data-lucide="trending-up"></i>
+                                <span>+8.4%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Layout Utama Dasbor -->
+                    <div class="dashboard-layout">
+                        <!-- Kolom Kiri: Antrean Terdekat -->
+                        <div class="card col-main">
+                            <div class="card-header">
+                                <h2>Antrean Konten Mendatang</h2>
+                                <button class="btn-text" id="dashboard-view-queue-btn">Lihat Semua Antrean</button>
+                            </div>
+                            <div class="upcoming-list" id="dashboard-upcoming-list">
+                                <!-- Konten Antrean Dinamis -->
+                                <div class="empty-state-small" id="dashboard-empty-queue">
+                                    <i data-lucide="calendar-days"></i>
+                                    <p>Belum ada postingan yang dijadwalkan.</p>
+                                    <button class="btn btn-sm btn-secondary" onclick="app.switchView('composer')">Buat Postingan Sekarang</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Kolom Kanan: Diagram & Saluran Aktif -->
+                        <div class="col-side flex-column gap-6">
+                            <!-- Pembagian Konten per Saluran -->
+                            <div class="card">
+                                <div class="card-header">
+                                    <h2>Pembagian Saluran</h2>
+                                </div>
+                                <div class="chart-container" style="height: 180px; position: relative;">
+                                    <canvas id="dashboard-channel-chart"></canvas>
+                                </div>
+                            </div>
+
+                            <!-- Ringkasan Saluran Terhubung -->
+                            <div class="card">
+                                <div class="card-header">
+                                    <h2>Saluran Terhubung</h2>
+                                </div>
+                                <div class="dashboard-channel-list" id="dashboard-channel-list">
+                                    <!-- Diisi secara dinamis -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- VIEW 2: COMPOSER (BUAT POSTINGAN) -->
+                <section id="view-composer" class="view-panel">
+                    <div class="composer-container">
+                        <!-- Bagian Kiri: Kontrol Form -->
+                        <div class="composer-form-section card">
+                            <div class="composer-header">
+                                <h2>Tulis Konten Postingan Anda</h2>
+                                <span class="badge badge-indigo" id="composer-status-badge">Draf Baru</span>
+                            </div>
+
+                            <!-- Selektor Platform Target -->
+                            <div class="form-group">
+                                <label class="form-label">Publikasikan ke:</label>
+                                <div class="platforms-selector-grid" id="composer-platform-selectors">
+                                    <!-- Dibuat secara dinamis berdasarkan akun terhubung -->
+                                </div>
+                                <span class="input-hint" id="platforms-warning-hint">Silakan hubungkan dan pilih minimal satu akun untuk mulai menulis postingan.</span>
+                            </div>
+
+                            <!-- Textarea Caption -->
+                            <div class="form-group">
+                                <div class="form-label-row">
+                                    <label for="post-caption" class="form-label">Keterangan / Isi Postingan</label>
+                                    <span class="char-counter" id="composer-char-counter">0 / 2200</span>
+                                </div>
+                                <textarea id="post-caption" class="form-control" rows="6" placeholder="Apa yang ingin Anda bagikan? Tulis keterangan Anda di sini..." disabled></textarea>
+                                <div class="platform-char-limits" id="composer-platform-limits">
+                                    <!-- Batasan karakter per platform -->
+                                </div>
+                            </div>
+
+                            <!-- Unggah Media -->
+                            <div class="form-group">
+                                <label class="form-label">Media (Gambar atau Video)</label>
+                                <div class="media-uploader-zone" id="media-uploader-zone">
+                                    <input type="file" id="media-file-input" accept="image/*,video/*" style="display: none;">
+                                    <div class="uploader-content" id="uploader-prompt">
+                                        <div class="uploader-icon-container">
+                                            <i data-lucide="image-plus"></i>
+                                        </div>
+                                        <p class="uploader-text">Seret & lepas file di sini atau <span class="uploader-browse">telusuri</span></p>
+                                        <p class="uploader-sub">Mendukung JPG, PNG, MP4 hingga ukuran maksimal 50MB</p>
+                                    </div>
+                                    <div class="uploader-preview-container hidden" id="uploader-preview-container">
+                                        <img id="uploader-img-preview" src="" alt="Pratinjau media" class="uploader-preview-file hidden">
+                                        <video id="uploader-video-preview" src="" class="uploader-preview-file hidden" controls></video>
+                                        <button class="remove-media-btn" id="remove-media-btn" title="Hapus Media">
+                                            <i data-lucide="x"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Opsi Penjadwalan -->
+                            <div class="form-group schedule-config-box">
+                                <label class="form-label flex-align-center gap-2">
+                                    <i data-lucide="calendar-clock" class="text-indigo"></i>
+                                    <span>Format Publikasi</span>
+                                </label>
+                                <div class="scheduling-toggle-row">
+                                    <label class="schedule-radio-card active">
+                                        <input type="radio" name="publish-mode" value="now" checked>
+                                        <div class="radio-content">
+                                            <span class="radio-title">Kirim Sekarang</span>
+                                            <span class="radio-desc">Postingan akan langsung tayang pada saluran yang dipilih.</span>
+                                        </div>
+                                    </label>
+                                    <label class="schedule-radio-card">
+                                        <input type="radio" name="publish-mode" value="scheduled">
+                                        <div class="radio-content">
+                                            <span class="radio-title">Jadwalkan Postingan</span>
+                                            <span class="radio-desc">Atur tanggal dan waktu spesifik di masa mendatang.</span>
+                                        </div>
+                                    </label>
+                                </div>
+
+                                <div class="scheduler-inputs hidden" id="scheduler-date-time-box">
+                                    <div class="date-picker-group">
+                                        <label for="schedule-date" class="form-label-sub">Tanggal</label>
+                                        <div class="input-with-icon">
+                                            <i data-lucide="calendar"></i>
+                                            <input type="date" id="schedule-date" class="form-control">
+                                        </div>
+                                    </div>
+                                    <div class="time-picker-group">
+                                        <label for="schedule-time" class="form-label-sub">Waktu</label>
+                                        <div class="input-with-icon">
+                                            <i data-lucide="clock"></i>
+                                            <input type="time" id="schedule-time" class="form-control">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Tombol Aksi -->
+                            <div class="composer-actions">
+                                <button class="btn btn-secondary" id="composer-save-draft-btn" disabled>Simpan Draf</button>
+                                <button class="btn btn-secondary hidden" id="composer-cancel-edit-btn">Batal Edit</button>
+                                <button class="btn btn-primary btn-submit" id="composer-submit-btn" disabled>
+                                    <span class="btn-spinner hidden" id="composer-submit-spinner"></span>
+                                    <span id="composer-submit-text">Kirim Sekarang</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Bagian Kanan: Pratinjau Langsung -->
+                        <div class="composer-preview-section">
+                            <div class="preview-card card">
+                                <div class="preview-header">
+                                    <h2>Pratinjau Langsung Platform</h2>
+                                    <div class="preview-tabs" id="preview-tabs">
+                                        <button class="preview-tab active" data-platform="instagram">
+                                            <i data-lucide="instagram"></i><span>Instagram</span>
+                                        </button>
+                                        <button class="preview-tab" data-platform="facebook">
+                                            <i data-lucide="facebook"></i><span>Facebook</span>
+                                        </button>
+                                        <button class="preview-tab" data-platform="tiktok">
+                                            <i data-lucide="music-2"></i><span>TikTok</span>
+                                        </button>
+                                        <button class="preview-tab" data-platform="youtube">
+                                            <i data-lucide="youtube"></i><span>YouTube</span>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="preview-display-viewport">
+                                    
+                                    <!-- INSTAGRAM PREVIEW -->
+                                    <div class="preview-wrapper active" id="preview-instagram">
+                                        <div class="phone-mockup">
+                                            <div class="phone-header">
+                                                <span class="phone-time">07:40</span>
+                                                <div class="phone-camera"></div>
+                                                <div class="phone-icons">
+                                                    <i data-lucide="signal" style="width: 12px; height: 12px;"></i>
+                                                    <i data-lucide="wifi" style="width: 12px; height: 12px;"></i>
+                                                    <i data-lucide="battery" style="width: 12px; height: 12px;"></i>
+                                                </div>
+                                            </div>
+                                            <div class="instagram-feed-mockup">
+                                                <div class="ig-header">
+                                                    <div class="ig-avatar-placeholder">
+                                                        <img src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=256&auto=format&fit=crop" class="preview-mockup-avatar" alt="profil">
+                                                    </div>
+                                                    <div class="ig-user-details">
+                                                        <span class="ig-username" id="ig-preview-handle">@user_postsphere</span>
+                                                        <span class="ig-location">Bersponsor / PostSphere</span>
+                                                    </div>
+                                                    <i data-lucide="more-horizontal" class="ig-more"></i>
+                                                </div>
+                                                <div class="ig-media-box" id="ig-preview-media">
+                                                    <div class="media-placeholder">
+                                                        <i data-lucide="image"></i>
+                                                        <p>Area Pratinjau Media</p>
+                                                    </div>
+                                                </div>
+                                                <div class="ig-action-bar">
+                                                    <div class="ig-actions-left">
+                                                        <i data-lucide="heart"></i>
+                                                        <i data-lucide="message-circle"></i>
+                                                        <i data-lucide="send"></i>
+                                                    </div>
+                                                    <i data-lucide="bookmark"></i>
+                                                </div>
+                                                <div class="ig-likes">
+                                                    <span>1.248 suka</span>
+                                                </div>
+                                                <div class="ig-caption-block">
+                                                    <span class="ig-caption-username" id="ig-preview-handle-body">@user_postsphere</span>
+                                                    <span class="ig-caption-text" id="ig-preview-text">Keterangan postingan akan muncul di sini saat Anda mengetik di editor...</span>
+                                                </div>
+                                                <div class="ig-time">1 menit yang lalu</div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- FACEBOOK PREVIEW -->
+                                    <div class="preview-wrapper" id="preview-facebook">
+                                        <div class="facebook-feed-mockup">
+                                            <div class="fb-header">
+                                                <div class="fb-avatar">
+                                                    <img src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=256&auto=format&fit=crop" class="preview-mockup-avatar" alt="profil">
+                                                </div>
+                                                <div class="fb-user-info">
+                                                    <span class="fb-name" id="fb-preview-name">Akun PostSphere</span>
+                                                    <div class="fb-meta">
+                                                        <span class="fb-time">Baru saja</span>
+                                                        <span class="fb-dot">·</span>
+                                                        <i data-lucide="globe" style="width:12px;height:12px;"></i>
+                                                    </div>
+                                                </div>
+                                                <i data-lucide="more-horizontal" class="fb-more"></i>
+                                            </div>
+                                            <div class="fb-caption" id="fb-preview-text">Konten dan teks postingan akan muncul di sini. Pratinjau ini mensimulasikan tata letak postingan beranda Facebook standar di desktop.</div>
+                                            <div class="fb-media-box" id="fb-preview-media">
+                                                <div class="media-placeholder">
+                                                    <i data-lucide="image"></i>
+                                                    <p>Area Pratinjau Media</p>
+                                                </div>
+                                            </div>
+                                            <div class="fb-engagement-stats">
+                                                <div class="fb-likes-count">
+                                                    <span class="fb-like-icon-circle"><i data-lucide="thumbs-up" style="width:10px;height:10px;color:white;fill:white;"></i></span>
+                                                    <span>12</span>
+                                                </div>
+                                                <div class="fb-comments-shares">
+                                                    <span>2 komentar</span>
+                                                    <span>·</span>
+                                                    <span>1 kali dibagikan</span>
+                                                </div>
+                                            </div>
+                                            <div class="fb-actions">
+                                                <button class="fb-action-btn"><i data-lucide="thumbs-up"></i><span>Suka</span></button>
+                                                <button class="fb-action-btn"><i data-lucide="message-square"></i><span>Komentar</span></button>
+                                                <button class="fb-action-btn"><i data-lucide="share-2"></i><span>Bagikan</span></button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- TIKTOK PREVIEW -->
+                                    <div class="preview-wrapper" id="preview-tiktok">
+                                        <div class="phone-mockup">
+                                            <div class="phone-header white-elements">
+                                                <span class="phone-time">07:40</span>
+                                                <div class="phone-camera"></div>
+                                                <div class="phone-icons">
+                                                    <i data-lucide="signal" style="width: 12px; height: 12px;"></i>
+                                                    <i data-lucide="wifi" style="width: 12px; height: 12px;"></i>
+                                                    <i data-lucide="battery" style="width: 12px; height: 12px;"></i>
+                                                </div>
+                                            </div>
+                                            <div class="tiktok-feed-mockup">
+                                                <div class="tt-video-layer" id="tt-preview-media">
+                                                    <!-- Backdrop video penuh di TikTok -->
+                                                    <div class="tt-media-placeholder">
+                                                        <i data-lucide="video" style="width: 48px; height: 48px; margin-bottom: 8px;"></i>
+                                                        <p>Area Video TikTok</p>
+                                                        <span style="font-size:10px; opacity:0.6; text-align:center; padding: 0 20px;">Unggah video untuk melihat pratinjau penuh layar TikTok</span>
+                                                    </div>
+                                                </div>
+                                                <div class="tt-overlay-header">
+                                                    <span>Mengikuti</span>
+                                                    <span class="active">Untuk Anda</span>
+                                                </div>
+                                                <!-- Ikon aksi sebelah kanan -->
+                                                <div class="tt-right-actions">
+                                                    <div class="tt-action-avatar">
+                                                        <img src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=256&auto=format&fit=crop" alt="avatar">
+                                                        <div class="tt-plus-badge">+</div>
+                                                    </div>
+                                                    <div class="tt-action-item">
+                                                        <div class="tt-icon-circle"><i data-lucide="heart" style="fill:white;"></i></div>
+                                                        <span>84.2K</span>
+                                                    </div>
+                                                    <div class="tt-action-item">
+                                                        <div class="tt-icon-circle"><i data-lucide="message-circle" style="fill:white;"></i></div>
+                                                        <span>1.420</span>
+                                                    </div>
+                                                    <div class="tt-action-item">
+                                                        <div class="tt-icon-circle"><i data-lucide="bookmark" style="fill:white;"></i></div>
+                                                        <span>6.302</span>
+                                                    </div>
+                                                    <div class="tt-action-item">
+                                                        <div class="tt-icon-circle"><i data-lucide="share-2" style="fill:white;"></i></div>
+                                                        <span>12.5K</span>
+                                                    </div>
+                                                    <div class="tt-music-disc">
+                                                        <div class="disc-inner"></div>
+                                                    </div>
+                                                </div>
+                                                <!-- Keterangan & detail di bagian bawah -->
+                                                <div class="tt-bottom-details">
+                                                    <span class="tt-handle" id="tt-preview-handle">@kreator_postsphere</span>
+                                                    <p class="tt-caption" id="tt-preview-text">Ini adalah simulasi tampilan overlay TikTok. Tulis keterangan untuk melihat pratinjau. Keterangan TikTok sebaiknya singkat dan menyertakan tagar populer #foryou #viral #trending...</p>
+                                                    <div class="tt-music-row">
+                                                        <i data-lucide="music"></i>
+                                                        <div class="marquee-container">
+                                                            <span class="marquee-text">Suara Asli - @kreator_postsphere</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- YOUTUBE PREVIEW -->
+                                    <div class="preview-wrapper" id="preview-youtube">
+                                        <div class="youtube-shorts-mockup">
+                                            <div class="yt-shorts-header">
+                                                <div class="yt-header-left">
+                                                    <i data-lucide="arrow-left"></i>
+                                                </div>
+                                                <div class="yt-header-right">
+                                                    <i data-lucide="search"></i>
+                                                    <i data-lucide="more-vertical"></i>
+                                                </div>
+                                            </div>
+                                            <div class="yt-video-layer" id="yt-preview-media">
+                                                <div class="yt-media-placeholder">
+                                                    <i data-lucide="youtube" style="width: 48px; height: 48px; margin-bottom: 8px; color: #ff0000;"></i>
+                                                    <p>Pratinjau Video YouTube</p>
+                                                    <span style="font-size:10px; opacity:0.6; text-align:center; padding:0 20px;">Kami mendukung format video untuk YouTube. Pratinjau mensimulasikan pemutar YouTube Shorts di ponsel.</span>
+                                                </div>
+                                            </div>
+                                            <div class="yt-right-actions">
+                                                <div class="yt-action-item">
+                                                    <div class="yt-icon-circle"><i data-lucide="thumbs-up"></i></div>
+                                                    <span>Suka</span>
+                                                </div>
+                                                <div class="yt-action-item">
+                                                    <div class="yt-icon-circle"><i data-lucide="thumbs-down"></i></div>
+                                                    <span>Tidak Suka</span>
+                                                </div>
+                                                <div class="yt-action-item">
+                                                    <div class="yt-icon-circle"><i data-lucide="message-square"></i></div>
+                                                    <span>42</span>
+                                                </div>
+                                                <div class="yt-action-item">
+                                                    <div class="yt-icon-circle"><i data-lucide="share-2"></i></div>
+                                                    <span>Bagikan</span>
+                                                </div>
+                                                <div class="yt-action-item">
+                                                    <div class="yt-icon-circle"><i data-lucide="repeat"></i></div>
+                                                    <span>Remix</span>
+                                                </div>
+                                                <div class="yt-music-box-preview">
+                                                    <img src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=256&auto=format&fit=crop" alt="soundtrack">
+                                                </div>
+                                            </div>
+                                            <div class="yt-overlay-info">
+                                                <div class="yt-channel-row">
+                                                    <div class="yt-channel-avatar">
+                                                        <img src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=256&auto=format&fit=crop" alt="avatar">
+                                                    </div>
+                                                    <span class="yt-channel-name" id="yt-preview-handle">@PostSphereYT</span>
+                                                    <button class="yt-sub-btn">Langganan</button>
+                                                </div>
+                                                <div class="yt-title-block">
+                                                    <p class="yt-video-title" id="yt-preview-text">Judul video YouTube ditampilkan di sini. Biasanya singkat dan deskriptif. Ideal untuk Shorts! #shorts #youtube</p>
+                                                </div>
+                                                <div class="yt-soundtrack-info">
+                                                    <i data-lucide="music" style="width:12px;height:12px;"></i>
+                                                    <span>Suara Asli - @PostSphereYT</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- VIEW 3: JADWAL & KALENDER -->
+                <section id="view-queue" class="view-panel">
+                    <div class="queue-header-controls card">
+                        <div class="queue-toggles">
+                            <button class="btn btn-secondary active" id="queue-toggle-list">
+                                <i data-lucide="list"></i>
+                                <span>Daftar Antrean</span>
+                            </button>
+                            <button class="btn btn-secondary" id="queue-toggle-calendar">
+                                <i data-lucide="calendar"></i>
+                                <span>Kisi Kalender</span>
+                            </button>
+                        </div>
+                        <div class="queue-filters">
+                            <select id="queue-filter-platform" class="form-control form-control-sm" style="width: auto;">
+                                <option value="all">Semua Platform</option>
+                                <option value="instagram">Instagram</option>
+                                <option value="facebook">Facebook</option>
+                                <option value="tiktok">TikTok</option>
+                                <option value="youtube">YouTube</option>
+                            </select>
+                            <select id="queue-filter-status" class="form-control form-control-sm" style="width: auto;">
+                                <option value="all">Semua Status</option>
+                                <option value="scheduled">Dijadwalkan</option>
+                                <option value="posted">Diterbitkan</option>
+                                <option value="draft">Draf</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- TAMPILAN TIMELINE LIST -->
+                    <div class="queue-list-container" id="queue-list-view">
+                        <div class="queue-timeline" id="queue-timeline-list">
+                            <!-- Diisi secara dinamis -->
+                        </div>
+                    </div>
+
+                    <!-- TAMPILAN GRID KALENDER -->
+                    <div class="calendar-card card hidden" id="calendar-grid-view">
+                        <div class="calendar-nav-header">
+                            <button class="btn-icon-round" id="calendar-prev-month">
+                                <i data-lucide="chevron-left"></i>
+                            </button>
+                            <h2 id="calendar-current-month-year">Juni 2026</h2>
+                            <button class="btn-icon-round" id="calendar-next-month">
+                                <i data-lucide="chevron-right"></i>
+                            </button>
+                        </div>
+                        <div class="calendar-grid-wrapper">
+                            <div class="calendar-weekdays">
+                                <div>Min</div>
+                                <div>Sen</div>
+                                <div>Sel</div>
+                                <div>Rab</div>
+                                <div>Kam</div>
+                                <div>Jum</div>
+                                <div>Sab</div>
+                            </div>
+                            <div class="calendar-days" id="calendar-days-grid">
+                                <!-- Hari kalender diinjeksi oleh JS -->
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- VIEW 4: AKUN TERHUBUNG -->
+                <section id="view-accounts" class="view-panel">
+                    <div class="accounts-intro card" style="display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap;">
+                        <div class="intro-content" style="flex: 1; min-width: 250px;">
+                            <h2>Hubungkan Akun Sosial Media Anda</h2>
+                            <p class="text-secondary">Tautkan profil Facebook, Instagram, TikTok, dan YouTube melalui <strong style="color:var(--text-primary)">OAuth 2.0 resmi</strong>. Mode Sandbox aktif secara default — isi file <code style="font-size:0.8125rem;background:rgba(255,255,255,0.07);padding:2px 6px;border-radius:4px;">.env</code> dengan API key untuk koneksi akun asli.</p>
+                        </div>
+                        <button class="btn btn-primary" id="btn-quick-connect-all" style="flex-shrink: 0; background: linear-gradient(135deg, var(--emerald), var(--indigo)); box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);">
+                            <i data-lucide="zap"></i>
+                            <span>Coba Sandbox (Demo)</span>
+                        </button>
+                    </div>
+
+                    <div class="accounts-grid" id="accounts-status-grid">
+                        <!-- Akun-akun terhubung diisi secara dinamis -->
+                    </div>
+                </section>
+
+                <!-- VIEW 5: ANALISIS KONTEN -->
+                <section id="view-analytics" class="view-panel">
+                    <div class="analytics-filter-bar card">
+                        <div class="analytics-title-group">
+                            <h2>Wawasan Saluran</h2>
+                            <p class="text-secondary">Ikhtisar metrik interaksi, tayangan, dan pertumbuhan penonton di seluruh akun terhubung.</p>
+                        </div>
+                        <div class="analytics-period-selector">
+                            <button class="btn btn-sm btn-secondary active">7 Hari</button>
+                            <button class="btn btn-sm btn-secondary">30 Hari</button>
+                            <button class="btn btn-sm btn-secondary">90 Hari</button>
+                        </div>
+                    </div>
+
+                    <div class="analytics-grid">
+                        <!-- Chart Interaksi -->
+                        <div class="card col-main">
+                            <div class="card-header">
+                                <h2>Jangkauan & Interaksi Pemirsa</h2>
+                            </div>
+                            <div class="chart-container" style="height: 350px;">
+                                <canvas id="analytics-reach-chart"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Rasio keberhasilan publikasi -->
+                        <div class="card col-side flex-column justify-center align-center">
+                            <div class="card-header width-full">
+                                <h2>Kesehatan Publikasi</h2>
+                            </div>
+                            <div class="chart-container width-full flex-center" style="height: 250px; position: relative;">
+                                <canvas id="analytics-health-chart"></canvas>
+                            </div>
+                            <div class="health-meta text-center gap-1 mt-4">
+                                <span class="health-percentage font-lg font-bold text-emerald">98.4%</span>
+                                <span class="text-secondary font-sm">Rasio Postingan Berhasil</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tabel Kinerja Postingan -->
+                    <div class="card mt-6">
+                        <div class="card-header">
+                            <h2>Kinerja Postingan Terbaru</h2>
+                        </div>
+                        <div class="table-container">
+                            <table class="analytics-table">
+                                <thead>
+                                    <tr>
+                                        <th>Detail Postingan</th>
+                                        <th>Platform</th>
+                                        <th>Status</th>
+                                        <th>Tayangan</th>
+                                        <th>Interaksi</th>
+                                        <th>Klik</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="analytics-posts-tbody">
+                                    <!-- Diisi secara dinamis dari database postingan yang sukses -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- MODAL: OAuth Connector Dialog -->
+    <div class="modal-overlay hidden" id="oauth-modal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3 id="oauth-title">Hubungkan Platform</h3>
+                <button class="modal-close-btn" id="oauth-close-btn">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="modal-body text-center">
+                <div class="oauth-logo-spin" id="oauth-platform-icon-container">
+                    <i data-lucide="instagram" id="oauth-platform-icon"></i>
+                </div>
+                <h4 class="mt-4" id="oauth-connect-status-text">Menunggu Otorisasi</h4>
+                <p class="text-secondary font-sm mt-2 px-6" id="oauth-body-desc">
+                    Izinkan PostSphere untuk menerbitkan konten, melihat analitik, dan mengelola postingan atas nama akun Anda.
+                </p>
+                <div class="oauth-simulate-loading mt-6 hidden" id="oauth-spinner">
+                    <div class="spinner"></div>
+                    <span class="font-sm text-secondary mt-2 block">Mengamankan kredensial...</span>
+                </div>
+                <div class="oauth-account-input-box mt-6" id="oauth-input-box">
+                    <div class="form-group text-left px-6">
+                        <label for="oauth-username" class="form-label">Username Akun / Nama Halaman</label>
+                        <input type="text" id="oauth-username" class="form-control" placeholder="@username atau Nama Halaman">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="oauth-cancel-btn">Batal</button>
+                <button class="btn btn-primary" id="oauth-confirm-btn">Hubungkan dengan Aman</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: View/Edit Scheduled Post Details -->
+    <div class="modal-overlay hidden" id="post-details-modal">
+        <div class="modal-card post-details-modal-card">
+            <div class="modal-header">
+                <h3>Pengaturan Postingan</h3>
+                <button class="modal-close-btn" id="post-details-close-btn">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="modal-body" id="post-details-modal-body">
+                <!-- Diinjeksi oleh JS -->
+            </div>
+            <div class="modal-footer" id="post-details-modal-footer">
+                <!-- Tombol aksi diinjeksi oleh JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Browser Login (Non-API / Puppeteer) -->
+    <div class="modal-overlay hidden" id="browser-login-modal">
+        <div class="modal-card" style="max-width: 440px;">
+            <div class="modal-header">
+                <div style="display:flex;align-items:center;gap:12px;">
+                    <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;">
+                        <i data-lucide="shield" style="width:18px;height:18px;color:white;"></i>
+                    </div>
+                    <div>
+                        <h3 style="margin:0;font-size:1rem;">Login Akun Nyata</h3>
+                        <p style="margin:0;font-size:0.75rem;color:var(--text-secondary);">Masuk menggunakan username &amp; password</p>
+                    </div>
+                </div>
+                <button class="modal-close-btn" id="browser-login-close-btn">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="modal-body" style="padding: 24px;">
+                <!-- Warning banner -->
+                <div style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:10px;padding:12px 14px;margin-bottom:20px;display:flex;gap:10px;align-items:flex-start;">
+                    <i data-lucide="alert-triangle" style="width:16px;height:16px;color:#f59e0b;flex-shrink:0;margin-top:2px;"></i>
+                    <p style="font-size:0.78rem;color:#fde68a;margin:0;line-height:1.5;">Browser otomatis akan terbuka di background. Pastikan akun tidak mengaktifkan 2FA. Sesi akan disimpan lokal.</p>
+                </div>
+
+                <div class="form-group" style="margin-bottom:16px;">
+                    <label class="form-label" for="browser-login-platform">Platform</label>
+                    <select id="browser-login-platform" class="form-control">
+                        <option value="instagram">Instagram</option>
+                        <option value="facebook">Facebook</option>
+                        <option value="tiktok">TikTok</option>
+                        <option value="youtube">YouTube</option>
+                    </select>
+                </div>
+                <div class="form-group" style="margin-bottom:16px;">
+                    <label class="form-label" for="browser-login-username">Username / Email</label>
+                    <div style="position:relative;">
+                        <i data-lucide="user" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--text-secondary);pointer-events:none;"></i>
+                        <input type="text" id="browser-login-username" class="form-control" placeholder="username atau email akun" style="padding-left:38px;" autocomplete="off">
+                    </div>
+                </div>
+                <div class="form-group" style="margin-bottom:4px;">
+                    <label class="form-label" for="browser-login-password">Password</label>
+                    <div style="position:relative;">
+                        <i data-lucide="lock" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--text-secondary);pointer-events:none;"></i>
+                        <input type="password" id="browser-login-password" class="form-control" placeholder="••••••••" style="padding-left:38px;" autocomplete="off">
+                        <button id="browser-login-toggle-pass" type="button" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-secondary);">
+                            <i data-lucide="eye" style="width:16px;height:16px;"></i>
+                        </button>
+                    </div>
+                </div>
+                <p style="font-size:0.72rem;color:var(--text-secondary);margin:10px 0 0;">Kredensial Anda hanya digunakan secara lokal dan tidak dikirim ke server eksternal.</p>
+
+                <!-- Status area -->
+                <div id="browser-login-status" class="hidden" style="margin-top:16px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.25);border-radius:10px;padding:14px;display:flex;align-items:center;gap:12px;">
+                    <div class="spinner" style="flex-shrink:0;"></div>
+                    <span id="browser-login-status-text" style="font-size:0.8125rem;color:var(--text-secondary);">Memulai browser...</span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="browser-login-cancel-btn">Batal</button>
+                <button class="btn btn-primary" id="browser-login-submit-btn">
+                    <i data-lucide="log-in"></i>
+                    <span id="browser-login-submit-text">Masuk Sekarang</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- App Scripts -->
+    <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# Secrets & local config
+.env
+.env.local
+.env.*.local
+
+# Runtime data
+db.json
+sessions/
+uploads/*
+!uploads/.gitkeep
+
+# Logs & OS
+*.log
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+*.swp
