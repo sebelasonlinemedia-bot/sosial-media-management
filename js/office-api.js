@@ -8,6 +8,7 @@
     const OfficeApi = {
         async loadOfficeFromServer(app) {
             try {
+                // credentials: 'include' via api.get — cookie session / Bearer
                 const data = await api.get('/api/ai/office');
                 if (data.success) {
                     appState.office.employees = data.employees || [];
@@ -16,6 +17,9 @@
                     appState.office.settings = data.settings || null;
                     appState.office.briefTemplates = data.briefTemplates || [];
                     if (data.platforms) appState.office.platforms = data.platforms;
+                } else if (data.authRequired) {
+                    console.warn('[APP] Kantor AI butuh sesi login:', data.message);
+                    appState.office.employees = [];
                 }
                 if (app && typeof app.loadAiJobsFromServer === 'function') {
                     await app.loadAiJobsFromServer();

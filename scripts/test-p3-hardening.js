@@ -102,11 +102,14 @@ assert(mock.statsSource === 'mock', 'mock tagged');
     const major = parseInt(String(multerPkg.version).split('.')[0], 10);
     assert(major >= 2, `multer major ≥ 2 (got ${multerPkg.version})`);
 
-    // --- frontend modules exist ---
+    // --- frontend modules exist + bundled on Vercel ---
     const authUi = path.join(__dirname, '..', 'js', 'auth-ui.js');
     const officeApi = path.join(__dirname, '..', 'js', 'office-api.js');
     assert(fs.existsSync(authUi), 'js/auth-ui.js present');
     assert(fs.existsSync(officeApi), 'js/office-api.js present');
+    const vercelCfg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'vercel.json'), 'utf8'));
+    const includeFiles = (((vercelCfg.builds || [])[0] || {}).config || {}).includeFiles || [];
+    assert(includeFiles.includes('js/**'), 'vercel.json includeFiles contains js/**');
 
     // express-session should not be a direct runtime require in server (removed unused)
     let sessionRequired = false;

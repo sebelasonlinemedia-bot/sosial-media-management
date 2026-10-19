@@ -158,24 +158,90 @@ const app = {
         lucide.createIcons();
     },
 
-    // Auth UI → js/auth-ui.js (P3 modularize)
+    // Auth UI → js/auth-ui.js (P3 modularize); fallback jika skrip gagal dimuat (mis. deploy tanpa js/**)
     setupLoginGate() {
         if (typeof PiksAuthUI !== 'undefined') return PiksAuthUI.setupLoginGate(this);
+        const form = document.getElementById('app-login-form');
+        const logoutBtn = document.getElementById('app-logout-btn');
+        if (form) {
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                await this.submitLogin();
+            });
+        }
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', async () => {
+                await api.post('/api/auth/logout', {});
+                appState.user = null;
+                this.showLoginGate('Anda telah keluar.');
+            });
+        }
     },
     showLoginGate(message) {
         if (typeof PiksAuthUI !== 'undefined') return PiksAuthUI.showLoginGate(this, message);
+        const gate = document.getElementById('app-login-gate');
+        const appRoot = document.querySelector('.app-container');
+        const err = document.getElementById('app-login-error');
+        if (appRoot) appRoot.classList.add('hidden');
+        if (gate) gate.classList.remove('hidden');
+        if (err) {
+            if (message) {
+                err.textContent = message;
+                err.classList.remove('hidden');
+            } else {
+                err.textContent = '';
+                err.classList.add('hidden');
+            }
+        }
+        this.updateLoginBootstrapHint(appState.authStatus);
     },
     updateLoginBootstrapHint(status) {
         if (typeof PiksAuthUI !== 'undefined') return PiksAuthUI.updateLoginBootstrapHint(status);
     },
     hideLoginGate() {
         if (typeof PiksAuthUI !== 'undefined') return PiksAuthUI.hideLoginGate();
+        const gate = document.getElementById('app-login-gate');
+        const appRoot = document.querySelector('.app-container');
+        if (gate) gate.classList.add('hidden');
+        if (appRoot) appRoot.classList.remove('hidden');
     },
     updateUserBadge() {
         if (typeof PiksAuthUI !== 'undefined') return PiksAuthUI.updateUserBadge();
+        const el = document.getElementById('app-user-badge');
+        if (!el || !appState.user) return;
+        el.textContent = `${appState.user.email} · ${appState.user.role || 'editor'}`;
+        el.classList.remove('hidden');
     },
     async submitLogin() {
         if (typeof PiksAuthUI !== 'undefined') return PiksAuthUI.submitLogin(this);
+        const email = (document.getElementById('app-login-email')?.value || '').trim();
+        const password = document.getElementById('app-login-password')?.value || '';
+        const err = document.getElementById('app-login-error');
+        const btn = document.getElementById('app-login-submit');
+        if (err) {
+            err.classList.add('hidden');
+            err.textContent = '';
+        }
+        if (btn) btn.disabled = true;
+        try {
+            const data = await api.post('/api/auth/login', { email, password });
+            if (!data.success || !data.user) {
+                if (err) {
+                    err.textContent = data.message || 'Login gagal.';
+                    err.classList.remove('hidden');
+                }
+                return;
+            }
+            appState.user = data.user;
+            window.location.reload();
+        } catch (e) {
+            if (err) {
+                err.textContent = e.message || 'Login gagal.';
+                err.classList.remove('hidden');
+            }
+        } finally {
+            if (btn) btn.disabled = false;
+        }
     },
 
     // --- Deteksi & Tampilkan Notifikasi Hasil OAuth ---
@@ -574,9 +640,25 @@ app.setupOfficeEvents = function () {
     }
 };
 
-// Office API → js/office-api.js (P3 modularize)
+// Office API → js/office-api.js (P3 modularize); fallback jika skrip gagal dimuat
 app.loadOfficeFromServer = async function () {
     if (typeof PiksOfficeApi !== 'undefined') return PiksOfficeApi.loadOfficeFromServer(this);
+    try {
+        const data = await api.get('/api/ai/office');
+        if (data.success) {
+            appState.office.employees = data.employees || [];
+            appState.office.board = data.board || {};
+            appState.office.jobCounts = data.jobCounts || {};
+            appState.office.settings = data.settings || null;
+            appState.office.briefTemplates = data.briefTemplates || [];
+            if (data.platforms) appState.office.platforms = data.platforms;
+        } else if (data.authRequired) {
+            console.warn('[APP] Kantor AI butuh sesi login:', data.message);
+        }
+        await this.loadAiJobsFromServer();
+    } catch (e) {
+        console.error('[APP] Gagal memuat Kantor AI:', e);
+    }
 };
 
 app.renderOffice = async function () {
@@ -595,6 +677,19 @@ app.renderOffice = async function () {
 
 app.loadAndRenderInsights = async function (containerId) {
     if (typeof PiksOfficeApi !== 'undefined') return PiksOfficeApi.loadAndRenderInsights(this, containerId);
+    const el = document.getElementById(containerId);
+    if (!el) return;
+    try {
+        const data = await api.get('/api/ai/insights?days=30');
+        if (!data.success) {
+            el.innerHTML = `<p class="text-secondary font-sm">${this._escapeHtml(data.message || 'Gagal memuat insights.')}</p>`;
+            return;
+        }
+        appState.office.insights = data;
+        this.renderNextUpPanel(el, data);
+    } catch (e) {
+        el.innerHTML = '<p class="text-secondary font-sm">Gagal memuat insights.</p>';
+    }
 };
 
 app.renderNextUpPanel = function (el, data) {
