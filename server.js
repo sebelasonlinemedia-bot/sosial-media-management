@@ -51,7 +51,8 @@ const { runCeoChatTurn } = require('./lib/ceo-chat');
 const {
     resolveCrewPresenceUpdate,
     applyPresenceToStatus,
-    normalizeCrewPresence
+    normalizeCrewPresence,
+    summarizePresenceAction
 } = require('./lib/crew-presence');
 const { buildInsights } = require('./lib/ai-insights');
 const { notifyJobAttention } = require('./lib/ai-notify');
@@ -1828,11 +1829,12 @@ app.post('/api/ai/chat', rateLimitChat, async (req, res) => {
         const role = getRoleById(turn.roleId) || getRoleById('manager');
         let job = null;
 
-        // Arahan posisi 3D (duduk di meja / idle / meeting) — heuristik + LLM
+        // Arahan posisi 3D per peran (merge — "hanya Salsa" tidak menimpa yang lain)
         let crewPresence = normalizeCrewPresence(settings.crewPresence);
-        const presenceUpdate = resolveCrewPresenceUpdate(message, turn.officeAction);
-        if (presenceUpdate) {
-            crewPresence = normalizeCrewPresence(presenceUpdate);
+        const presenceMerged = resolveCrewPresenceUpdate(message, turn.officeAction, crewPresence);
+        const presenceChanged = !!presenceMerged;
+        if (presenceMerged) {
+            crewPresence = presenceMerged;
             await db.updateAiSettings({ crewPresence });
             settings.crewPresence = crewPresence;
         }
@@ -1881,19 +1883,9 @@ app.post('/api/ai/chat', rateLimitChat, async (req, res) => {
         }
 
         let replyText = turn.reply;
-        if (presenceUpdate) {
-            const where =
-                crewPresence.mode === 'at_desk'
-                    ? 'di meja komputer'
-                    : crewPresence.mode === 'meeting'
-                      ? 'di area rapat'
-                      : 'mode istirahat';
-            const who = crewPresence.roleIds?.length
-                ? crewPresence.roleIds.join(', ')
-                : 'seluruh tim';
-            if (!/meja|duduk|rapat|istirahat|siaga/i.test(replyText)) {
-                replyText += `\n\n📍 ${who} → ${where}.`;
-            }
+        const presenceSummary = presenceChanged ? summarizePresenceAction(crewPresence) : null;
+        if (presenceSummary) {
+            replyText += `\n\n📍 ${presenceSummary.who} → ${presenceSummary.where}.`;
         }
 
         const assistantMsg = await db.appendAiChatMessage({
@@ -1908,7 +1900,7 @@ app.post('/api/ai/chat', rateLimitChat, async (req, res) => {
                 createJob: !!job,
                 provider: turn.provider,
                 model: turn.model || null,
-                crewPresence: presenceUpdate ? crewPresence : undefined
+                crewPresence: presenceChanged ? crewPresence.lastAction : undefined
             }
         });
 

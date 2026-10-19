@@ -1330,8 +1330,18 @@ app.sendCeoChat = async function (text) {
         this.syncOffice3DEmployees();
         if (data.job) {
             this.showToast(`Job dibuat: ${data.job.status}`, 'emerald');
-        } else if (data.crewPresence?.mode === 'at_desk') {
-            this.showToast('Tim pindah ke meja kerja.', 'emerald');
+        } else if (data.crewPresence?.lastAction?.mode === 'at_desk') {
+            const ids = data.crewPresence.lastAction.roleIds;
+            this.showToast(
+                ids?.length ? `${ids.join(', ')} → meja.` : 'Tim pindah ke meja kerja.',
+                'emerald'
+            );
+        } else if (data.crewPresence?.lastAction?.mode === 'idle') {
+            const ids = data.crewPresence.lastAction.roleIds;
+            this.showToast(
+                ids?.length ? `${ids.join(', ')} istirahat.` : 'Tim istirahat.',
+                'emerald'
+            );
         }
         if (!data.success && data.message) {
             this.showToast(data.message, 'red');
