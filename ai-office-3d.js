@@ -1,11 +1,10 @@
 /**
  * PiK's Digital Lab — Kantor AI 3D viewport (vanilla Three.js CDN).
  *
- * Visual layout and prop language adapted from yugienugraha/ruang (MIT License,
- * Copyright 2026 yugienugraha): isometric cut-away office on a grass plot, wood
- * floor, white desks + monitors, lounge / pantry / game wing, outdoor street,
- * low-poly crew, stacked activity labels, drag-orbit + zoom + reset view.
- * Single-floor port for 7 Tim Konten roles — no R3F, no lantai 2, no Hermes.
+ * Cut-away isometric office inspired by corporate floor illustrations:
+ * light grey flooring, wood desks + dual monitors, glass meeting room,
+ * kitchen island, planter dividers, soft blue sky. Crew are stylized
+ * humanoids (capsule + sphere — not blocky boxes). Activity labels + orbit.
  *
  * Work board remains the primary UI; this stage is decorative + focus helper.
  */
@@ -48,8 +47,8 @@
     var COFFEE_TABLE = [4.6, 0, -2.9];
     var AISLE_Z = 0.4;
     var WALL_H = 2.6;
-    var WALL = 0xefe6d6;
-    var WALL_TOP = 0xd9cdb8;
+    var WALL = 0xf4f6f8;
+    var WALL_TOP = 0xe2e8f0;
 
     var LAYOUT = buildLayout(7);
 
@@ -83,17 +82,25 @@
                 key: 'lounge',
                 label: 'Relaxing in the lounge',
                 spots: [
-                    { x: 4.0, z: -1.8, facing: Math.PI, seated: true },
-                    { x: 2.5, z: -2.9, facing: Math.PI / 2, seated: true },
-                    { x: 6.7, z: -2.9, facing: -Math.PI / 2, seated: true }
+                    { x: 5.2, z: -1.6, facing: Math.PI, seated: true },
+                    { x: 3.8, z: -2.4, facing: Math.PI / 2, seated: true }
+                ]
+            },
+            {
+                key: 'kitchen',
+                label: 'Coffee break at the island',
+                spots: [
+                    { x: 7.6, z: 1.15, facing: Math.PI, seated: true },
+                    { x: 8.2, z: 1.15, facing: Math.PI, seated: true },
+                    { x: 8.8, z: 1.15, facing: Math.PI, seated: true }
                 ]
             },
             {
                 key: 'galon',
-                label: 'Getting water from the galon',
+                label: 'Getting water from the cooler',
                 spots: [
-                    { x: 8.35, z: -0.4, facing: Math.PI / 2, seated: false },
-                    { x: 8.2, z: -1.05, facing: 2.2, seated: false }
+                    { x: 8.9, z: -0.55, facing: Math.PI / 2, seated: false },
+                    { x: 8.75, z: -1.15, facing: 2.2, seated: false }
                 ]
             },
             {
@@ -105,38 +112,21 @@
                 ]
             },
             {
-                key: 'game',
-                label: 'Playing ping-pong',
+                key: 'meeting',
+                label: 'Chatting in the glass room',
                 spots: [
-                    { x: PING_PONG[0] - 1.75, z: PING_PONG[2], facing: Math.PI / 2, seated: false },
-                    { x: PING_PONG[0] + 1.75, z: PING_PONG[2], facing: -Math.PI / 2, seated: false },
-                    { x: BEANBAGS[0][0], z: BEANBAGS[0][2], facing: Math.PI, seated: true }
-                ]
-            },
-            {
-                key: 'arcade',
-                label: 'Playing arcade games',
-                spots: [
-                    { x: ARCADES[0][0], z: ARCADES[0][2] + 0.8, facing: Math.PI, seated: false },
-                    { x: ARCADES[1][0], z: ARCADES[1][2] + 0.8, facing: Math.PI, seated: false },
-                    { x: BEANBAGS[1][0], z: BEANBAGS[1][2], facing: Math.PI, seated: true }
+                    { x: meetingCenterX - 0.9, z: 2.55, facing: Math.PI / 2, seated: true },
+                    { x: meetingCenterX + 0.9, z: 2.55, facing: -Math.PI / 2, seated: true },
+                    { x: meetingCenterX, z: 3.25, facing: Math.PI, seated: true }
                 ]
             },
             {
                 key: 'jalan',
-                label: 'Taking a stroll',
+                label: 'Walking the aisle',
                 spots: [
-                    { x: 5.8, z: 5.2, facing: Math.PI, seated: false },
-                    { x: minX + 0.95, z: -0.9, facing: -Math.PI / 2, seated: false },
-                    { x: 1.3, z: -4.4, facing: Math.PI, seated: false }
-                ]
-            },
-            {
-                key: 'stall',
-                label: 'Street-side break',
-                spots: [
-                    { x: minX - 2.4, z: -1.2, facing: Math.PI / 2, seated: true },
-                    { x: minX - 2.1, z: 0.6, facing: Math.PI / 2, seated: false }
+                    { x: 1.2, z: AISLE_Z, facing: 0, seated: false },
+                    { x: -2.5, z: AISLE_Z, facing: Math.PI, seated: false },
+                    { x: 4.5, z: AISLE_Z, facing: 0, seated: false }
                 ]
             }
         ];
@@ -146,12 +136,12 @@
             desks: desks,
             building: building,
             meeting: meeting,
-            meetingTable: { x: meetingCenterX, z: 2.55, radius: 1.05 },
-            cameraTarget: [(minX + GAME_ROOM.maxX) / 2 - 0.15, 0.6, 0.2],
-            cameraOffset: [-3.9, 15.2, 18.8],
-            pan: { minX: minX - 4, maxX: 17, minZ: -7, maxZ: 11 },
+            meetingTable: { x: meetingCenterX, z: 2.55, radius: 0.95 },
+            cameraTarget: [(minX + 9.5) / 2, 0.55, 0.1],
+            cameraOffset: [-4.2, 14.8, 17.5],
+            pan: { minX: minX - 3, maxX: 12, minZ: -6, maxZ: 8 },
             idleStops: idleStops,
-            idleRoute: ['lounge', 'galon', 'game', 'arcade', 'dapur', 'jalan', 'stall', 'lounge']
+            idleRoute: ['lounge', 'kitchen', 'galon', 'meeting', 'dapur', 'jalan', 'lounge']
         };
     }
 
@@ -683,189 +673,301 @@
         scene.add(roomRoot);
 
         var b = LAYOUT.building;
-        var shift = b.minX + 9.5;
+        var mx = LAYOUT.meetingTable.x;
+        var mz = LAYOUT.meetingTable.z;
 
-        /* Outdoors */
-        addFloorPlane(roomRoot, shift / 2, -0.02, 2, 52, 40, 0x6fa86a, 1);
-        addFloorPlane(roomRoot, shift / 2, -0.005, 7.1, 30, 5, 0x9aa0a6, 0.9);
-        addFloorPlane(roomRoot, shift / 2, -0.01, 12.1, 52, 5, 0x4a4e52, 0.95);
-        addFloorPlane(roomRoot, 5.8, 0, 4.7, 1.8, 1, 0x9aa0a6, 0.9);
-        addFloorPlane(roomRoot, b.minX - 2.2, -0.008, -0.4, 3.4, 10, 0x8e949a, 0.9);
+        /* Soft ground under cut-away (illustration sky show-through) */
+        addFloorPlane(roomRoot, (b.minX + b.maxX) / 2, -0.04, (b.minZ + b.maxZ) / 2,
+            40, 32, 0x9ec9e8, 1);
 
-        addStreetLamp(roomRoot, -8 + shift * 0.3, 9.3);
-        addStreetLamp(roomRoot, 4, 9.3);
-        [
-            [b.minX - 3.2, -7.4, 1.25],
-            [13.5, -7.2, 1.15],
-            [b.minX - 4.8, 2.6, 1.05],
-            [18.2, 4.8, 1.25],
-            [b.minX - 1.5, 7.5, 1],
-            [12, 8, 1.1],
-            [-2, -8.5, 1.15],
-            [6, -8, 1.05]
-        ].forEach(function (t) { addTree(roomRoot, t[0], t[1], t[2]); });
-
-        addFoodStall(roomRoot, b.minX - 2.6, -2.0);
-
-        /* Building wood floor */
+        /* Main office — light grey corporate floor */
         addFloorPlane(roomRoot, (b.minX + b.maxX) / 2, 0.005, (b.minZ + b.maxZ) / 2,
-            b.maxX - b.minX, b.maxZ - b.minZ, 0xc4a882, 0.55);
+            b.maxX - b.minX + 0.4, b.maxZ - b.minZ + 0.4, 0xd8dde3, 0.42);
 
-        /* Lounge blue rug + meeting red round rug + pantry tiles + game carpet */
-        addFloorPlane(roomRoot, 4.6, 0.012, -2.9, 4.4, 2.8, 0x5b7c8c, 0.9);
-        addFloorPlane(roomRoot, LAYOUT.meetingTable.x, 0.014, LAYOUT.meetingTable.z,
-            3.2, 2.8, 0x8a4b3c, 0.9);
-        addFloorPlane(roomRoot, 8.35, 0.01, 1.4, 2.3, 5.4, 0xd8dde2, 0.35);
-        addFloorPlane(roomRoot,
-            (GAME_ROOM.minX + GAME_ROOM.maxX) / 2, 0.006,
-            (GAME_ROOM.minZ + GAME_ROOM.maxZ) / 2,
-            GAME_ROOM.maxX - GAME_ROOM.minX, GAME_ROOM.maxZ - GAME_ROOM.minZ,
-            0x3b4170, 0.9);
-
-        /* Walls — cut-away dollhouse */
+        /* Cut-away exterior walls (white) */
         addWall(roomRoot, b.minX, b.minZ, b.maxX, b.minZ);
         addWall(roomRoot, b.minX, b.minZ, b.minX, b.maxZ);
-        addWall(roomRoot, b.minX, b.maxZ, 4.9, b.maxZ, 0.55);
-        addWall(roomRoot, 6.7, b.maxZ, b.maxX, b.maxZ, 0.55);
-        addWall(roomRoot, PARTITION_X, b.minZ, PARTITION_X, LOUNGE_PARTITION_END_Z, 0.9);
-        addGlassX(roomRoot, PARTITION_X, b.minZ, LOUNGE_PARTITION_END_Z, 0.9);
+        addWall(roomRoot, b.maxX, b.minZ, b.maxX, b.maxZ);
+        /* Front partially open for dollhouse view */
+        addWall(roomRoot, b.minX, b.maxZ, (b.minX + b.maxX) * 0.35, b.maxZ, 0.55);
 
-        /* Game room walls */
-        addWall(roomRoot, GAME_ROOM.minX, GAME_ROOM.minZ, GAME_ROOM.maxX, GAME_ROOM.minZ);
-        addWall(roomRoot, GAME_ROOM.maxX, GAME_ROOM.minZ, GAME_ROOM.maxX, GAME_ROOM.maxZ);
-        addWall(roomRoot, GAME_ROOM.minX, GAME_ROOM.maxZ, GAME_ROOM.maxX, GAME_ROOM.maxZ, 0.55);
-        addWall(roomRoot, b.maxX, b.minZ, b.maxX, -4.4, 1.1);
-        addWall(roomRoot, b.maxX, -3.0, b.maxX, b.maxZ, 1.1);
-        addGlassX(roomRoot, b.maxX, b.minZ, -4.4, 1.1);
-        addGlassX(roomRoot, b.maxX, -3.0, GAME_ROOM.maxZ, 1.1);
-
-        /* Windows */
-        [-7, -3.6, 1.4, 6.6].forEach(function (wx) {
-            if (wx > b.minX + 1) addWindow(roomRoot, wx, 1.55, b.minZ + 0.14, 1.8, 0);
+        /* Windows along back wall */
+        [-6.5, -3.2, 0.5, 4.2, 7.2].forEach(function (wx) {
+            if (wx > b.minX + 0.8 && wx < b.maxX - 0.8) {
+                addWindow(roomRoot, wx, 1.5, b.minZ + 0.12, 1.7, 0);
+            }
         });
-        addWindow(roomRoot, b.minX + 0.14, 1.55, -3, 1.6, Math.PI / 2);
-        addWindow(roomRoot, GAME_ROOM.maxX - 0.14, 1.55, -2.2, 1.6, -Math.PI / 2);
 
-        /* Desks */
+        /* Glass meeting room (black frame + glass) */
+        addGlassMeetingRoom(roomRoot, mx, mz, 3.6, 2.9);
+
+        /* Long conference table + chairs */
+        addConferenceTable(roomRoot, mx, mz, 2.4, 0.9);
+        addMeetingChair(roomRoot, mx - 0.85, mz - 0.55, 0);
+        addMeetingChair(roomRoot, mx, mz - 0.55, 0);
+        addMeetingChair(roomRoot, mx + 0.85, mz - 0.55, 0);
+        addMeetingChair(roomRoot, mx - 0.85, mz + 0.55, Math.PI);
+        addMeetingChair(roomRoot, mx + 0.85, mz + 0.55, Math.PI);
+        addTelevision(roomRoot, mx, 1.4, mz - 1.35);
+
+        /* Planter dividers (illustration cue) */
+        addPlanterBox(roomRoot, -1.2, -0.2, 2.8, 0.45);
+        addPlanterBox(roomRoot, 2.4, -3.8, 3.2, 0.4);
+        addPlanterBox(roomRoot, 5.5, 0.2, 0.45, 2.4);
+
+        /* Work desks — light wood */
         LAYOUT.desks.forEach(function (d) {
-            addWorkDesk(roomRoot, d[0], d[1], true);
+            addCorporateDesk(roomRoot, d[0], d[1]);
         });
 
-        /* Meeting: round table on red carpet (screenshot cue) */
-        addRoundMeetingTable(roomRoot, LAYOUT.meetingTable.x, LAYOUT.meetingTable.z, LAYOUT.meetingTable.radius);
+        /* Lounge — blue armchair + low table */
+        addArmchair(roomRoot, 5.2, -1.55, Math.PI, 0x3b6ea5);
+        addCoffeeTable(roomRoot, 5.2, -2.5);
+        addPlant(roomRoot, 6.4, -3.9, 1.05);
+        addPlant(roomRoot, 3.9, -3.85, 0.95);
 
-        /* Lounge */
-        addSofa(roomRoot, SOFA[0], SOFA[2], Math.PI);
-        addArmchair(roomRoot, 2.1, -2.9, Math.PI / 2, 0xd9784a);
-        addArmchair(roomRoot, 7.1, -2.9, -Math.PI / 2, 0x3d7fd6);
-        addCoffeeTable(roomRoot, COFFEE_TABLE[0], COFFEE_TABLE[2]);
-        box(roomRoot, TV[0], 0.3, TV[2], 1.8, 0.6, 0.45, 0x6b4a32, 0.7);
-        addTelevision(roomRoot, TV[0], 1.35, b.minZ + 0.17);
+        /* Kitchen: counter, fridge, island + bar stools */
+        addFridge(roomRoot, b.maxX - 0.55, 2.8, -Math.PI / 2);
+        addPantryCounter(roomRoot, b.maxX - 0.5, 1.5, -Math.PI / 2);
+        addGalon(roomRoot, b.maxX - 0.5, -0.5, -Math.PI / 2);
+        addKitchenIsland(roomRoot, 8.2, 1.55);
+        addBarStool(roomRoot, 7.55, 1.05);
+        addBarStool(roomRoot, 8.2, 1.05);
+        addBarStool(roomRoot, 8.85, 1.05);
 
-        /* Pantry */
-        addGalon(roomRoot, b.maxX - 0.45, -0.4, -Math.PI / 2);
-        addFridge(roomRoot, b.maxX - 0.5, 0.6, -Math.PI / 2);
-        addPantryCounter(roomRoot, b.maxX - 0.45, 2.6, -Math.PI / 2);
-
-        /* Game room */
-        addPingPong(roomRoot, PING_PONG[0], PING_PONG[2]);
-        addArcade(roomRoot, ARCADES[0][0], ARCADES[0][2], 0xc62828);
-        addArcade(roomRoot, ARCADES[1][0], ARCADES[1][2], 0x1d4ed8);
-        addBeanbag(roomRoot, BEANBAGS[0][0], BEANBAGS[0][2], 0xe76f51);
-        addBeanbag(roomRoot, BEANBAGS[1][0], BEANBAGS[1][2], 0x2a9d8f);
-        box(roomRoot, 14.2, 0.25, -4.85, 1.8, 0.5, 0.4, 0x1f2328, 0.5);
-        addTelevision(roomRoot, 14.2, 1.35, -5.03);
-
-        /* Accents */
-        addBookshelf(roomRoot, b.minX + 0.35, -0.9, Math.PI / 2);
-        addPlant(roomRoot, b.minX + 0.5, -4.6, 1);
-        addPlant(roomRoot, -0.4, -4.7, 0.9);
-        addPlant(roomRoot, 2.1, -4.6, 1);
-        addPlant(roomRoot, 0.9, 1.3, 0.8);
-        addPlant(roomRoot, 0.9, 2.3, 0.8);
-        addPlant(roomRoot, 0.9, 3.3, 0.8);
-        addPlant(roomRoot, GAME_ROOM.maxX - 0.5, GAME_ROOM.maxZ - 0.5, 0.9);
-        addAirConditioner(roomRoot, -5.3, 2.3, b.minZ + 0.125, 0);
-        addAirConditioner(roomRoot, TV[0], 2.3, b.minZ + 0.125, 0);
+        /* Accent plants */
+        addPlant(roomRoot, b.minX + 0.55, -4.4, 1.1);
+        addPlant(roomRoot, b.minX + 0.55, 3.6, 1.0);
+        addPlant(roomRoot, 1.0, 3.5, 0.85);
+        addPlant(roomRoot, b.maxX - 0.7, -4.3, 1.05);
+        addBookshelf(roomRoot, b.minX + 0.4, 0.4, Math.PI / 2);
 
         LAYOUT.desks.forEach(function (d) {
-            addOfficeLight(roomRoot, d[0], 2.4, d[1] + 0.2);
+            addOfficeLight(roomRoot, d[0], 2.45, d[1] + 0.15);
         });
-        addOfficeLight(roomRoot, LAYOUT.meetingTable.x, 2.4, LAYOUT.meetingTable.z);
-        addOfficeLight(roomRoot, COFFEE_TABLE[0], 2.4, COFFEE_TABLE[2] + 0.4);
-        addOfficeLight(roomRoot, 8.2, 2.4, 1.2);
-        addOfficeLight(roomRoot, PING_PONG[0], 2.4, PING_PONG[2]);
+        addOfficeLight(roomRoot, mx, 2.45, mz);
+        addOfficeLight(roomRoot, 8.2, 2.45, 1.5);
+        addOfficeLight(roomRoot, 5.2, 2.45, -2.0);
 
         /* Brand plaque */
-        box(roomRoot, 2.2, 2.35, b.minZ + 0.14, 2.6, 0.32, 0.04, 0x0f766e, 0.55);
+        box(roomRoot, 1.5, 2.35, b.minZ + 0.12, 2.4, 0.28, 0.04, 0x1e3a5f, 0.5);
     }
 
-    /* ---------- Characters ---------- */
+    function addGlassMeetingRoom(parent, cx, cz, w, d) {
+        var hw = w / 2;
+        var hd = d / 2;
+        var frame = 0x1f2937;
+        var gh = WALL_H * 0.92;
+        addFloorPlane(parent, cx, 0.012, cz, w - 0.15, d - 0.15, 0xeef2f6, 0.48);
+        /* Thin black frames */
+        box(parent, cx - hw, gh / 2, cz, 0.05, gh, d, frame, 0.55);
+        box(parent, cx + hw, gh / 2, cz, 0.05, gh, d, frame, 0.55);
+        box(parent, cx, gh / 2, cz - hd, w, gh, 0.05, frame, 0.55);
+        box(parent, cx - hw * 0.25, gh / 2, cz + hd, w * 0.5, gh, 0.05, frame, 0.55);
+        /* Glass panes */
+        addGlassX(parent, cx - hw + 0.04, cz - hd + 0.05, cz + hd - 0.05, 0.35);
+        addGlassX(parent, cx + hw - 0.04, cz - hd + 0.05, cz + hd - 0.05, 0.35);
+        addGlassZ(parent, cx - hw + 0.05, cx + hw - 0.05, cz - hd + 0.04, 0.9);
+        addGlassZ(parent, cx - hw + 0.05, cx - 0.15, cz + hd - 0.04, 0.7);
+    }
 
-    function createLimb(matBody, w, h, d) {
-        var geo = new THREE.BoxGeometry(w, h, d);
-        geo.translate(0, -h / 2, 0);
+    function addGlassZ(parent, x0, x1, z, opacity) {
+        var w = Math.abs(x1 - x0);
+        var glass = new THREE.Mesh(
+            new THREE.BoxGeometry(w, WALL_H * 0.85, 0.04),
+            mat(0xb8d4e8, 0.15, 0.05, {
+                transparent: true,
+                opacity: opacity == null ? 0.28 : opacity * 0.35,
+                side: THREE.DoubleSide
+            })
+        );
+        glass.position.set((x0 + x1) / 2, WALL_H * 0.5, z);
+        parent.add(glass);
+    }
+
+    function addConferenceTable(parent, x, z, w, d) {
+        box(parent, x, 0.72, z, w, 0.06, d, 0xc4a574, 0.45);
+        box(parent, x - w * 0.35, 0.36, z - d * 0.3, 0.08, 0.72, 0.08, 0x3a3a3a, 0.5);
+        box(parent, x + w * 0.35, 0.36, z - d * 0.3, 0.08, 0.72, 0.08, 0x3a3a3a, 0.5);
+        box(parent, x - w * 0.35, 0.36, z + d * 0.3, 0.08, 0.72, 0.08, 0x3a3a3a, 0.5);
+        box(parent, x + w * 0.35, 0.36, z + d * 0.3, 0.08, 0.72, 0.08, 0x3a3a3a, 0.5);
+    }
+
+    function addMeetingChair(parent, x, z, rotY) {
+        var g = new THREE.Group();
+        g.position.set(x, 0, z);
+        if (rotY) g.rotation.y = rotY;
+        box(g, 0, 0.42, 0, 0.42, 0.06, 0.42, 0x2c3e50, 0.7);
+        box(g, 0, 0.72, -0.16, 0.42, 0.55, 0.06, 0x2c3e50, 0.7);
+        parent.add(g);
+    }
+
+    function addPlanterBox(parent, x, z, w, d) {
+        box(parent, x, 0.22, z, w, 0.44, d, 0xe8eaed, 0.55);
+        box(parent, x, 0.46, z, w - 0.08, 0.08, d - 0.08, 0x3d6b4f, 0.85);
+        var i;
+        for (i = 0; i < 3; i += 1) {
+            addPlant(parent, x - w * 0.3 + i * (w * 0.3), z, 0.55 + (i % 2) * 0.12);
+        }
+    }
+
+    function addCorporateDesk(parent, x, z) {
+        /* Light wood desk + dual monitors + chair */
+        box(parent, x, 0.72, z, 1.35, 0.05, 0.7, 0xd4b896, 0.5);
+        box(parent, x - 0.55, 0.36, z - 0.25, 0.06, 0.72, 0.06, 0x2a2a2a, 0.55);
+        box(parent, x + 0.55, 0.36, z - 0.25, 0.06, 0.72, 0.06, 0x2a2a2a, 0.55);
+        box(parent, x - 0.55, 0.36, z + 0.25, 0.06, 0.72, 0.06, 0x2a2a2a, 0.55);
+        box(parent, x + 0.55, 0.36, z + 0.25, 0.06, 0.72, 0.06, 0x2a2a2a, 0.55);
+        /* Privacy screen */
+        box(parent, x, 1.05, z - 0.32, 1.2, 0.55, 0.04, 0x5b7fa6, 0.65);
+        addMonitor(parent, x - 0.28, z - 0.12);
+        addMonitor(parent, x + 0.28, z - 0.12);
+        /* Chair */
+        var ch = new THREE.Group();
+        ch.position.set(x, 0, z + 0.72);
+        box(ch, 0, 0.4, 0, 0.4, 0.08, 0.4, 0x1e293b, 0.7);
+        box(ch, 0, 0.7, -0.14, 0.4, 0.5, 0.06, 0x334155, 0.7);
+        parent.add(ch);
+    }
+
+    function addMonitor(parent, x, z) {
+        box(parent, x, 0.95, z, 0.42, 0.28, 0.03, 0x111827, 0.4);
+        box(parent, x, 0.95, z + 0.01, 0.36, 0.22, 0.01, 0x38bdf8, 0.3, 0.05, {
+            emissive: 0x0ea5e9,
+            emissiveIntensity: 0.35
+        });
+        box(parent, x, 0.78, z, 0.06, 0.12, 0.04, 0x374151, 0.5);
+    }
+
+    function addKitchenIsland(parent, x, z) {
+        box(parent, x, 0.45, z, 2.0, 0.9, 0.7, 0x4a5568, 0.55);
+        box(parent, x, 0.92, z, 2.05, 0.06, 0.75, 0xf1f5f9, 0.4);
+        box(parent, x + 0.5, 1.05, z - 0.1, 0.35, 0.22, 0.28, 0xcbd5e1, 0.5);
+    }
+
+    function addBarStool(parent, x, z) {
+        var g = new THREE.Group();
+        g.position.set(x, 0, z);
+        box(g, 0, 0.55, 0, 0.08, 1.1, 0.08, 0x2d3748, 0.5);
+        box(g, 0, 1.12, 0, 0.36, 0.06, 0.36, 0x38a169, 0.7);
+        parent.add(g);
+    }
+
+    /* ---------- Characters (stylized realistic — capsule/sphere, not boxes) ---------- */
+
+    function createLimb(matBody, radius, length) {
+        var geo;
+        if (THREE.CapsuleGeometry) {
+            geo = new THREE.CapsuleGeometry(radius, Math.max(0.01, length - radius * 2), 4, 8);
+        } else {
+            geo = new THREE.CylinderGeometry(radius, radius, length, 8);
+        }
+        geo.translate(0, -length / 2, 0);
         return new THREE.Mesh(geo, matBody);
     }
 
     function createHumanoid(colorHex, look) {
         var root = new THREE.Group();
-        var bodyMat = mat(colorHex, 0.55, 0.08);
-        var darkMat = mat(look && look.pants ? look.pants : 0x1e293b, 0.7, 0.05);
-        var skinMat = mat(look && look.skin ? look.skin : 0xd4a574, 0.65, 0.02);
-        var hairMat = mat(look && look.hair ? look.hair : 0x1d293c, 0.9, 0.02);
+        var bodyMat = mat(colorHex, 0.62, 0.06);
+        var darkMat = mat(look && look.pants ? look.pants : 0x2c3e50, 0.78, 0.04);
+        var skinMat = mat(look && look.skin ? look.skin : 0xe0b089, 0.72, 0.02);
+        var hairMat = mat(look && look.hair ? look.hair : 0x2a2118, 0.88, 0.02);
+        var shoeMat = mat(0x1a1a1a, 0.55, 0.15);
 
         var body = new THREE.Group();
         body.name = 'body';
         root.add(body);
 
+        /* Hips + torso (business-casual proportions) */
+        var hips = new THREE.Mesh(
+            THREE.CapsuleGeometry
+                ? new THREE.CapsuleGeometry(0.16, 0.12, 4, 10)
+                : new THREE.CylinderGeometry(0.16, 0.16, 0.28, 10),
+            darkMat
+        );
+        hips.position.y = 0.78;
+        body.add(hips);
+
         var torso = new THREE.Mesh(
-            THREE.CapsuleGeometry ? new THREE.CapsuleGeometry(0.22, 0.38, 4, 8) : new THREE.CylinderGeometry(0.22, 0.22, 0.68, 10),
+            THREE.CapsuleGeometry
+                ? new THREE.CapsuleGeometry(0.2, 0.36, 6, 12)
+                : new THREE.CylinderGeometry(0.2, 0.22, 0.62, 12),
             bodyMat
         );
-        torso.position.y = 1.0;
+        torso.position.y = 1.12;
         body.add(torso);
 
-        var head = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.34, 0.32), skinMat);
-        head.position.y = 1.46;
+        /* Head — sphere + soft jaw */
+        var head = new THREE.Mesh(new THREE.SphereGeometry(0.155, 16, 14), skinMat);
+        head.position.y = 1.58;
+        head.scale.set(0.95, 1.08, 0.92);
         body.add(head);
 
-        var hair = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.12, 0.34), hairMat);
-        hair.position.y = 1.66;
+        var neck = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.08, 8), skinMat);
+        neck.position.y = 1.425;
+        body.add(neck);
+
+        /* Hair cap */
+        var hair = new THREE.Mesh(new THREE.SphereGeometry(0.16, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.58), hairMat);
+        hair.position.y = 1.64;
+        hair.scale.set(1.02, 0.85, 1.05);
         body.add(hair);
 
-        var leftArm = createLimb(bodyMat, 0.1, 0.46, 0.11);
-        leftArm.position.set(-0.28, 1.18, 0);
+        /* Simple eyes */
+        var eyeMat = mat(0x1e293b, 0.4, 0.1);
+        var leftEye = new THREE.Mesh(new THREE.SphereGeometry(0.018, 6, 6), eyeMat);
+        leftEye.position.set(-0.045, 1.59, 0.13);
+        body.add(leftEye);
+        var rightEye = new THREE.Mesh(new THREE.SphereGeometry(0.018, 6, 6), eyeMat);
+        rightEye.position.set(0.045, 1.59, 0.13);
+        body.add(rightEye);
+
+        var leftArm = createLimb(bodyMat, 0.055, 0.5);
+        leftArm.position.set(-0.26, 1.32, 0);
         leftArm.name = 'leftArm';
         body.add(leftArm);
 
-        var rightArm = createLimb(bodyMat, 0.1, 0.46, 0.11);
-        rightArm.position.set(0.28, 1.18, 0);
+        var rightArm = createLimb(bodyMat, 0.055, 0.5);
+        rightArm.position.set(0.26, 1.32, 0);
         rightArm.name = 'rightArm';
         body.add(rightArm);
 
-        var leftLeg = createLimb(darkMat, 0.12, 0.52, 0.14);
-        leftLeg.position.set(-0.1, 0.68, 0);
+        var leftHand = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 8), skinMat);
+        leftHand.position.set(-0.26, 0.8, 0);
+        body.add(leftHand);
+        var rightHand = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 8), skinMat);
+        rightHand.position.set(0.26, 0.8, 0);
+        body.add(rightHand);
+
+        var leftLeg = createLimb(darkMat, 0.065, 0.58);
+        leftLeg.position.set(-0.09, 0.72, 0);
         leftLeg.name = 'leftLeg';
         body.add(leftLeg);
 
-        var rightLeg = createLimb(darkMat, 0.12, 0.52, 0.14);
-        rightLeg.position.set(0.1, 0.68, 0);
+        var rightLeg = createLimb(darkMat, 0.065, 0.58);
+        rightLeg.position.set(0.09, 0.72, 0);
         rightLeg.name = 'rightLeg';
         body.add(rightLeg);
 
+        var leftShoe = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.06, 0.16), shoeMat);
+        leftShoe.position.set(-0.09, 0.04, 0.02);
+        body.add(leftShoe);
+        var rightShoe = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.06, 0.16), shoeMat);
+        rightShoe.position.set(0.09, 0.04, 0.02);
+        body.add(rightShoe);
+
         var aura = new THREE.Mesh(
-            new THREE.RingGeometry(0.38, 0.5, 24),
+            new THREE.RingGeometry(0.32, 0.42, 28),
             new THREE.MeshBasicMaterial({
                 color: STATUS_AURA.idle,
                 transparent: true,
-                opacity: 0.5,
+                opacity: 0.4,
                 side: THREE.DoubleSide,
                 depthWrite: false
             })
         );
         aura.rotation.x = -Math.PI / 2;
-        aura.position.y = 0.03;
+        aura.position.y = 0.02;
         aura.name = 'aura';
         root.add(aura);
 
