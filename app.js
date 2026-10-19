@@ -1155,9 +1155,14 @@ app.renderOfficeSettings = function () {
     if (llmClear) llmClear.checked = false;
     this._applyLlmProviderDefaults(llmProv?.value || llm.provider || 'gemini', !llm.model);
     if (llmHint) {
-        llmHint.textContent = llm.configured
-            ? `Key tersimpan: ${llm.apiKeyMasked || '••••'} — isi field untuk mengganti.`
-            : 'Belum ada API key. Gemini (AIza…) / Groq (gsk_…) / Cursor key — gratis cloud disarankan.';
+        if (llm.decryptFailed) {
+            llmHint.textContent = llm.hint || 'Key tidak bisa dibuka — TOKEN_ENCRYPTION_KEY berubah. Tempel ulang API key lalu Simpan.';
+        } else if (llm.configured) {
+            const src = llm.keySource === 'env' ? ' (dari env server)' : '';
+            llmHint.textContent = `Key tersimpan: ${llm.apiKeyMasked || '••••'}${src} — isi field untuk mengganti.`;
+        } else {
+            llmHint.textContent = llm.hint || 'Belum ada API key. Tempel Gemini/Groq di sini, atau set GEMINI_API_KEY di Vercel env.';
+        }
     }
     this._syncCeoChatLlmHint(llm);
     if (status) {
@@ -1241,11 +1246,15 @@ app._applyLlmProviderDefaults = function (provider, forceModel) {
 app._syncCeoChatLlmHint = function (llm) {
     const hint = document.getElementById('ceo-chat-llm-hint');
     if (!hint) return;
-    if (llm && llm.configured) {
-        hint.textContent = `LLM siap · ${llm.provider} · ${llm.apiKeyMasked || 'key ok'}`;
+    if (llm && llm.decryptFailed) {
+        hint.textContent = 'Key rusak/enkripsi — simpan ulang di Kantor AI → LLM.';
+        hint.classList.remove('is-ready');
+    } else if (llm && llm.configured) {
+        const src = llm.keySource === 'env' ? 'env' : (llm.apiKeyMasked || 'key ok');
+        hint.textContent = `LLM siap · ${llm.provider} · ${src}`;
         hint.classList.add('is-ready');
     } else {
-        hint.textContent = 'Atur API key di Kantor AI → LLM (Gemini/Groq gratis, atau Cursor).';
+        hint.textContent = 'Atur API key di Kantor AI → LLM (atau GEMINI_API_KEY di Vercel).';
         hint.classList.remove('is-ready');
     }
 };

@@ -474,7 +474,15 @@ class PostgresDatabase {
             SELECT data FROM app_meta WHERE key = 'ai_settings' LIMIT 1
         `;
         if (!rows[0]) return normalizeAiSettings(DEFAULT_AI_SETTINGS);
-        return normalizeAiSettings(rows[0].data);
+        let data = rows[0].data;
+        if (typeof data === 'string') {
+            try {
+                data = JSON.parse(data);
+            } catch {
+                data = {};
+            }
+        }
+        return normalizeAiSettings(data);
     }
 
     async updateAiSettings(partial) {
