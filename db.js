@@ -10,10 +10,18 @@ const fs = require('fs');
 const path = require('path');
 const { normalizeAiSettings, DEFAULT_AI_SETTINGS } = require('./lib/ai-policy');
 const { encryptAccountTokens, decryptAccountTokens } = require('./lib/token-crypto');
+const {
+    DEFAULT_WORKSPACE_ID,
+    defaultWorkspaceRecord,
+    normalizeWorkspaceId,
+    withWorkspaceId,
+    filterByWorkspace
+} = require('./lib/workspace');
 
 const DB_PATH = path.join(__dirname, 'db.json');
 const DEFAULT_DB = {
     users: [],
+    workspaces: [defaultWorkspaceRecord()],
     accounts: [],
     posts: [],
     aiJobs: [],
@@ -31,11 +39,13 @@ class JsonDatabase {
             if (fs.existsSync(DB_PATH)) {
                 this._data = JSON.parse(fs.readFileSync(DB_PATH, 'utf-8'));
                 if (!this._data.users) this._data.users = [];
+                if (!this._data.workspaces) this._data.workspaces = [];
                 if (!this._data.accounts) this._data.accounts = [];
                 if (!this._data.posts) this._data.posts = [];
                 if (!this._data.aiJobs) this._data.aiJobs = [];
                 if (!this._data.aiSettings) this._data.aiSettings = { ...DEFAULT_AI_SETTINGS };
                 if (!this._data.auditLog) this._data.auditLog = [];
+                await this._ensureDefaultWorkspace();
             } else {
                 this._data = JSON.parse(JSON.stringify(DEFAULT_DB));
                 await this.save();
@@ -46,6 +56,15 @@ class JsonDatabase {
         }
         console.log('✅ [DB] Mode file db.json (lokal)');
         return this;
+    }
+
+    async _ensureDefaultWorkspace() {
+        if (!this._data.workspaces) this._data.workspaces = [];
+        const hasDefault = this._data.workspaces.some(w => w.id === DEFAULT_WORKSPACE_ID);
+        if (!hasDefault) {
+            this._data.workspaces.unshift(defaultWorkspaceRecord());
+            await this.save();
+        }
     }
 
     async save() {
@@ -84,36 +103,51 @@ class JsonDatabase {
         return this._data.users[idx];
     }
 
-    async getAccounts() {
-        return (this._data.accounts || []).map(decryptAccountTokens);
+    async getWorkspaces() {
+        await this._ensureDefaultWorkspace();
+        return this._data.workspaces || [];
     }
 
-    async getAccountByPlatform(platform) {
-        const row = (this._data.accounts || []).find(a => a.platform === platform) || null;
-        return row ? decryptAccountTokens(row) : null;
+    async getAccounts(opts = {}) {
+        let list = (this._data.accounts || []).map(decryptAccountTokens);
+        if (opts.workspaceId) {
+            list = filterByWorkspace(list, opts.workspaceId, {
+                includeMissing: normalizeWorkspaceId(opts.workspaceId) === DEFAULT_WORKSPACE_ID
+            });
+        }
+        return list;
+    }
+
+    async getAccountByPlatform(platform, opts = {}) {
+        const list = await this.getAccounts(opts);
+        return list.find(a => a.platform === platform) || null;
     }
 
     async upsertAccount(accountData) {
-        const idx = this._data.accounts.findIndex(a => a.platform === accountData.platform);
+        const workspaceId = normalizeWorkspaceId(accountData.workspaceId || DEFAULT_WORKSPACE_ID);
+        const payload = withWorkspaceId({ ...accountData, workspaceId }, workspaceId);
+        const idx = this._data.accounts.findIndex(a => a.platform === payload.platform);
         if (idx !== -1) {
             const merged = {
                 ...this._data.accounts[idx],
-                ...accountData,
+                ...payload,
+                workspaceId,
                 updatedAt: new Date().toISOString()
             };
             // Re-encrypt tokens (decrypt-on-read → encrypt-on-write)
             this._data.accounts[idx] = encryptAccountTokens(merged);
         } else {
             this._data.accounts.push(encryptAccountTokens({
-                id: 'acc-' + accountData.platform + '-' + Date.now(),
-                ...accountData,
+                id: 'acc-' + payload.platform + '-' + Date.now(),
+                ...payload,
+                workspaceId,
                 connected: true,
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString()
             }));
         }
         await this.save();
-        return this.getAccountByPlatform(accountData.platform);
+        return this.getAccountByPlatform(payload.platform, { workspaceId });
     }
 
     async disconnectAccount(platform) {
@@ -131,8 +165,14 @@ class JsonDatabase {
         return true;
     }
 
-    async getPosts() {
-        return this._data.posts || [];
+    async getPosts(opts = {}) {
+        let list = this._data.posts || [];
+        if (opts.workspaceId) {
+            list = filterByWorkspace(list, opts.workspaceId, {
+                includeMissing: normalizeWorkspaceId(opts.workspaceId) === DEFAULT_WORKSPACE_ID
+            });
+        }
+        return list;
     }
 
     async getPostById(id) {
@@ -140,7 +180,13 @@ class JsonDatabase {
     }
 
     async addPost(postData) {
-        const post = { id: 'post-' + Date.now(), ...postData, createdAt: new Date().toISOString() };
+        const workspaceId = normalizeWorkspaceId(postData.workspaceId || DEFAULT_WORKSPACE_ID);
+        const post = {
+            id: 'post-' + Date.now(),
+            ...withWorkspaceId(postData, workspaceId),
+            workspaceId,
+            createdAt: new Date().toISOString()
+        };
         this._data.posts.push(post);
         await this.save();
         return post;
@@ -177,8 +223,14 @@ class JsonDatabase {
         });
     }
 
-    async getAiJobs() {
-        return this._data.aiJobs || [];
+    async getAiJobs(opts = {}) {
+        let list = this._data.aiJobs || [];
+        if (opts.workspaceId) {
+            list = filterByWorkspace(list, opts.workspaceId, {
+                includeMissing: normalizeWorkspaceId(opts.workspaceId) === DEFAULT_WORKSPACE_ID
+            });
+        }
+        return list;
     }
 
     async getAiJobById(id) {
@@ -187,6 +239,7 @@ class JsonDatabase {
 
     async addAiJob(jobData) {
         const now = new Date().toISOString();
+        const workspaceId = normalizeWorkspaceId(jobData.workspaceId || DEFAULT_WORKSPACE_ID);
         const job = {
             id: 'job-' + Date.now(),
             brief: '',
@@ -207,6 +260,7 @@ class JsonDatabase {
             lastError: null,
             publishResults: {},
             ...jobData,
+            workspaceId,
             createdAt: now,
             updatedAt: now
         };

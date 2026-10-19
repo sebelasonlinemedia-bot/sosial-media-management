@@ -80,4 +80,23 @@ Lokal (`db.json`) mendapat `aiSettings` + `auditLog` otomatis saat load.
 | Rate limit | Live | In-memory pada login + publish endpoints |
 | Approve atomik | Live | `POST .../approve` default `autoRun=true` → lanjut `/run` (pakai `approvedAt`) |
 
+## 6. Audit remediasi P0–P2 (ringkas)
+
+| Prioritas | Status | Isi utama |
+|-----------|--------|-----------|
+| **P0** | Done | Auth session, `forcePublish` bound role, browser-login locked ke session app, media URL cloud guard |
+| **P1** | Done | OAuth `state`, MIME upload, rate limit, token/pageToken encrypt, YT refresh, cron fail-closed, approve atomik |
+| **P2** | Done (sebagian deferred) | `workspaceId` scaffolding + workspace `default`; analytics mock vs live di UI + stub `/api/analytics/live-stub`; reconcile `posted\|partial\|failed`; manual publish hormati pause/cap; `GET /api/health`; safe-log redaksi; `npm run test:p2` / `npm run check:db` |
+| **P3** | Next | UNIQUE per-workspace platform, live Insights API, TikTok poll status, modularize frontend, deps cleanup |
+
+### DATABASE_URL (Neon)
+
+```bash
+npm run check:db
+# atau di Vercel (tanpa paste secret ke chat):
+# vercel env add DATABASE_URL
+```
+
+Script hanya melaporkan host/mode — **tidak** mencetak URI. Jika kosong, app tetap jalan dengan `db.json` lokal.
+
 Jangan commit `.env`, `db.json`, atau secrets.

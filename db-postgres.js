@@ -4,6 +4,13 @@
 const { neon } = require('@neondatabase/serverless');
 const { normalizeAiSettings, DEFAULT_AI_SETTINGS } = require('./lib/ai-policy');
 const { encryptAccountTokens, decryptAccountTokens } = require('./lib/token-crypto');
+const {
+    DEFAULT_WORKSPACE_ID,
+    defaultWorkspaceRecord,
+    normalizeWorkspaceId,
+    withWorkspaceId,
+    filterByWorkspace
+} = require('./lib/workspace');
 
 function getSql() {
     const url = process.env.DATABASE_URL;
@@ -110,8 +117,42 @@ class PostgresDatabase {
             )
         `;
         await sql`CREATE INDEX IF NOT EXISTS idx_audit_log_created ON audit_log (created_at DESC)`;
+        // Multi-tenant scaffolding (non-breaking): workspaces + workspaceId di JSONB data
+        await sql`
+            CREATE TABLE IF NOT EXISTS workspaces (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                data JSONB NOT NULL DEFAULT '{}'::jsonb,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+        `;
+        await sql`
+            INSERT INTO workspaces (id, name, data)
+            VALUES (${DEFAULT_WORKSPACE_ID}, ${'Default'}, ${{}})
+            ON CONFLICT (id) DO NOTHING
+        `;
         console.log('✅ [DB] Terhubung ke Neon Postgres');
         return this;
+    }
+
+    async getWorkspaces() {
+        const sql = getSql();
+        const rows = await sql`SELECT id, name, data, created_at FROM workspaces ORDER BY created_at`;
+        if (!rows.length) {
+            const def = defaultWorkspaceRecord();
+            await sql`
+                INSERT INTO workspaces (id, name, data)
+                VALUES (${def.id}, ${def.name}, ${{}})
+                ON CONFLICT (id) DO NOTHING
+            `;
+            return [def];
+        }
+        return rows.map(r => ({
+            id: r.id,
+            name: r.name,
+            ...(typeof r.data === 'object' && r.data ? r.data : {}),
+            createdAt: r.created_at
+        }));
     }
 
     async save() {}
@@ -150,33 +191,38 @@ class PostgresDatabase {
         return { id, ...merged, createdAt: rows[0].created_at };
     }
 
-    async getAccounts() {
+    async getAccounts(opts = {}) {
         const sql = getSql();
         const rows = await sql`
             SELECT id, platform, data, connected, created_at, updated_at
             FROM accounts ORDER BY created_at
         `;
-        return rows.map(rowToAccount);
+        let list = rows.map(rowToAccount);
+        if (opts.workspaceId) {
+            list = filterByWorkspace(list, opts.workspaceId, {
+                includeMissing: normalizeWorkspaceId(opts.workspaceId) === DEFAULT_WORKSPACE_ID
+            });
+        }
+        return list;
     }
 
-    async getAccountByPlatform(platform) {
-        const sql = getSql();
-        const rows = await sql`
-            SELECT id, platform, data, connected, created_at, updated_at
-            FROM accounts WHERE platform = ${platform} LIMIT 1
-        `;
-        return rows[0] ? rowToAccount(rows[0]) : null;
+    async getAccountByPlatform(platform, opts = {}) {
+        const list = await this.getAccounts(opts);
+        return list.find(a => a.platform === platform) || null;
     }
 
     async upsertAccount(accountData) {
         const sql = getSql();
-        const existing = await this.getAccountByPlatform(accountData.platform);
+        const workspaceId = normalizeWorkspaceId(accountData.workspaceId || DEFAULT_WORKSPACE_ID);
+        const payload = withWorkspaceId({ ...accountData, workspaceId }, workspaceId);
+        const existing = await this.getAccountByPlatform(payload.platform);
         const now = new Date().toISOString();
 
         if (existing) {
             const merged = encryptAccountTokens({
                 ...existing,
-                ...accountData,
+                ...payload,
+                workspaceId,
                 updatedAt: now
             });
             const { id, platform, connected, createdAt, updatedAt, ...data } = merged;
@@ -185,19 +231,19 @@ class PostgresDatabase {
                 SET data = ${data},
                     connected = ${merged.connected !== false},
                     updated_at = ${now}
-                WHERE platform = ${accountData.platform}
+                WHERE platform = ${payload.platform}
             `;
-            return this.getAccountByPlatform(accountData.platform);
+            return this.getAccountByPlatform(payload.platform, { workspaceId });
         }
 
-        const sealed = encryptAccountTokens(accountData);
+        const sealed = encryptAccountTokens(payload);
         const id = 'acc-' + sealed.platform + '-' + Date.now();
         const { id: _id, platform: _p, connected: _c, createdAt: _ca, updatedAt: _ua, ...data } = sealed;
         await sql`
             INSERT INTO accounts (id, platform, data, connected, created_at, updated_at)
             VALUES (${id}, ${sealed.platform}, ${data}, ${true}, ${now}, ${now})
         `;
-        return this.getAccountByPlatform(sealed.platform);
+        return this.getAccountByPlatform(sealed.platform, { workspaceId });
     }
 
     async disconnectAccount(platform) {
@@ -219,13 +265,19 @@ class PostgresDatabase {
         return true;
     }
 
-    async getPosts() {
+    async getPosts(opts = {}) {
         const sql = getSql();
         const rows = await sql`
             SELECT id, data, status, publish_date, created_by, created_at, updated_at
             FROM posts ORDER BY created_at
         `;
-        return rows.map(rowToPost);
+        let list = rows.map(rowToPost);
+        if (opts.workspaceId) {
+            list = filterByWorkspace(list, opts.workspaceId, {
+                includeMissing: normalizeWorkspaceId(opts.workspaceId) === DEFAULT_WORKSPACE_ID
+            });
+        }
+        return list;
     }
 
     async getPostById(id) {
@@ -241,9 +293,10 @@ class PostgresDatabase {
         const sql = getSql();
         const id = 'post-' + Date.now();
         const createdAt = new Date().toISOString();
-        const post = { ...postData, id, createdAt };
+        const workspaceId = normalizeWorkspaceId(postData.workspaceId || DEFAULT_WORKSPACE_ID);
+        const post = { ...withWorkspaceId(postData, workspaceId), workspaceId, id, createdAt };
         const { id: _i, status, publishDate, createdBy, createdAt: _c, ...rest } = post;
-        const data = { ...rest, status, publishDate, createdBy };
+        const data = { ...rest, status, publishDate, createdBy, workspaceId };
         await sql`
             INSERT INTO posts (id, data, status, publish_date, created_by, created_at)
             VALUES (${id}, ${data}, ${status || null}, ${publishDate || null}, ${createdBy || null}, ${createdAt})
@@ -288,13 +341,19 @@ class PostgresDatabase {
         return rows.map(rowToPost);
     }
 
-    async getAiJobs() {
+    async getAiJobs(opts = {}) {
         const sql = getSql();
         const rows = await sql`
             SELECT id, brief, status, data, created_at, updated_at
             FROM ai_jobs ORDER BY created_at DESC
         `;
-        return rows.map(rowToAiJob);
+        let list = rows.map(rowToAiJob);
+        if (opts.workspaceId) {
+            list = filterByWorkspace(list, opts.workspaceId, {
+                includeMissing: normalizeWorkspaceId(opts.workspaceId) === DEFAULT_WORKSPACE_ID
+            });
+        }
+        return list;
     }
 
     async getAiJobById(id) {
@@ -310,6 +369,7 @@ class PostgresDatabase {
         const sql = getSql();
         const id = 'job-' + Date.now();
         const now = new Date().toISOString();
+        const workspaceId = normalizeWorkspaceId(jobData.workspaceId || DEFAULT_WORKSPACE_ID);
         const job = {
             brief: '',
             structuredBrief: null,
@@ -329,12 +389,13 @@ class PostgresDatabase {
             lastError: null,
             publishResults: {},
             ...jobData,
+            workspaceId,
             id,
             createdAt: now,
             updatedAt: now
         };
         const { id: _i, brief, status, createdAt, updatedAt, ...rest } = job;
-        const data = { ...rest, brief, status };
+        const data = { ...rest, brief, status, workspaceId };
         await sql`
             INSERT INTO ai_jobs (id, brief, status, data, created_at, updated_at)
             VALUES (${id}, ${brief || ''}, ${status || 'queued'}, ${data}, ${now}, ${now})

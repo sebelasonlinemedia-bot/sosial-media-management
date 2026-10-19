@@ -9,7 +9,9 @@
     "ai:context": "node scripts/ai-employee-publish.js --context",
     "ai:publish": "node scripts/ai-employee-publish.js",
     "test:auth": "node scripts/test-auth-login.js",
-    "test:p1": "node scripts/test-p1-hardening.js"
+    "test:p1": "node scripts/test-p1-hardening.js",
+    "test:p2": "node scripts/test-p2-hardening.js",
+    "check:db": "node scripts/check-database-url.js"
   },
   "engines": {
     "node": ">=18"

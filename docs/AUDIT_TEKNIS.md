@@ -9,6 +9,7 @@
 | **Repo remote** | `https://github.com/sebelasonlinemedia-bot/sosial-media-management.git` (`main`) |
 | **Versi paket** | `piks-digital-lab@1.0.0` (`package.json`) |
 | **Commit HEAD (saat audit)** | `c40634e` — Raise Kantor AI 3D fidelity… |
+| **Remediasi** | P0 + P1 closed di `main` (lihat git log `31178ca`…`fb936f2`). P2: lihat **Lampiran D** di bawah. |
 
 **Legenda status temuan**
 
@@ -522,4 +523,27 @@ vercel.json            # Routes + daily cron
 
 ---
 
-*Akhir laporan audit teknis. Tidak ada perbaikan kode yang dilakukan pada tahap ini selain penulisan file ini.*
+## Lampiran D — Status remediasi P0–P2 (2026-10-19+)
+
+| ID / tema | P | Status | Catatan fix |
+|-----------|---|--------|-------------|
+| SEC-01/02/03 Auth | P0 | **Done** | Session + requireAuth; forcePublish role-bound |
+| INT-01 media localhost | P0 | **Done** | `PUBLIC_BASE_URL` + assert cloud |
+| DB-01 multi-tenant penuh | P0→P2/P3 | **Partial** | P2: `workspaceId` + table `workspaces` default; UNIQUE(platform) tetap → **P3** |
+| SEC-04…08, INT-02, WF-01, dll. | P1 | **Done** | Lihat commit P1 |
+| WF-02 manual autonomy | P1/P2 | **Done** | `evaluateManualPublishGate` (pause + daily cap) |
+| AN-01 / AI-02 analytics truth | P1/P2 | **Partial** | `statsSource` + UI banner + stub live hook; fetch Insights API → **P3** |
+| WF-03 partial publish | P2 | **Done** | `posted\|partial\|failed` + `publishReconciliation` |
+| SEC-09 CORS | P2 | **Done** (P1 wave) | Allowlist production |
+| SEC-10 OAuth state | P2 | **Done** (P1 wave) | Signed state |
+| INT-05 headless | P2 | **Done** | `headless !== false` di `browser.js` |
+| INT-06 TikTok poll | P2 | **Deferred P3** | Response bertanda `pending` / `pollStatus: not_implemented` |
+| Health / logging | P2 | **Done** | `GET /api/health`; `lib/safe-log` redaksi |
+| QA smoke | P2 | **Done** | `npm run test:p2`, `npm run check:db` |
+| FE-01 modularize | P2 | **Deferred P3** | Monolit `app.js` tetap |
+
+**P3 preview:** tenant UNIQUE `(workspace_id, platform)`; live metrics Meta/YT/TikTok; TikTok publish poll; object storage upload; multer 2 + hapus deps mati; pecah frontend modules.
+
+---
+
+*Laporan audit awal read-only; remediasi kode dilakukan di commit terpisah setelah laporan.*

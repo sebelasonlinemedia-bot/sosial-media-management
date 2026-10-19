@@ -722,7 +722,8 @@ button, input, textarea, select {
     color: #047857;
 }
 
-.badge-yellow {
+.badge-yellow,
+.badge-amber {
     background-color: rgba(217, 119, 6, 0.12);
     color: #b45309;
 }

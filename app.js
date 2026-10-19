@@ -2451,7 +2451,13 @@ app.openPostDetailsModal = function (postId) {
     const dateStr = `${pDate.getDate()} ${indonesianMonths[pDate.getMonth()]} ${pDate.getFullYear()}`;
     const timeStr = pDate.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
     const platformsHtml = post.platforms.map(p => { const info = appState.platforms[p]; return info ? `<div class="platform-pill ${info.colorClass}"><i data-lucide="${info.icon}"></i></div>` : ''; }).join('');
-    const statusMap = { scheduled: 'Dijadwalkan', posted: 'Diterbitkan', draft: 'Draf', failed: 'Gagal' };
+    const statusMap = {
+        scheduled: 'Dijadwalkan',
+        posted: 'Diterbitkan',
+        partial: 'Sebagian berhasil',
+        draft: 'Draf',
+        failed: 'Gagal'
+    };
     let mediaHtml = '';
     if (post.mediaUrl) {
         mediaHtml = post.mediaType === 'video'
@@ -2459,15 +2465,29 @@ app.openPostDetailsModal = function (postId) {
             : `<div class="details-media-box"><img src="${post.mediaUrl}" alt="Media post"></div>`;
     }
 
+    const recon = post.publishReconciliation;
+    let reconHtml = '';
+    if (recon && recon.summary) {
+        const badgeClass = recon.aggregateStatus === 'posted'
+            ? 'badge-emerald'
+            : recon.aggregateStatus === 'partial'
+                ? 'badge-amber'
+                : 'badge-red';
+        reconHtml = `<div style="margin-bottom:8px;"><span class="badge ${badgeClass}">${statusMap[recon.aggregateStatus] || recon.aggregateStatus}</span>
+            <span class="font-xs text-secondary" style="margin-left:8px;">${recon.summary}</span></div>`;
+    }
+
     // Tampilkan hasil publikasi per platform jika ada
     let resultsHtml = '';
     if (post.publishResults && Object.keys(post.publishResults).length > 0) {
         resultsHtml = `<div style="border-top:1px solid var(--border-color);padding-top:12px;margin-top:4px;">
-            <p class="font-xs text-secondary" style="margin-bottom:8px;">Hasil Publikasi:</p>
+            <p class="font-xs text-secondary" style="margin-bottom:8px;">Hasil Publikasi per platform:</p>
+            ${reconHtml}
             ${Object.entries(post.publishResults).map(([plat, res]) => `
-                <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap;">
                     <span style="text-transform:capitalize;font-size:0.8125rem;font-weight:600;">${plat}</span>
                     <span class="badge ${res.status === 'success' ? 'badge-emerald' : 'badge-red'}">${res.status === 'success' ? '✓ Sukses' : '✗ ' + (res.message || 'Gagal')}</span>
+                    ${res.pending ? `<span class="badge badge-amber">Pending poll</span>` : ''}
                     ${res.postId ? `<span class="font-xs text-muted">ID: ${res.postId}</span>` : ''}
                 </div>`).join('')}
         </div>`;
@@ -2514,25 +2534,58 @@ app.setupModals = function () {
 app.renderAnalytics = function () {
     const tbody = document.getElementById('analytics-posts-tbody');
     tbody.innerHTML = '';
-    const publishedPosts = appState.posts.filter(p => p.status === 'posted').sort((a, b) => new Date(b.publishDate) - new Date(a.publishDate));
+    const publishedPosts = appState.posts
+        .filter(p => p.status === 'posted' || p.status === 'partial')
+        .sort((a, b) => new Date(b.publishDate) - new Date(a.publishDate));
     const indonesianMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
 
+    let mockCount = 0;
+    let liveCount = 0;
+    publishedPosts.forEach(p => {
+        const src = (p.stats && p.stats.statsSource) || (p.stats ? 'mock' : 'none');
+        if (src === 'live') liveCount += 1;
+        else if (src !== 'none') mockCount += 1;
+    });
+    const sourceLabel = document.getElementById('analytics-source-label');
+    const sourceNote = document.getElementById('analytics-source-note');
+    if (sourceLabel) {
+        if (liveCount > 0 && mockCount === 0) sourceLabel.textContent = 'Live (Insights platform)';
+        else if (liveCount > 0) sourceLabel.textContent = `Campuran — ${liveCount} live, ${mockCount} mock`;
+        else if (mockCount > 0) sourceLabel.textContent = `Mock lokal (${mockCount} post) — bukan metrics resmi`;
+        else sourceLabel.textContent = 'Belum ada stats';
+    }
+    if (sourceNote) {
+        sourceNote.textContent = liveCount === 0
+            ? 'Angka di tabel berasal dari generateMockStats setelah publish. Hook live: GET /api/analytics/live-stub (belum fetch API platform).'
+            : 'Sebagian post memakai stats live; mock tetap ditandai di kolom Sumber.';
+    }
+
     if (publishedPosts.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="text-center text-secondary" style="padding:32px;">Belum ada postingan yang diterbitkan. Kirim konten untuk melihat analitik.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center text-secondary" style="padding:32px;">Belum ada postingan yang diterbitkan. Kirim konten untuk melihat analitik.</td></tr>`;
     } else {
         publishedPosts.forEach(post => {
             const d = new Date(post.publishDate);
             const dateStr = `${d.getDate()} ${indonesianMonths[d.getMonth()]} ${d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}`;
-            const platformPills = post.platforms.map(p => { const info = appState.platforms[p]; return info ? `<div class="platform-pill ${info.colorClass}" style="width:24px;height:24px;" title="${info.name}"><i data-lucide="${info.icon}" style="width:12px;height:12px;"></i></div>` : ''; }).join('');
+            const platformPills = (post.platforms || []).map(p => { const info = appState.platforms[p]; return info ? `<div class="platform-pill ${info.colorClass}" style="width:24px;height:24px;" title="${info.name}"><i data-lucide="${info.icon}" style="width:12px;height:12px;"></i></div>` : ''; }).join('');
             const thumbHtml = post.mediaUrl ? (post.mediaType === 'video' ? `<i data-lucide="video" style="color:var(--indigo);"></i>` : `<img src="${post.mediaUrl}" alt="Thumb" class="cell-thumbnail">`) : '<i data-lucide="image"></i>';
+            const src = (post.stats && post.stats.statsSource) || (post.stats ? 'mock' : '—');
+            const srcBadge = src === 'live'
+                ? '<span class="badge badge-emerald">live</span>'
+                : src === 'mock'
+                    ? '<span class="badge badge-amber">mock</span>'
+                    : '<span class="badge">—</span>';
+            const statusBadge = post.status === 'partial'
+                ? '<span class="badge badge-amber"><span class="badge-dot"></span>Sebagian</span>'
+                : '<span class="badge badge-emerald"><span class="badge-dot"></span>Diterbitkan</span>';
             tbody.innerHTML += `
                 <tr>
                     <td><div class="analytics-post-cell"><div class="cell-thumbnail">${thumbHtml}</div><div><div class="cell-caption">${post.caption || 'Tanpa Keterangan'}</div><span class="font-xs text-muted">${dateStr} WIB</span></div></div></td>
                     <td><div class="cell-platforms-list">${platformPills}</div></td>
-                    <td><span class="badge badge-emerald"><span class="badge-dot"></span>Diterbitkan</span></td>
-                    <td class="font-bold">${post.stats ? post.stats.reach.toLocaleString('id-ID') : '0'}</td>
-                    <td class="text-indigo font-bold">${post.stats ? post.stats.engagement.toLocaleString('id-ID') : '0'}</td>
-                    <td>${post.stats ? post.stats.clicks.toLocaleString('id-ID') : '0'}</td>
+                    <td>${statusBadge}</td>
+                    <td>${srcBadge}</td>
+                    <td class="font-bold">${post.stats ? Number(post.stats.reach || 0).toLocaleString('id-ID') : '0'}</td>
+                    <td class="text-indigo font-bold">${post.stats ? Number(post.stats.engagement || 0).toLocaleString('id-ID') : '0'}</td>
+                    <td>${post.stats ? Number(post.stats.clicks || 0).toLocaleString('id-ID') : '0'}</td>
                 </tr>`;
         });
     }
@@ -2542,6 +2595,8 @@ app.renderAnalytics = function () {
 
 app.renderAnalyticsCharts = function () {
     const reachCtx = document.getElementById('analytics-reach-chart');
+    // Chart garis = ilustrasi UI saja (bukan live). Angka nyata ada di tabel postingan.
+    const demoNote = ' (demo, bukan live)';
     if (reachCtx) {
         if (appState.charts.analyticsReach) appState.charts.analyticsReach.destroy();
         appState.charts.analyticsReach = new Chart(reachCtx, {
@@ -2549,9 +2604,9 @@ app.renderAnalyticsCharts = function () {
             data: {
                 labels: ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'],
                 datasets: [
-                    { label: 'Jangkauan Instagram', data: [12000, 19000, 15000, 25000, 22000, 30000, 34000], borderColor: '#e1306c', backgroundColor: 'rgba(225,48,108,0.05)', tension: 0.35, fill: true },
-                    { label: 'Jangkauan Facebook', data: [22000, 24000, 27000, 21000, 29000, 38000, 42000], borderColor: '#1877f2', backgroundColor: 'rgba(24,119,242,0.05)', tension: 0.35, fill: true },
-                    { label: 'Tayangan TikTok', data: [5000, 12000, 28000, 31000, 42000, 56000, 68000], borderColor: '#0f172a', backgroundColor: 'rgba(15,23,42,0.04)', tension: 0.35, fill: true }
+                    { label: 'Instagram' + demoNote, data: [12, 19, 15, 25, 22, 30, 34], borderColor: '#e1306c', backgroundColor: 'rgba(225,48,108,0.05)', tension: 0.35, fill: true },
+                    { label: 'Facebook' + demoNote, data: [22, 24, 27, 21, 29, 38, 42], borderColor: '#1877f2', backgroundColor: 'rgba(24,119,242,0.05)', tension: 0.35, fill: true },
+                    { label: 'TikTok' + demoNote, data: [5, 12, 28, 31, 42, 56, 68], borderColor: '#0f172a', backgroundColor: 'rgba(15,23,42,0.04)', tension: 0.35, fill: true }
                 ]
             },
             options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#64748b', font: { family: 'Inter', size: 11 } } } }, scales: { x: { grid: { color: 'rgba(15,23,42,0.06)' }, ticks: { color: '#94a3b8' } }, y: { grid: { color: 'rgba(15,23,42,0.06)' }, ticks: { color: '#94a3b8' } } } }
@@ -2560,9 +2615,29 @@ app.renderAnalyticsCharts = function () {
     const healthCtx = document.getElementById('analytics-health-chart');
     if (healthCtx) {
         if (appState.charts.analyticsHealth) appState.charts.analyticsHealth.destroy();
+        const posts = appState.posts || [];
+        const ok = posts.filter(p => p.status === 'posted').length;
+        const partial = posts.filter(p => p.status === 'partial').length;
+        const pending = posts.filter(p => p.status === 'scheduled' || p.status === 'draft').length;
+        const failed = posts.filter(p => p.status === 'failed').length;
+        const totalDone = ok + partial + failed;
+        const pctEl = document.getElementById('analytics-health-pct');
+        if (pctEl) {
+            pctEl.textContent = totalDone
+                ? `${(((ok + partial * 0.5) / totalDone) * 100).toFixed(1)}%`
+                : '—';
+        }
         appState.charts.analyticsHealth = new Chart(healthCtx, {
             type: 'doughnut',
-            data: { labels: ['Berhasil', 'Tertunda / Draf', 'Gagal'], datasets: [{ data: [98, 5, 1], backgroundColor: ['#059669', '#4f46e5', '#dc2626'], borderWidth: 2, borderColor: '#ffffff' }] },
+            data: {
+                labels: ['Berhasil', 'Sebagian', 'Tertunda / Draf', 'Gagal'],
+                datasets: [{
+                    data: [ok || 0, partial || 0, pending || 0, failed || 0],
+                    backgroundColor: ['#059669', '#d97706', '#4f46e5', '#dc2626'],
+                    borderWidth: 2,
+                    borderColor: '#ffffff'
+                }]
+            },
             options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#64748b', font: { family: 'Inter', size: 10 } } } }, cutout: '70%' }
         });
     }

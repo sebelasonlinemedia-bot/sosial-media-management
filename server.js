@@ -37,6 +37,7 @@ const {
     summarizeBrandMemory,
     normalizeAiSettings,
     evaluatePublishGate,
+    evaluateManualPublishGate,
     assessStructuredBrief,
     appendDecision,
     enforceRolePlatforms,
@@ -50,6 +51,10 @@ const auth = require('./lib/auth');
 const { createOAuthState, verifyOAuthState } = require('./lib/oauth-state');
 const { createRateLimiter } = require('./lib/rate-limit');
 const { sanitizeFilename, multerFileFilter } = require('./lib/upload-safe');
+const { resolveWorkspaceId, DEFAULT_WORKSPACE_ID } = require('./lib/workspace');
+const { publishOutcomeFields } = require('./lib/publish-status');
+const { generateMockStats, fetchLiveMetricsStub, summarizeStatsSources } = require('./lib/metrics');
+const { safeLog } = require('./lib/safe-log');
 
 const IS_VERCEL = !!process.env.VERCEL;
 const IS_PRODUCTION = auth.isProduction();
@@ -166,6 +171,28 @@ async function assertNotEmergencyPaused() {
     return settings;
 }
 
+/** Gate publish manual: emergencyPause + dailyPostCap (+ warnings high-risk). */
+async function assertManualPublishAllowed({ platforms, caption, brief } = {}) {
+    const settings = await db.getAiSettings();
+    const brandMemories = await collectBrandMemories(platforms || []);
+    const recentPosts = await db.getPosts();
+    const gate = evaluateManualPublishGate({
+        settings,
+        platforms: platforms || [],
+        caption: caption || '',
+        brief: brief || '',
+        brandMemories,
+        recentPosts
+    });
+    if (!gate.allowPublish) {
+        const err = new Error(gate.reasons[0] || 'Publish diblokir oleh kebijakan.');
+        err.statusCode = gate.policy === 'emergency_pause' ? 423 : 403;
+        err.gate = gate;
+        throw err;
+    }
+    return gate;
+}
+
 function rejectSandboxInReal(req, res) {
     if (req.query.sandbox === '1' && !SANDBOX_MODE) {
         res.status(403).json({
@@ -249,8 +276,42 @@ const SANDBOX_PROFILES = {
 };
 
 // ============================================================
-// API Routes: Informasi Mode
+// API Routes: Informasi Mode + Health
 // ============================================================
+
+/** Health check hardened — mode DB tanpa leak secrets. */
+app.get('/api/health', async (req, res) => {
+    const started = Date.now();
+    let dbOk = false;
+    let dbMode = process.env.DATABASE_URL ? 'postgres' : 'file';
+    let workspaceCount = null;
+    try {
+        await ensureDb();
+        if (typeof db.getWorkspaces === 'function') {
+            const ws = await db.getWorkspaces();
+            workspaceCount = ws.length;
+        }
+        dbOk = true;
+    } catch (err) {
+        dbOk = false;
+        safeLog('warn', '[health] db check gagal:', err.message);
+    }
+    const statusCode = dbOk ? 200 : 503;
+    res.status(statusCode).json({
+        ok: dbOk,
+        service: "PiK's Digital Lab",
+        db: { mode: dbMode, ok: dbOk },
+        sandbox: !!SANDBOX_MODE,
+        production: !!IS_PRODUCTION,
+        vercel: !!IS_VERCEL,
+        defaultWorkspaceId: DEFAULT_WORKSPACE_ID,
+        workspaceCount,
+        uptimeSec: Math.floor(process.uptime()),
+        latencyMs: Date.now() - started
+        // sengaja tidak expose: DATABASE_URL, tokens, secrets, env values
+    });
+});
+
 app.get('/api/status', async (req, res) => {
     const adminEmailSet = !!(process.env.ADMIN_EMAIL || '').trim();
     const adminSecretSet = !!(process.env.ADMIN_PASSWORD_HASH || '').trim()
@@ -268,6 +329,7 @@ app.get('/api/status', async (req, res) => {
         authRequired: true,
         authenticated: !!req.user,
         db: process.env.DATABASE_URL ? 'postgres' : 'file',
+        defaultWorkspaceId: DEFAULT_WORKSPACE_ID,
         production: !!IS_PRODUCTION,
         host,
         isLocalHost,
@@ -369,13 +431,31 @@ app.post('/api/auth/logout', (req, res) => {
 // API Routes: Manajemen Akun
 // ============================================================
 
+// GET: Daftar workspace (scaffolding multi-tenant)
+app.get('/api/workspaces', async (req, res) => {
+    try {
+        const workspaces = typeof db.getWorkspaces === 'function'
+            ? await db.getWorkspaces()
+            : [{ id: DEFAULT_WORKSPACE_ID, name: 'Default' }];
+        res.json({
+            success: true,
+            defaultWorkspaceId: DEFAULT_WORKSPACE_ID,
+            workspaces,
+            note: 'workspaceId opsional di accounts/posts/jobs; UNIQUE(platform) masih global (P3).'
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
 // GET: Daftar semua akun terhubung (tanpa token sensitif)
 app.get('/api/accounts', async (req, res) => {
-    const accounts = (await db.getAccounts()).map(a => {
+    const workspaceId = resolveWorkspaceId(req);
+    const accounts = (await db.getAccounts({ workspaceId })).map(a => {
         const { accessToken, refreshToken, pageToken, sessionState, password, ...safe } = a;
         return safe;
     });
-    res.json({ success: true, accounts });
+    res.json({ success: true, workspaceId, accounts });
 });
 
 // Brand memory per akun (tone, banned words, pillars, …)
@@ -572,7 +652,7 @@ app.get('/api/auth/meta/callback', async (req, res) => {
         res.redirect(`/?auth=meta&status=success`);
 
     } catch (err) {
-        console.error('[AUTH Meta ERROR]', err.response ? err.response.data : err.message);
+        safeLog('error', '[AUTH Meta ERROR]', err.response ? err.response.data : err.message);
         res.redirect(`/?auth=meta&status=error&msg=${encodeURIComponent(err.message)}`);
     }
 });
@@ -657,7 +737,7 @@ app.get('/api/auth/youtube/callback', async (req, res) => {
         res.redirect('/?auth=youtube&status=success');
 
     } catch (err) {
-        console.error('[AUTH YouTube ERROR]', err.response ? err.response.data : err.message);
+        safeLog('error', '[AUTH YouTube ERROR]', err.response ? err.response.data : err.message);
         res.redirect(`/?auth=youtube&status=error&msg=${encodeURIComponent(err.message)}`);
     }
 });
@@ -739,7 +819,7 @@ app.get('/api/auth/tiktok/callback', async (req, res) => {
         res.redirect('/?auth=tiktok&status=success');
 
     } catch (err) {
-        console.error('[AUTH TikTok ERROR]', err.response ? err.response.data : err.message);
+        safeLog('error', '[AUTH TikTok ERROR]', err.response ? err.response.data : err.message);
         res.redirect(`/?auth=tiktok&status=error&msg=${encodeURIComponent(err.message)}`);
     }
 });
@@ -846,14 +926,16 @@ app.post('/api/media/upload', (req, res) => {
 
 // GET: Daftar semua postingan
 app.get('/api/posts', async (req, res) => {
-    const posts = await db.getPosts();
-    res.json({ success: true, posts });
+    const workspaceId = resolveWorkspaceId(req);
+    const posts = await db.getPosts({ workspaceId });
+    res.json({ success: true, workspaceId, posts });
 });
 
 // POST: Buat postingan baru (langsung atau terjadwal)
 app.post('/api/posts', rateLimitPublish, async (req, res) => {
     try {
         const { caption, mediaUrl, mediaType, platforms, status, publishDate } = req.body;
+        const workspaceId = resolveWorkspaceId(req);
 
         if (!platforms || platforms.length === 0) {
             return res.status(400).json({ success: false, message: 'Pilih setidaknya satu platform.' });
@@ -862,7 +944,14 @@ app.post('/api/posts', rateLimitPublish, async (req, res) => {
         let postStatus = status || 'posted';
         let finalPublishDate = publishDate || new Date().toISOString();
 
-        if (postStatus === 'posted') await assertNotEmergencyPaused();
+        let manualGate = null;
+        if (postStatus === 'posted') {
+            manualGate = await assertManualPublishAllowed({
+                platforms,
+                caption: caption || '',
+                brief: ''
+            });
+        }
 
         // Simpan postingan ke database
         const newPost = await db.addPost({
@@ -873,24 +962,47 @@ app.post('/api/posts', rateLimitPublish, async (req, res) => {
             status: postStatus,
             publishDate: finalPublishDate,
             stats: null,
-            publishResults: {}
+            publishResults: {},
+            workspaceId
         });
 
         // Jika langsung dikirim, proses sekarang
         if (postStatus === 'posted') {
             const results = await publishToAllPlatforms(newPost);
-            await db.updatePost(newPost.id, {
-                status: 'posted',
-                publishResults: results,
-                stats: generateMockStats()
+            const { fields, reconciliation } = publishOutcomeFields(results, {
+                statsFactory: generateMockStats
             });
-            return res.json({ success: true, post: await db.getPostById(newPost.id), results });
+            await db.updatePost(newPost.id, fields);
+            await db.appendAuditLog({
+                actor: (req.user && req.user.email) || 'user',
+                action: 'manual_publish',
+                target: newPost.id,
+                detail: {
+                    reconciliation,
+                    policy: manualGate && manualGate.policy,
+                    warnings: (manualGate && manualGate.warnings) || []
+                }
+            });
+            return res.json({
+                success: reconciliation.aggregateStatus !== 'failed',
+                partial: reconciliation.aggregateStatus === 'partial',
+                publishStatus: reconciliation.aggregateStatus,
+                reconciliation,
+                policyWarnings: (manualGate && manualGate.warnings) || [],
+                post: await db.getPostById(newPost.id),
+                results
+            });
         }
 
         res.json({ success: true, post: newPost });
     } catch (err) {
         const code = err.statusCode || 500;
-        res.status(code).json({ success: false, message: err.message });
+        const body = { success: false, message: err.message };
+        if (err.gate) {
+            body.policy = err.gate.policy;
+            body.reasons = err.gate.reasons;
+        }
+        res.status(code).json(body);
     }
 });
 
@@ -926,42 +1038,76 @@ app.put('/api/posts/:id', async (req, res) => {
         // Jika diedit dan status diubah menjadi langsung dikirim (posted), jalankan mesin publikasi
         const updatedPost = await db.updatePost(id, updates);
         if (status === 'posted' && post.status !== 'posted') {
-            await assertNotEmergencyPaused();
-            const results = await publishToAllPlatforms(updatedPost);
-            await db.updatePost(id, {
-                status: 'posted',
-                publishResults: results,
-                stats: generateMockStats()
+            const manualGate = await assertManualPublishAllowed({
+                platforms: updatedPost.platforms || platforms || [],
+                caption: updatedPost.caption || '',
+                brief: ''
             });
-            return res.json({ success: true, post: await db.getPostById(id), results });
+            const results = await publishToAllPlatforms(updatedPost);
+            const { fields, reconciliation } = publishOutcomeFields(results, {
+                statsFactory: generateMockStats
+            });
+            await db.updatePost(id, fields);
+            return res.json({
+                success: reconciliation.aggregateStatus !== 'failed',
+                partial: reconciliation.aggregateStatus === 'partial',
+                publishStatus: reconciliation.aggregateStatus,
+                reconciliation,
+                policyWarnings: manualGate.warnings || [],
+                post: await db.getPostById(id),
+                results
+            });
         }
 
         res.json({ success: true, post: updatedPost });
     } catch (err) {
         const code = err.statusCode || 500;
-        res.status(code).json({ success: false, message: err.message });
+        const body = { success: false, message: err.message };
+        if (err.gate) {
+            body.policy = err.gate.policy;
+            body.reasons = err.gate.reasons;
+        }
+        res.status(code).json(body);
     }
 });
 
 // POST: Publikasikan postingan terjadwal secara langsung
 app.post('/api/posts/:id/publish', rateLimitPublish, async (req, res) => {
     try {
-        await assertNotEmergencyPaused();
         const post = await db.getPostById(req.params.id);
         if (!post) {
             return res.status(404).json({ success: false, message: 'Postingan tidak ditemukan.' });
         }
-        const results = await publishToAllPlatforms(post);
-        await db.updatePost(post.id, {
-            status: 'posted',
-            publishDate: new Date().toISOString(),
-            publishResults: results,
-            stats: generateMockStats()
+        const manualGate = await assertManualPublishAllowed({
+            platforms: post.platforms || [],
+            caption: post.caption || '',
+            brief: ''
         });
-        res.json({ success: true, post: await db.getPostById(post.id), results });
+        const results = await publishToAllPlatforms(post);
+        const { fields, reconciliation } = publishOutcomeFields(results, {
+            statsFactory: generateMockStats
+        });
+        await db.updatePost(post.id, {
+            ...fields,
+            publishDate: new Date().toISOString()
+        });
+        res.json({
+            success: reconciliation.aggregateStatus !== 'failed',
+            partial: reconciliation.aggregateStatus === 'partial',
+            publishStatus: reconciliation.aggregateStatus,
+            reconciliation,
+            policyWarnings: manualGate.warnings || [],
+            post: await db.getPostById(post.id),
+            results
+        });
     } catch (err) {
         const code = err.statusCode || 500;
-        res.status(code).json({ success: false, message: err.message });
+        const body = { success: false, message: err.message };
+        if (err.gate) {
+            body.policy = err.gate.policy;
+            body.reasons = err.gate.reasons;
+        }
+        res.status(code).json(body);
     }
 });
 
@@ -994,7 +1140,7 @@ async function publishToAllPlatforms(post) {
                 const result = await callPlatformAPI(platform, acc, post);
                 results[platform] = result;
             }
-            console.log(`[PUBLISH] ${platform}: ✅`, results[platform]);
+            safeLog('log', `[PUBLISH] ${platform}: ✅`, results[platform]);
         } catch (err) {
             console.error(`[PUBLISH] ${platform}: ❌`, err.message);
             results[platform] = { status: 'error', message: err.message };
@@ -1109,7 +1255,14 @@ async function callPlatformAPI(platform, acc, post) {
             }, {
                 headers: { Authorization: `Bearer ${acc.accessToken}`, 'Content-Type': 'application/json; charset=UTF-8' }
             });
-            return { status: 'success', publishId: initRes.data.data ? initRes.data.data.publish_id : null };
+            // INT-06: init ≠ live; poll status belum di-wire (P3)
+            return {
+                status: 'success',
+                publishId: initRes.data.data ? initRes.data.data.publish_id : null,
+                pending: true,
+                pollStatus: 'not_implemented',
+                message: 'Init OK — status live belum di-poll (stub P2).'
+            };
         }
 
         default:
@@ -1147,16 +1300,6 @@ async function refreshYouTubeAccessToken(acc) {
     }
 }
 
-// Statistik lokal (mock) — sumber ditandai agar insights tidak dianggap live platform
-function generateMockStats() {
-    return {
-        reach: Math.floor(Math.random() * 5000) + 100,
-        engagement: Math.floor(Math.random() * 800) + 12,
-        clicks: Math.floor(Math.random() * 150),
-        statsSource: 'mock'
-    };
-}
-
 // ============================================================
 // Background Scheduler (cek setiap 60 detik)
 // ============================================================
@@ -1174,14 +1317,29 @@ async function runScheduler() {
         for (const post of duePosts) {
             console.log(`[SCHEDULER] Memproses: ${post.id} - ${post.caption ? post.caption.substring(0, 50) : 'tanpa keterangan'}...`);
             try {
+                try {
+                    await assertManualPublishAllowed({
+                        platforms: post.platforms || [],
+                        caption: post.caption || '',
+                        brief: ''
+                    });
+                } catch (gateErr) {
+                    console.warn(`[SCHEDULER] skip ${post.id}:`, gateErr.message);
+                    await db.updatePost(post.id, {
+                        status: 'scheduled',
+                        lastError: gateErr.message
+                    });
+                    continue;
+                }
                 const results = await publishToAllPlatforms(post);
-                await db.updatePost(post.id, {
-                    status: 'posted',
-                    publishDate: new Date().toISOString(),
-                    publishResults: results,
-                    stats: generateMockStats()
+                const { fields, reconciliation } = publishOutcomeFields(results, {
+                    statsFactory: generateMockStats
                 });
-                console.log(`[SCHEDULER] ✅ Berhasil diterbitkan: ${post.id}`);
+                await db.updatePost(post.id, {
+                    ...fields,
+                    publishDate: new Date().toISOString()
+                });
+                console.log(`[SCHEDULER] ✅ ${post.id} → ${reconciliation.aggregateStatus}`);
             } catch (err) {
                 console.error(`[SCHEDULER] ❌ Gagal: ${post.id}`, err.message);
                 await db.updatePost(post.id, { status: 'failed', lastError: err.message });
@@ -1415,31 +1573,30 @@ app.post('/api/ai/employee/publish', rateLimitPublish, async (req, res) => {
         });
 
         const results = await publishToAllPlatforms(newPost);
-        const failed = Object.values(results).some(r => r && r.status === 'error');
-        await db.updatePost(newPost.id, {
-            status: failed ? 'failed' : 'posted',
-            publishResults: results,
-            stats: generateMockStats(),
-            lastError: failed
-                ? Object.entries(results)
-                    .filter(([, r]) => r && r.status === 'error')
-                    .map(([plat, r]) => `${plat}: ${r.message || 'gagal'}`)
-                    .join('; ')
-                : undefined
+        const { fields, reconciliation } = publishOutcomeFields(results, {
+            statsFactory: generateMockStats
         });
+        await db.updatePost(newPost.id, fields);
 
         await db.appendAuditLog({
             actor: name,
-            action: failed ? 'publish_failed' : 'publish_ok',
+            action: reconciliation.aggregateStatus === 'posted'
+                ? 'publish_ok'
+                : reconciliation.aggregateStatus === 'partial'
+                    ? 'publish_partial'
+                    : 'publish_failed',
             target: newPost.id,
-            detail: { platforms: targetPlatforms, policy: gate.policy }
+            detail: { platforms: targetPlatforms, policy: gate.policy, reconciliation }
         });
 
         const post = await db.getPostById(newPost.id);
-        console.log(`🤖 [AI-EMPLOYEE] Selesai ${post.id} — ${failed ? 'ADA GAGAL' : 'OK'}`);
+        console.log(`🤖 [AI-EMPLOYEE] Selesai ${post.id} — ${reconciliation.aggregateStatus}`);
 
         res.json({
-            success: !failed,
+            success: reconciliation.aggregateStatus !== 'failed',
+            partial: reconciliation.aggregateStatus === 'partial',
+            publishStatus: reconciliation.aggregateStatus,
+            reconciliation,
             policy: gate.policy,
             employeeName: name,
             brandMemorySummary: brandSummary,
@@ -1534,11 +1691,28 @@ app.get('/api/ai/insights', async (req, res) => {
         const posts = await db.getPosts();
         const days = parseInt(req.query.days, 10) || 30;
         const payload = buildInsights(posts, { days });
+        const sources = summarizeStatsSources(posts.filter(p => p.status === 'posted' || p.status === 'partial'));
+        const liveHook = await fetchLiveMetricsStub({ reason: 'insights' });
         res.json({
             success: true,
             insightsEnabled: settings.insightsEnabled !== false,
-            ...payload
+            ...payload,
+            statsSourceSummary: sources,
+            liveMetrics: liveHook
         });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+/** Stub hook metrics live — belum fetch API platform (jangan klaim sebagai real). */
+app.get('/api/analytics/live-stub', async (req, res) => {
+    try {
+        const stub = await fetchLiveMetricsStub({
+            platform: req.query.platform,
+            postId: req.query.postId
+        });
+        res.json({ success: true, ...stub });
     } catch (err) {
         res.status(500).json({ success: false, message: err.message });
     }
@@ -2212,40 +2386,41 @@ async function runAiJobHandler(req, res) {
         });
 
         const results = await publishToAllPlatforms(newPost);
-        const failed = Object.values(results).some(r => r && r.status === 'error');
-        const lastError = failed
-            ? Object.entries(results)
-                .filter(([, r]) => r && r.status === 'error')
-                .map(([plat, r]) => `${plat}: ${r.message || 'gagal'}`)
-                .join('; ')
-            : null;
-
-        await db.updatePost(newPost.id, {
-            status: failed ? 'failed' : 'posted',
-            publishResults: results,
-            stats: generateMockStats(),
-            lastError: lastError || undefined
+        const { fields, reconciliation } = publishOutcomeFields(results, {
+            statsFactory: generateMockStats
         });
+        const lastError = fields.lastError || null;
+
+        await db.updatePost(newPost.id, fields);
+
+        const jobStatus = reconciliation.aggregateStatus === 'posted'
+            ? 'done'
+            : reconciliation.aggregateStatus === 'partial'
+                ? 'done'
+                : 'failed';
 
         history.push({
             at: new Date().toISOString(),
-            type: failed ? 'run_failed' : 'run_done',
+            type: reconciliation.aggregateStatus === 'failed' ? 'run_failed' : 'run_done',
             postId: newPost.id,
             runId,
-            lastError
+            lastError,
+            publishStatus: reconciliation.aggregateStatus
         });
 
         decisionLog = appendDecision(decisionLog, {
             actor: name,
-            reason: failed ? `Publish gagal: ${lastError}` : 'Publish sukses',
-            status: failed ? 'failed' : 'done'
+            reason: reconciliation.summary,
+            status: jobStatus === 'failed' ? 'failed' : 'done',
+            publishStatus: reconciliation.aggregateStatus
         });
 
         const updatedJob = await db.updateAiJob(job.id, {
-            status: failed ? 'failed' : 'done',
+            status: jobStatus,
             caption: finalCaption,
             platforms: targetPlatforms,
             publishResults: results,
+            publishReconciliation: reconciliation,
             postId: newPost.id,
             draftHistory: history,
             decisionLog,
@@ -2255,16 +2430,29 @@ async function runAiJobHandler(req, res) {
 
         await db.appendAuditLog({
             actor: name,
-            action: failed ? 'job_run_failed' : 'job_run_ok',
+            action: reconciliation.aggregateStatus === 'failed'
+                ? 'job_run_failed'
+                : reconciliation.aggregateStatus === 'partial'
+                    ? 'job_run_partial'
+                    : 'job_run_ok',
             target: job.id,
-            detail: { postId: newPost.id, platforms: targetPlatforms, policy: gate.policy, lastError }
+            detail: {
+                postId: newPost.id,
+                platforms: targetPlatforms,
+                policy: gate.policy,
+                lastError,
+                reconciliation
+            }
         });
 
         const post = await db.getPostById(newPost.id);
-        console.log(`📋 [AI-JOB] ${job.id} → ${updatedJob.status}`);
+        console.log(`📋 [AI-JOB] ${job.id} → ${updatedJob.status} (${reconciliation.aggregateStatus})`);
 
         res.json({
-            success: !failed,
+            success: reconciliation.aggregateStatus !== 'failed',
+            partial: reconciliation.aggregateStatus === 'partial',
+            publishStatus: reconciliation.aggregateStatus,
+            reconciliation,
             policy: gate.policy,
             brandMemorySummary: brandSummary,
             duplicateWarning: gate.duplicateWarning,

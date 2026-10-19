@@ -7,6 +7,18 @@ CREATE TABLE IF NOT EXISTS users (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Multi-tenant scaffolding (P2): workspace default; UNIQUE(platform) masih global (P3: per-workspace)
+CREATE TABLE IF NOT EXISTS workspaces (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  data JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+INSERT INTO workspaces (id, name)
+VALUES ('default', 'Default')
+ON CONFLICT (id) DO NOTHING;
+
 CREATE TABLE IF NOT EXISTS accounts (
   id TEXT PRIMARY KEY,
   platform TEXT NOT NULL UNIQUE,
@@ -15,8 +27,9 @@ CREATE TABLE IF NOT EXISTS accounts (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
--- brandMemory, autonomy overrides: disimpan di accounts.data JSONB
--- contoh: data->>'brandMemory', data->'aiAutonomy'
+-- brandMemory, autonomy overrides, workspaceId: disimpan di accounts.data JSONB
+-- contoh: data->>'brandMemory', data->>'workspaceId' (default "default")
+-- P3: UNIQUE (workspace_id, platform) setelah kolom tenant dinormalisasi
 
 CREATE TABLE IF NOT EXISTS posts (
   id TEXT PRIMARY KEY,
