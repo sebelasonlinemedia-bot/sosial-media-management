@@ -683,11 +683,7 @@ app.setupOfficeEvents = function () {
     const llmProv = document.getElementById('office-llm-provider');
     if (llmProv) {
         llmProv.addEventListener('change', () => {
-            const model = document.getElementById('office-llm-model');
-            if (!model || model.value.trim()) return;
-            model.value = llmProv.value === 'anthropic'
-                ? 'claude-sonnet-4-20250514'
-                : 'gpt-4o-mini';
+            this._applyLlmProviderDefaults(llmProv.value, true);
         });
     }
     const brandSave = document.getElementById('office-brand-save');
@@ -1152,14 +1148,15 @@ app.renderOfficeSettings = function () {
     const llmKey = document.getElementById('office-llm-api-key');
     const llmHint = document.getElementById('office-llm-key-hint');
     const llmClear = document.getElementById('office-llm-clear-key');
-    if (llmProv) llmProv.value = llm.provider || 'openai';
+    if (llmProv) llmProv.value = llm.provider || 'gemini';
     if (llmModel) llmModel.value = llm.model || '';
     if (llmKey) llmKey.value = '';
     if (llmClear) llmClear.checked = false;
+    this._applyLlmProviderDefaults(llmProv?.value || llm.provider || 'gemini', !llm.model);
     if (llmHint) {
         llmHint.textContent = llm.configured
             ? `Key tersimpan: ${llm.apiKeyMasked || '••••'} — isi field untuk mengganti.`
-            : 'Belum ada API key. Tempel key OpenAI (sk-…) atau Anthropic (sk-ant-…).';
+            : 'Belum ada API key. Gemini (AIza…) / Groq (gsk_…) / Cursor key — gratis cloud disarankan.';
     }
     this._syncCeoChatLlmHint(llm);
     if (status) {
@@ -1187,7 +1184,7 @@ app.saveOfficeSettings = async function () {
         };
         const rolePermissions = this._collectRolePermissionsFromUi();
         const llm = {
-            provider: document.getElementById('office-llm-provider')?.value || 'openai',
+            provider: document.getElementById('office-llm-provider')?.value || 'gemini',
             model: document.getElementById('office-llm-model')?.value?.trim() || undefined,
             clearApiKey: !!document.getElementById('office-llm-clear-key')?.checked
         };
@@ -1213,6 +1210,33 @@ app.saveOfficeSettings = async function () {
     }
 };
 
+app._llmProviderDefaults = {
+    gemini: { model: 'gemini-2.0-flash', hint: 'Free tier — aistudio.google.com' },
+    groq: { model: 'llama-3.3-70b-versatile', hint: 'Free tier — console.groq.com' },
+    cursor: { model: 'composer-2.5', hint: 'CURSOR_API_KEY dari Cursor Dashboard' },
+    openai: { model: 'gpt-4o-mini', hint: 'platform.openai.com' },
+    anthropic: { model: 'claude-sonnet-4-20250514', hint: 'console.anthropic.com' }
+};
+
+app._applyLlmProviderDefaults = function (provider, forceModel) {
+    const def = this._llmProviderDefaults[provider] || this._llmProviderDefaults.gemini;
+    const model = document.getElementById('office-llm-model');
+    const provHint = document.getElementById('office-llm-provider-hint');
+    const list = document.getElementById('office-llm-model-list');
+    if (provHint) provHint.textContent = def.hint;
+    if (forceModel && model) model.value = def.model;
+    if (list) {
+        const models = {
+            gemini: ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash'],
+            groq: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'gemma2-9b-it'],
+            cursor: ['composer-2.5', 'composer-2'],
+            openai: ['gpt-4o-mini', 'gpt-4o'],
+            anthropic: ['claude-sonnet-4-20250514', 'claude-3-5-haiku-latest']
+        }[provider] || [];
+        list.innerHTML = models.map(m => `<option value="${m}"></option>`).join('');
+    }
+};
+
 app._syncCeoChatLlmHint = function (llm) {
     const hint = document.getElementById('ceo-chat-llm-hint');
     if (!hint) return;
@@ -1220,7 +1244,7 @@ app._syncCeoChatLlmHint = function (llm) {
         hint.textContent = `LLM siap · ${llm.provider} · ${llm.apiKeyMasked || 'key ok'}`;
         hint.classList.add('is-ready');
     } else {
-        hint.textContent = 'Atur API key di Kantor AI → Otonomi & Pengaman → LLM / Chat CEO.';
+        hint.textContent = 'Atur API key di Kantor AI → LLM (Gemini/Groq gratis, atau Cursor).';
         hint.classList.remove('is-ready');
     }
 };

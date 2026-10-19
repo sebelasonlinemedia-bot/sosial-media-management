@@ -965,17 +965,22 @@
                                     <div class="form-group">
                                         <label for="office-llm-provider">Provider</label>
                                         <select id="office-llm-provider" class="form-control">
+                                            <option value="gemini">Google Gemini (gratis cloud)</option>
+                                            <option value="groq">Groq (gratis cloud)</option>
+                                            <option value="cursor">Cursor (SDK / API key)</option>
                                             <option value="openai">OpenAI</option>
                                             <option value="anthropic">Anthropic (Claude)</option>
                                         </select>
+                                        <span class="input-hint" id="office-llm-provider-hint">Gemini &amp; Groq: free tier. Cursor: CURSOR_API_KEY dari dashboard Cursor.</span>
                                     </div>
                                     <div class="form-group">
                                         <label for="office-llm-model">Model</label>
-                                        <input type="text" id="office-llm-model" class="form-control" placeholder="gpt-4o-mini / claude-sonnet-4-…">
+                                        <input type="text" id="office-llm-model" class="form-control" list="office-llm-model-list" placeholder="gemini-2.0-flash / llama-3.3-70b-versatile">
+                                        <datalist id="office-llm-model-list"></datalist>
                                     </div>
                                     <div class="form-group">
                                         <label for="office-llm-api-key">API Key</label>
-                                        <input type="password" id="office-llm-api-key" class="form-control" placeholder="sk-… / sk-ant-…" autocomplete="off">
+                                        <input type="password" id="office-llm-api-key" class="form-control" placeholder="AIza… / gsk_… / key_… / sk-…" autocomplete="off">
                                         <span class="input-hint" id="office-llm-key-hint">Disimpan terenkripsi di server. Kosongkan untuk tidak mengubah key.</span>
                                     </div>
                                     <label class="office-3d-toggle">
