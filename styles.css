@@ -1,37 +1,44 @@
 /* ==========================================================================
    PostSphere - Main Stylesheet
-   Theme: High-End Dark UI with Glassmorphism and Custom Accents
+   Theme: Clean Light UI with Soft Surfaces and Brand Accents
    ========================================================================== */
 
 /* Google Fonts Import in HTML */
 
 :root {
-    /* Color Palette */
-    --bg-primary: #0b0f19;
-    --bg-secondary: #121826;
-    --bg-sidebar: #070a10;
-    --bg-card: rgba(18, 24, 38, 0.75);
-    --bg-card-hover: rgba(26, 34, 53, 0.85);
+    /* Color Palette — light default */
+    --bg-primary: #f1f4f9;
+    --bg-secondary: #ffffff;
+    --bg-sidebar: #ffffff;
+    --bg-card: #ffffff;
+    --bg-card-hover: #f8fafc;
     
-    --border-color: rgba(255, 255, 255, 0.07);
-    --border-color-hover: rgba(255, 255, 255, 0.12);
-    --border-accent: rgba(99, 102, 241, 0.4);
+    --border-color: rgba(15, 23, 42, 0.08);
+    --border-color-hover: rgba(15, 23, 42, 0.14);
+    --border-accent: rgba(79, 70, 229, 0.35);
     
-    --text-primary: #f3f4f6;
-    --text-secondary: #9ca3af;
-    --text-muted: #6b7280;
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #94a3b8;
+    
+    /* Soft interactive surfaces (replaces white-on-dark overlays) */
+    --surface-faint: rgba(15, 23, 42, 0.02);
+    --surface-muted: rgba(15, 23, 42, 0.035);
+    --surface-hover: rgba(15, 23, 42, 0.055);
+    --surface-strong: rgba(15, 23, 42, 0.08);
+    --surface-border: rgba(15, 23, 42, 0.14);
     
     /* Branding Colors */
-    --indigo: #6366f1;
-    --indigo-hover: #4f46e5;
-    --indigo-glow: rgba(99, 102, 241, 0.25);
+    --indigo: #4f46e5;
+    --indigo-hover: #4338ca;
+    --indigo-glow: rgba(79, 70, 229, 0.12);
     
-    --violet: #8b5cf6;
-    --emerald: #10b981;
-    --emerald-glow: rgba(16, 185, 129, 0.2);
-    --pink: #ec4899;
-    --red: #ef4444;
-    --yellow: #f59e0b;
+    --violet: #7c3aed;
+    --emerald: #059669;
+    --emerald-glow: rgba(5, 150, 105, 0.14);
+    --pink: #db2777;
+    --red: #dc2626;
+    --yellow: #d97706;
     
     /* Social Brand Colors */
     --color-instagram: #e1306c;
@@ -49,10 +56,10 @@
     --border-radius-md: 12px;
     --border-radius-sm: 8px;
     
-    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.15), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-    --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.25), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    --shadow-sm: 0 1px 2px 0 rgba(15, 23, 42, 0.04);
+    --shadow-md: 0 4px 8px -2px rgba(15, 23, 42, 0.08), 0 2px 4px -2px rgba(15, 23, 42, 0.04);
+    --shadow-lg: 0 12px 20px -6px rgba(15, 23, 42, 0.1), 0 4px 8px -4px rgba(15, 23, 42, 0.05);
+    --shadow-xl: 0 20px 28px -8px rgba(15, 23, 42, 0.12), 0 8px 12px -6px rgba(15, 23, 42, 0.06);
 }
 
 /* ==========================================================================
@@ -102,12 +109,12 @@ button, input, textarea, select {
 }
 
 ::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--surface-strong);
     border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: var(--surface-border);
 }
 
 /* Common Classes */
@@ -220,12 +227,12 @@ button, input, textarea, select {
 .logo-icon {
     width: 36px;
     height: 36px;
-    background: linear-gradient(135deg, var(--indigo), var(--violet));
+    background: linear-gradient(135deg, var(--indigo), #6366f1);
     border-radius: var(--border-radius-sm);
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 4px 10px rgba(99, 102, 241, 0.4);
+    box-shadow: 0 2px 8px var(--indigo-glow);
 }
 
 .logo-icon i {
@@ -238,14 +245,14 @@ button, input, textarea, select {
     font-family: var(--font-heading);
     font-size: 1.25rem;
     font-weight: 800;
-    background: linear-gradient(135deg, #ffffff, #d1d5db);
+    background: linear-gradient(135deg, #0f172a, #334155);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
 }
 
 .workspace-badge {
     margin-top: 16px;
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--surface-muted);
     border: 1px solid var(--border-color);
     border-radius: var(--border-radius-sm);
     padding: 6px 12px;
@@ -306,7 +313,7 @@ button, input, textarea, select {
 
 .sidebar-menu li:hover a {
     color: var(--text-primary);
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--surface-muted);
 }
 
 .sidebar-menu li:hover a i {
@@ -314,7 +321,7 @@ button, input, textarea, select {
 }
 
 .sidebar-menu li.active {
-    background: linear-gradient(90deg, rgba(99, 102, 241, 0.15) 0%, rgba(99, 102, 241, 0.02) 100%);
+    background: linear-gradient(90deg, rgba(79, 70, 229, 0.1) 0%, rgba(79, 70, 229, 0.02) 100%);
     box-shadow: inset 3px 0 0 var(--indigo);
 }
 
@@ -329,7 +336,7 @@ button, input, textarea, select {
 .menu-counter {
     margin-left: auto;
     font-size: 0.75rem;
-    background: rgba(255, 255, 255, 0.08);
+    background: var(--surface-strong);
     padding: 2px 8px;
     border-radius: 20px;
     color: var(--text-secondary);
@@ -350,7 +357,7 @@ button, input, textarea, select {
     align-items: center;
     gap: 12px;
     padding: 8px;
-    background: rgba(255, 255, 255, 0.02);
+    background: var(--surface-faint);
     border-radius: var(--border-radius-md);
     border: 1px solid var(--border-color);
 }
@@ -399,7 +406,7 @@ button, input, textarea, select {
 
 .settings-btn:hover {
     color: var(--text-primary);
-    background: rgba(255, 255, 255, 0.08);
+    background: var(--surface-strong);
 }
 
 /* Main Content and Header */
@@ -418,7 +425,7 @@ button, input, textarea, select {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    background-color: rgba(11, 15, 25, 0.4);
+    background-color: rgba(255, 255, 255, 0.82);
     backdrop-filter: blur(10px);
     z-index: 5;
 }
@@ -426,7 +433,7 @@ button, input, textarea, select {
 .header-left h1 {
     font-size: 1.5rem;
     font-weight: 800;
-    color: white;
+    color: var(--text-primary);
 }
 
 .header-left p {
@@ -446,7 +453,7 @@ button, input, textarea, select {
     gap: 8px;
     font-size: 0.875rem;
     color: var(--text-secondary);
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--surface-muted);
     border: 1px solid var(--border-color);
     padding: 8px 16px;
     border-radius: var(--border-radius-sm);
@@ -504,15 +511,15 @@ button, input, textarea, select {
 }
 
 .btn-primary {
-    background: linear-gradient(135deg, var(--indigo), var(--violet));
+    background: linear-gradient(135deg, var(--indigo), #6366f1);
     color: white;
-    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    box-shadow: 0 2px 8px var(--indigo-glow);
 }
 
 .btn-primary:hover:not(:disabled) {
     transform: translateY(-1px);
-    box-shadow: 0 6px 16px rgba(99, 102, 241, 0.45);
-    background: linear-gradient(135deg, var(--indigo-hover), #7c3aed);
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.22);
+    background: linear-gradient(135deg, var(--indigo-hover), var(--indigo));
 }
 
 .btn-primary:active:not(:disabled) {
@@ -520,13 +527,13 @@ button, input, textarea, select {
 }
 
 .btn-secondary {
-    background-color: rgba(255, 255, 255, 0.04);
+    background-color: var(--surface-muted);
     color: var(--text-primary);
     border: 1px solid var(--border-color);
 }
 
 .btn-secondary:hover:not(:disabled) {
-    background-color: rgba(255, 255, 255, 0.08);
+    background-color: var(--surface-strong);
     border-color: var(--border-color-hover);
 }
 
@@ -555,7 +562,7 @@ button, input, textarea, select {
     width: 36px;
     height: 36px;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.04);
+    background: var(--surface-muted);
     border: 1px solid var(--border-color);
     display: flex;
     align-items: center;
@@ -567,7 +574,7 @@ button, input, textarea, select {
 
 .btn-icon-round:hover {
     color: var(--text-primary);
-    background: rgba(255, 255, 255, 0.08);
+    background: var(--surface-strong);
 }
 
 .btn:disabled, .btn-secondary:disabled {
@@ -619,18 +626,18 @@ button, input, textarea, select {
 
 .form-control {
     width: 100%;
-    background-color: rgba(255, 255, 255, 0.03);
+    background-color: var(--surface-faint);
     border: 1px solid var(--border-color);
     border-radius: var(--border-radius-sm);
     padding: 10px 14px;
     font-size: 0.9375rem;
-    color: white;
+    color: var(--text-primary);
     transition: all 0.2s ease;
 }
 
 .form-control:focus {
     border-color: var(--indigo);
-    background-color: rgba(255, 255, 255, 0.05);
+    background-color: #fff;
     box-shadow: 0 0 0 3px var(--indigo-glow);
 }
 
@@ -704,23 +711,23 @@ button, input, textarea, select {
 }
 
 .badge-indigo {
-    background-color: rgba(99, 102, 241, 0.15);
-    color: #a5b4fc;
+    background-color: rgba(79, 70, 229, 0.1);
+    color: #4338ca;
 }
 
 .badge-emerald {
-    background-color: rgba(16, 185, 129, 0.15);
-    color: #6ee7b7;
+    background-color: rgba(5, 150, 105, 0.12);
+    color: #047857;
 }
 
 .badge-yellow {
-    background-color: rgba(245, 158, 11, 0.15);
-    color: #fde047;
+    background-color: rgba(217, 119, 6, 0.12);
+    color: #b45309;
 }
 
 .badge-red {
-    background-color: rgba(239, 68, 68, 0.15);
-    color: #fca5a5;
+    background-color: rgba(220, 38, 38, 0.1);
+    color: #b91c1c;
 }
 
 /* ==========================================================================
@@ -756,7 +763,7 @@ button, input, textarea, select {
     margin-right: 16px;
 }
 
-.icon-indigo { background: rgba(99, 102, 241, 0.1); color: var(--indigo); }
+.icon-indigo { background: rgba(79, 70, 229, 0.1); color: var(--indigo); }
 .icon-violet { background: rgba(139, 92, 246, 0.1); color: var(--violet); }
 .icon-emerald { background: rgba(16, 185, 129, 0.1); color: var(--emerald); }
 .icon-pink { background: rgba(236, 72, 153, 0.1); color: var(--pink); }
@@ -818,7 +825,7 @@ button, input, textarea, select {
 }
 
 .upcoming-item {
-    background: rgba(255, 255, 255, 0.02);
+    background: var(--surface-faint);
     border: 1px solid var(--border-color);
     border-radius: var(--border-radius-md);
     padding: 16px;
@@ -838,7 +845,7 @@ button, input, textarea, select {
     height: 48px;
     border-radius: var(--border-radius-sm);
     object-fit: cover;
-    background-color: rgba(255, 255, 255, 0.05);
+    background-color: var(--surface-hover);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -986,7 +993,7 @@ button, input, textarea, select {
 }
 
 .platform-selector-card {
-    background: rgba(255, 255, 255, 0.02);
+    background: var(--surface-faint);
     border: 1px solid var(--border-color);
     border-radius: var(--border-radius-md);
     padding: 12px;
@@ -1002,11 +1009,11 @@ button, input, textarea, select {
 
 .platform-selector-card:hover {
     border-color: var(--border-color-hover);
-    background: rgba(255, 255, 255, 0.04);
+    background: var(--surface-muted);
 }
 
 .platform-selector-card.selected {
-    background: rgba(99, 102, 241, 0.05);
+    background: rgba(79, 70, 229, 0.06);
     border-color: var(--indigo);
 }
 
@@ -1019,7 +1026,7 @@ button, input, textarea, select {
     height: 6px;
     background-color: var(--indigo);
     border-radius: 50%;
-    box-shadow: 0 0 6px var(--indigo);
+    box-shadow: 0 0 0 3px var(--indigo-glow);
 }
 
 .p-card-icon {
@@ -1065,7 +1072,7 @@ button, input, textarea, select {
     font-size: 0.75rem;
     padding: 2px 8px;
     border-radius: 12px;
-    background: rgba(255, 255, 255, 0.04);
+    background: var(--surface-muted);
     border: 1px solid var(--border-color);
     color: var(--text-secondary);
 }
@@ -1080,7 +1087,7 @@ button, input, textarea, select {
 .media-uploader-zone {
     border: 2px dashed var(--border-color);
     border-radius: var(--border-radius-md);
-    background-color: rgba(255, 255, 255, 0.01);
+    background-color: var(--surface-faint);
     min-height: 160px;
     display: flex;
     align-items: center;
@@ -1093,7 +1100,7 @@ button, input, textarea, select {
 
 .media-uploader-zone:hover, .media-uploader-zone.dragover {
     border-color: var(--indigo);
-    background-color: rgba(99, 102, 241, 0.02);
+    background-color: rgba(79, 70, 229, 0.02);
 }
 
 .uploader-content {
@@ -1108,7 +1115,7 @@ button, input, textarea, select {
     width: 44px;
     height: 44px;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--surface-muted);
     color: var(--indigo);
     display: flex;
     align-items: center;
@@ -1200,7 +1207,7 @@ button, input, textarea, select {
     align-items: flex-start;
     gap: 10px;
     cursor: pointer;
-    background: rgba(255, 255, 255, 0.01);
+    background: var(--surface-faint);
     transition: all 0.2s ease;
 }
 
@@ -1211,12 +1218,12 @@ button, input, textarea, select {
 
 .schedule-radio-card:hover {
     border-color: var(--border-color-hover);
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--surface-muted);
 }
 
 .schedule-radio-card.active {
     border-color: var(--indigo);
-    background: rgba(99, 102, 241, 0.02);
+    background: rgba(79, 70, 229, 0.02);
 }
 
 .radio-content {
@@ -1320,7 +1327,7 @@ button, input, textarea, select {
 
 .preview-display-viewport {
     flex: 1;
-    background-color: #07090e;
+    background-color: #e8edf5;
     overflow-y: auto;
     display: flex;
     align-items: center;
@@ -2145,7 +2152,7 @@ button, input, textarea, select {
     height: 60px;
     border-radius: var(--border-radius-sm);
     object-fit: cover;
-    background-color: rgba(255,255,255,0.03);
+    background-color: var(--surface-muted);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2239,7 +2246,7 @@ button, input, textarea, select {
 
 .calendar-day-node {
     aspect-ratio: 1.2 / 1;
-    background: rgba(255, 255, 255, 0.01);
+    background: var(--surface-faint);
     border: 1px solid var(--border-color);
     border-radius: var(--border-radius-sm);
     padding: 8px;
@@ -2252,7 +2259,7 @@ button, input, textarea, select {
 }
 
 .calendar-day-node:hover {
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--surface-muted);
     border-color: var(--border-color-hover);
 }
 
@@ -2268,7 +2275,7 @@ button, input, textarea, select {
 }
 
 .calendar-day-node.today {
-    background: rgba(99, 102, 241, 0.05);
+    background: rgba(79, 70, 229, 0.05);
     border-color: var(--indigo);
 }
 
@@ -2376,7 +2383,7 @@ button, input, textarea, select {
     display: flex;
     align-items: center;
     gap: 12px;
-    background: rgba(255, 255, 255, 0.02);
+    background: var(--surface-faint);
     border: 1px solid var(--border-color);
     padding: 12px;
     border-radius: var(--border-radius-md);
@@ -2428,7 +2435,7 @@ button, input, textarea, select {
 
 .analytics-period-selector {
     display: flex;
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--surface-muted);
     border: 1px solid var(--border-color);
     padding: 4px;
     border-radius: var(--border-radius-sm);
@@ -2501,7 +2508,7 @@ button, input, textarea, select {
     border-radius: 4px;
     object-fit: cover;
     flex-shrink: 0;
-    background-color: rgba(255,255,255,0.05);
+    background-color: var(--surface-hover);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2529,7 +2536,7 @@ button, input, textarea, select {
     left: 0;
     width: 100vw;
     height: 100vh;
-    background: rgba(4, 6, 12, 0.8);
+    background: rgba(15, 23, 42, 0.45);
     backdrop-filter: blur(8px);
     z-index: 100;
     display: flex;
@@ -2593,7 +2600,7 @@ button, input, textarea, select {
 
 .modal-close-btn:hover {
     color: var(--text-primary);
-    background: rgba(255, 255, 255, 0.08);
+    background: var(--surface-strong);
 }
 
 .modal-body {
@@ -2606,7 +2613,7 @@ button, input, textarea, select {
     display: flex;
     justify-content: flex-end;
     gap: 12px;
-    background: rgba(0, 0, 0, 0.15);
+    background: var(--surface-faint);
 }
 
 /* OAuth modal specifics */
@@ -2614,13 +2621,13 @@ button, input, textarea, select {
     width: 64px;
     height: 64px;
     border-radius: 50%;
-    background: linear-gradient(135deg, var(--indigo), var(--violet));
+    background: linear-gradient(135deg, var(--indigo), #6366f1);
     display: flex;
     align-items: center;
     justify-content: center;
     margin: 0 auto;
     color: white;
-    box-shadow: 0 8px 24px rgba(99, 102, 241, 0.3);
+    box-shadow: 0 6px 16px var(--indigo-glow);
 }
 
 .oauth-logo-spin i {
@@ -2637,7 +2644,7 @@ button, input, textarea, select {
 .spinner {
     width: 32px;
     height: 32px;
-    border: 3px solid rgba(255, 255, 255, 0.1);
+    border: 3px solid var(--surface-strong);
     border-radius: 50%;
     border-top-color: var(--indigo);
     animation: spin 0.8s linear infinite;
@@ -2670,7 +2677,7 @@ button, input, textarea, select {
 .details-caption {
     font-size: 0.9375rem;
     line-height: 1.45;
-    background: rgba(255, 255, 255, 0.01);
+    background: var(--surface-faint);
     border: 1px solid var(--border-color);
     padding: 12px;
     border-radius: var(--border-radius-sm);
@@ -2683,7 +2690,7 @@ button, input, textarea, select {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: rgba(255, 255, 255, 0.02);
+    background: var(--surface-faint);
     padding: 10px 14px;
     border-radius: var(--border-radius-sm);
     border: 1px solid var(--border-color);
@@ -2806,7 +2813,7 @@ button, input, textarea, select {
 }
 
 .ai-job-row-clickable:hover {
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--surface-muted);
 }
 
 /* ==========================================================================
@@ -2848,8 +2855,8 @@ button, input, textarea, select {
     border-radius: var(--border-radius-md);
     overflow: hidden;
     background:
-        radial-gradient(ellipse 70% 50% at 50% 100%, rgba(13, 148, 136, 0.12), transparent 55%),
-        linear-gradient(180deg, #0e1420 0%, #0b0f19 100%);
+        radial-gradient(ellipse 70% 50% at 50% 100%, rgba(5, 150, 105, 0.1), transparent 55%),
+        linear-gradient(180deg, #eef2f7 0%, #e2e8f0 100%);
     border: 1px solid var(--border-color);
 }
 
@@ -2876,19 +2883,20 @@ button, input, textarea, select {
     gap: 2px;
     padding: 4px 8px;
     pointer-events: auto;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--border-color);
     border-radius: 8px;
-    background: rgba(7, 10, 16, 0.82);
+    background: rgba(255, 255, 255, 0.92);
     color: var(--text-primary);
     cursor: pointer;
     white-space: nowrap;
     backdrop-filter: blur(6px);
+    box-shadow: var(--shadow-sm);
     transition: border-color 0.15s ease, background 0.15s ease;
 }
 
 .office-3d-label:hover {
-    border-color: rgba(16, 185, 129, 0.45);
-    background: rgba(12, 18, 28, 0.92);
+    border-color: rgba(5, 150, 105, 0.4);
+    background: #fff;
 }
 
 .office-3d-label-name {
@@ -2906,11 +2914,11 @@ button, input, textarea, select {
     letter-spacing: 0.04em;
 }
 
-.office-3d-label-status[data-status="working"] { color: #2dd4bf; }
+.office-3d-label-status[data-status="working"] { color: #0f766e; }
 .office-3d-label-status[data-status="needs_info"] { color: var(--yellow); }
 .office-3d-label-status[data-status="done"] { color: var(--emerald); }
 .office-3d-label-status[data-status="failed"] { color: var(--red); }
-.office-3d-label-status[data-status="idle"] { color: #94a3b8; }
+.office-3d-label-status[data-status="idle"] { color: #64748b; }
 
 .office-3d-hint {
     position: absolute;
@@ -2932,7 +2940,7 @@ button, input, textarea, select {
     justify-content: center;
     padding: 24px;
     text-align: center;
-    background: rgba(11, 15, 25, 0.92);
+    background: rgba(241, 244, 249, 0.96);
 }
 
 .office-3d-fallback p {
@@ -2999,7 +3007,7 @@ button, input, textarea, select {
     gap: 12px;
     padding: 14px;
     text-align: left;
-    background: rgba(255, 255, 255, 0.02);
+    background: var(--surface-faint);
     border: 1px solid var(--border-color);
     border-radius: var(--border-radius-md);
     color: inherit;
@@ -3022,7 +3030,7 @@ button, input, textarea, select {
     justify-content: center;
     font-size: 1.15rem;
     flex-shrink: 0;
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+    box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.08);
 }
 
 .office-employee-info {
@@ -3115,8 +3123,8 @@ button, input, textarea, select {
 
 .office-job-card:hover,
 .office-job-card.active {
-    border-color: rgba(99, 102, 241, 0.45);
-    background: rgba(99, 102, 241, 0.08);
+    border-color: rgba(79, 70, 229, 0.45);
+    background: rgba(79, 70, 229, 0.08);
 }
 
 .office-job-brief {

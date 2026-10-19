@@ -49,9 +49,11 @@
             if (raw === '0') return false;
             if (raw === '1') return true;
         } catch (_) { /* ignore */ }
-        if (typeof matchMedia === 'function') {
-            if (matchMedia('(prefers-reduced-motion: reduce)').matches) return false;
-            if (matchMedia('(max-width: 640px)').matches) return false;
+        // Default ON everywhere (incl. mobile) so karyawan animasi langsung terlihat.
+        // Only honor OS reduced-motion; explicit user toggle still persists via localStorage.
+        if (typeof matchMedia === 'function' &&
+            matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            return false;
         }
         return true;
     }
@@ -375,25 +377,25 @@
 
     function buildScene() {
         scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x0b0f19);
-        scene.fog = new THREE.Fog(0x0b0f19, 10, 22);
+        scene.background = new THREE.Color(0xeef2f7);
+        scene.fog = new THREE.Fog(0xeef2f7, 12, 24);
 
         camera = new THREE.PerspectiveCamera(42, 1, 0.1, 40);
         camera.position.set(0, 3.4, 7.2);
 
-        const amb = new THREE.AmbientLight(0xb8c4d4, 0.55);
+        const amb = new THREE.AmbientLight(0xffffff, 0.72);
         scene.add(amb);
-        const key = new THREE.DirectionalLight(0xfff4e6, 0.95);
+        const key = new THREE.DirectionalLight(0xfff8f0, 0.9);
         key.position.set(4, 8, 5);
         scene.add(key);
-        const fill = new THREE.DirectionalLight(0x8ec5c0, 0.35);
+        const fill = new THREE.DirectionalLight(0xb8d4d0, 0.4);
         fill.position.set(-5, 3, -2);
         scene.add(fill);
 
         const floor = new THREE.Mesh(
             new THREE.CircleGeometry(5.5, 48),
             new THREE.MeshStandardMaterial({
-                color: 0x121826,
+                color: 0xdce3ec,
                 roughness: 0.92,
                 metalness: 0.05
             })
@@ -405,9 +407,9 @@
         const ring = new THREE.Mesh(
             new THREE.RingGeometry(4.6, 4.75, 64),
             new THREE.MeshBasicMaterial({
-                color: 0x1e293b,
+                color: 0x94a3b8,
                 transparent: true,
-                opacity: 0.9,
+                opacity: 0.55,
                 side: THREE.DoubleSide
             })
         );
@@ -418,14 +420,14 @@
         // subtle desk strip behind characters (single prop, not multi-floor)
         const desk = new THREE.Mesh(
             new THREE.BoxGeometry(7.2, 0.12, 0.9),
-            new THREE.MeshStandardMaterial({ color: 0x1a2332, roughness: 0.8, metalness: 0.1 })
+            new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.8, metalness: 0.08 })
         );
         desk.position.set(0, 0.55, -1.35);
         scene.add(desk);
 
         const backdrop = new THREE.Mesh(
             new THREE.PlaneGeometry(10, 4),
-            new THREE.MeshStandardMaterial({ color: 0x0e1420, roughness: 1, metalness: 0 })
+            new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 1, metalness: 0 })
         );
         backdrop.position.set(0, 2, -2.1);
         scene.add(backdrop);
@@ -461,7 +463,7 @@
             alpha: false,
             powerPreference: 'low-power'
         });
-        renderer.setClearColor(0x0b0f19, 1);
+        renderer.setClearColor(0xeef2f7, 1);
         if (!canvas) {
             canvas = renderer.domElement;
             container.appendChild(canvas);

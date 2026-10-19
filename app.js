@@ -874,9 +874,9 @@ app.renderChannelShareChart = function () {
         type: 'doughnut',
         data: {
             labels: ['Instagram', 'Facebook', 'TikTok', 'YouTube'],
-            datasets: [{ data: [counts.instagram || 1, counts.facebook || 1, counts.tiktok || 1, counts.youtube || 1], backgroundColor: ['#e1306c', '#1877f2', '#ffffff', '#ff0000'], borderWidth: 2, borderColor: '#121826' }]
+            datasets: [{ data: [counts.instagram || 1, counts.facebook || 1, counts.tiktok || 1, counts.youtube || 1], backgroundColor: ['#e1306c', '#1877f2', '#0f172a', '#ff0000'], borderWidth: 2, borderColor: '#ffffff' }]
         },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#9ca3af', font: { family: 'Inter', size: 10 } } } }, cutout: '65%' }
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#64748b', font: { family: 'Inter', size: 10 } } } }, cutout: '65%' }
     });
 };
 
@@ -1642,16 +1642,16 @@ app.renderServerModeBanner = function () {
         banner.innerHTML = `
             <i data-lucide="info" style="width:20px;height:20px;color:#f59e0b;flex-shrink:0;margin-top:2px;"></i>
             <div>
-                <p style="font-weight:700;color:#fde047;font-size:0.9375rem;">Mode Sandbox Aktif</p>
+                <p style="font-weight:700;color:#b45309;font-size:0.9375rem;">Mode Sandbox Aktif</p>
                 <p class="text-secondary font-sm" style="margin-top:4px;">Untuk menghubungkan akun asli: <br>
-                1. Salin file <code style="background:rgba(255,255,255,0.1);padding:2px 6px;border-radius:4px;">.env.example</code> menjadi <code style="background:rgba(255,255,255,0.1);padding:2px 6px;border-radius:4px;">.env</code><br>
-                2. Isi dengan Client ID & Secret dari <a href="https://developers.facebook.com" target="_blank" style="color:#6366f1;text-decoration:underline;">Meta Developer</a>, <a href="https://console.cloud.google.com" target="_blank" style="color:#6366f1;text-decoration:underline;">Google Cloud</a>, dan <a href="https://developers.tiktok.com" target="_blank" style="color:#6366f1;text-decoration:underline;">TikTok Developer</a><br>
-                3. Restart server: <code style="background:rgba(255,255,255,0.1);padding:2px 6px;border-radius:4px;">node server.js</code></p>
+                1. Salin file <code style="background:rgba(15,23,42,0.06);padding:2px 6px;border-radius:4px;">.env.example</code> menjadi <code style="background:rgba(15,23,42,0.06);padding:2px 6px;border-radius:4px;">.env</code><br>
+                2. Isi dengan Client ID & Secret dari <a href="https://developers.facebook.com" target="_blank" style="color:#4f46e5;text-decoration:underline;">Meta Developer</a>, <a href="https://console.cloud.google.com" target="_blank" style="color:#4f46e5;text-decoration:underline;">Google Cloud</a>, dan <a href="https://developers.tiktok.com" target="_blank" style="color:#4f46e5;text-decoration:underline;">TikTok Developer</a><br>
+                3. Restart server: <code style="background:rgba(15,23,42,0.06);padding:2px 6px;border-radius:4px;">node server.js</code></p>
             </div>`;
     } else {
         banner.className = 'card';
-        banner.style.cssText = 'background:rgba(16,185,129,0.08);border-color:rgba(16,185,129,0.3);padding:16px 20px;margin-bottom:20px;display:flex;align-items:center;gap:12px;';
-        banner.innerHTML = `<i data-lucide="shield-check" style="width:20px;height:20px;color:#10b981;"></i><p style="font-weight:700;color:#6ee7b7;">Mode Real Aktif — Koneksi OAuth asli tersedia.</p>`;
+        banner.style.cssText = 'background:rgba(5,150,105,0.08);border-color:rgba(5,150,105,0.3);padding:16px 20px;margin-bottom:20px;display:flex;align-items:center;gap:12px;';
+        banner.innerHTML = `<i data-lucide="shield-check" style="width:20px;height:20px;color:#059669;"></i><p style="font-weight:700;color:#047857;">Mode Real Aktif — Koneksi OAuth asli tersedia.</p>`;
     }
     lucide.createIcons();
 };
@@ -1920,10 +1920,10 @@ app.renderAnalyticsCharts = function () {
                 datasets: [
                     { label: 'Jangkauan Instagram', data: [12000, 19000, 15000, 25000, 22000, 30000, 34000], borderColor: '#e1306c', backgroundColor: 'rgba(225,48,108,0.05)', tension: 0.35, fill: true },
                     { label: 'Jangkauan Facebook', data: [22000, 24000, 27000, 21000, 29000, 38000, 42000], borderColor: '#1877f2', backgroundColor: 'rgba(24,119,242,0.05)', tension: 0.35, fill: true },
-                    { label: 'Tayangan TikTok', data: [5000, 12000, 28000, 31000, 42000, 56000, 68000], borderColor: '#fff', backgroundColor: 'rgba(255,255,255,0.02)', tension: 0.35, fill: true }
+                    { label: 'Tayangan TikTok', data: [5000, 12000, 28000, 31000, 42000, 56000, 68000], borderColor: '#0f172a', backgroundColor: 'rgba(15,23,42,0.04)', tension: 0.35, fill: true }
                 ]
             },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#9ca3af', font: { family: 'Inter', size: 11 } } } }, scales: { x: { grid: { color: 'rgba(255,255,255,0.03)' }, ticks: { color: '#6b7280' } }, y: { grid: { color: 'rgba(255,255,255,0.03)' }, ticks: { color: '#6b7280' } } } }
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#64748b', font: { family: 'Inter', size: 11 } } } }, scales: { x: { grid: { color: 'rgba(15,23,42,0.06)' }, ticks: { color: '#94a3b8' } }, y: { grid: { color: 'rgba(15,23,42,0.06)' }, ticks: { color: '#94a3b8' } } } }
         });
     }
     const healthCtx = document.getElementById('analytics-health-chart');
@@ -1931,8 +1931,8 @@ app.renderAnalyticsCharts = function () {
         if (appState.charts.analyticsHealth) appState.charts.analyticsHealth.destroy();
         appState.charts.analyticsHealth = new Chart(healthCtx, {
             type: 'doughnut',
-            data: { labels: ['Berhasil', 'Tertunda / Draf', 'Gagal'], datasets: [{ data: [98, 5, 1], backgroundColor: ['#10b981', '#6366f1', '#ef4444'], borderWidth: 2, borderColor: '#121826' }] },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#9ca3af', font: { family: 'Inter', size: 10 } } } }, cutout: '70%' }
+            data: { labels: ['Berhasil', 'Tertunda / Draf', 'Gagal'], datasets: [{ data: [98, 5, 1], backgroundColor: ['#059669', '#4f46e5', '#dc2626'], borderWidth: 2, borderColor: '#ffffff' }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#64748b', font: { family: 'Inter', size: 10 } } } }, cutout: '70%' }
         });
     }
 };
