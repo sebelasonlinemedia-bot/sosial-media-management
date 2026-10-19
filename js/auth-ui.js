@@ -26,8 +26,11 @@
 
         showLoginGate(app, message) {
             document.body.classList.remove('is-mission-mode');
+            document.body.classList.add('is-login-mode');
             const missionEl = document.getElementById('view-mission');
             if (missionEl) missionEl.classList.add('hidden');
+            const topbar = document.getElementById('app-shell-topbar');
+            if (topbar) topbar.classList.add('hidden');
             const gate = document.getElementById('app-login-gate');
             const appRoot = document.querySelector('.app-container');
             const err = document.getElementById('app-login-error');
@@ -91,10 +94,13 @@
         },
 
         hideLoginGate() {
+            document.body.classList.remove('is-login-mode');
             const gate = document.getElementById('app-login-gate');
             const appRoot = document.querySelector('.app-container');
+            const topbar = document.getElementById('app-shell-topbar');
             if (gate) gate.classList.add('hidden');
             if (appRoot) appRoot.classList.remove('hidden');
+            if (topbar) topbar.classList.remove('hidden');
         },
 
         updateUserBadge() {

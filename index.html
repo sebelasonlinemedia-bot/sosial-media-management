@@ -17,7 +17,7 @@
     <!-- Stylesheet -->
     <link rel="stylesheet" href="styles.css">
 </head>
-<body class="light-theme">
+<body class="theme-dark is-login-mode">
     <!-- Gate login aplikasi (session cookie) -->
     <div id="app-login-gate" class="app-login-gate hidden">
         <div class="app-login-card">
@@ -42,64 +42,70 @@
         </div>
     </div>
 
-    <!-- Mission Control — halaman depan (full-bleed, tanpa sidebar) -->
-    <section id="view-mission" class="mission-shell hidden" aria-label="Mission Control PiK's Digital Lab">
-        <header class="mission-topbar">
-            <div class="mission-topbar-left">
-                <button type="button" class="mission-icon-btn" id="mission-menu-btn" title="Menu navigasi" aria-expanded="false" aria-controls="mission-nav-menu">
-                    <i data-lucide="menu"></i>
-                </button>
-                <div class="mission-brand">
-                    <span class="mission-brand-name">PiK's Digital Lab</span>
-                    <span class="mission-brand-sep">/</span>
-                    <span class="mission-brand-office">OFFICE</span>
-                </div>
-                <div class="mission-pills" id="mission-status-pills" aria-live="polite">
-                    <span class="mission-pill"><b>CREW ACTIVE</b> <span data-mission-pill="crew">0/7</span></span>
-                    <span class="mission-pill"><b>GATEWAYS</b> <span data-mission-pill="gateways">0/4</span></span>
-                    <span class="mission-pill"><b>TASKS</b> <span data-mission-pill="tasks">0 running · 0 open</span></span>
-                    <span class="mission-pill"><b>NEXT CRON</b> <span data-mission-pill="cron">—</span></span>
-                </div>
+    <!-- Chrome global setelah login: top bar + hamburger (tanpa sidebar kiri) -->
+    <header id="app-shell-topbar" class="app-shell-topbar hidden" aria-label="Navigasi PiK's Digital Lab">
+        <div class="app-shell-topbar-left">
+            <button type="button" class="mission-icon-btn" id="mission-menu-btn" title="Menu navigasi" aria-expanded="false" aria-controls="mission-nav-menu">
+                <i data-lucide="menu"></i>
+            </button>
+            <div class="mission-brand">
+                <span class="mission-brand-name">PiK's Digital Lab</span>
+                <span class="mission-brand-sep">/</span>
+                <span class="mission-brand-office" id="app-shell-section-label">OFFICE</span>
             </div>
-            <div class="mission-topbar-right">
-                <div class="mission-mode-toggle" role="group" aria-label="Mode tampilan">
-                    <button type="button" class="mission-mode-btn" id="mission-mode-2d" data-mode="2d">2D</button>
-                    <button type="button" class="mission-mode-btn is-active" id="mission-mode-3d" data-mode="3d">3D</button>
-                </div>
-                <button type="button" class="mission-tool-btn" id="mission-tasks-btn" title="Work Board / Tasks">
-                    <i data-lucide="list-checks"></i>
-                    <span>Tasks</span>
-                </button>
-                <button type="button" class="mission-tool-btn" id="mission-calendar-btn" title="Jadwal &amp; Kalender">
-                    <i data-lucide="calendar"></i>
-                    <span>Calendar</span>
-                </button>
-                <button type="button" class="mission-tool-btn is-active" id="mission-panel-btn" title="Panel kanan" aria-pressed="true">
-                    <i data-lucide="panel-right"></i>
-                    <span>Panel</span>
-                </button>
-                <span class="mission-synced" id="mission-synced" title="Terakhir disinkronkan">
-                    <i data-lucide="radio"></i>
-                    <span>SYNCED <time id="mission-synced-time">—</time></span>
-                </span>
-                <button type="button" class="mission-tool-btn mission-refresh-btn" id="mission-refresh-btn" title="Segarkan">
-                    <i data-lucide="refresh-cw"></i>
-                    <span>REFRESH</span>
-                </button>
+            <div class="mission-pills app-shell-mission-only" id="mission-status-pills" aria-live="polite">
+                <span class="mission-pill"><b>CREW ACTIVE</b> <span data-mission-pill="crew">0/7</span></span>
+                <span class="mission-pill"><b>GATEWAYS</b> <span data-mission-pill="gateways">0/4</span></span>
+                <span class="mission-pill"><b>TASKS</b> <span data-mission-pill="tasks">0 running · 0 open</span></span>
+                <span class="mission-pill"><b>NEXT CRON</b> <span data-mission-pill="cron">—</span></span>
             </div>
-            <nav class="mission-nav-menu hidden" id="mission-nav-menu" aria-label="Navigasi aplikasi">
-                <button type="button" data-mission-nav="mission" class="is-active">Ruang / Office</button>
-                <button type="button" data-mission-nav="dashboard">Dasbor</button>
-                <button type="button" data-mission-nav="composer">Buat Postingan</button>
-                <button type="button" data-mission-nav="queue">Jadwal &amp; Kalender</button>
-                <button type="button" data-mission-nav="office">Work Board Kantor AI</button>
-                <button type="button" data-mission-nav="accounts">Akun Terhubung</button>
-                <button type="button" data-mission-nav="analytics">Analisis Konten</button>
-                <hr>
-                <button type="button" id="mission-logout-btn" class="mission-nav-logout">Keluar</button>
-            </nav>
-        </header>
+        </div>
+        <div class="app-shell-topbar-right">
+            <div class="app-shell-mission-only mission-mode-toggle" role="group" aria-label="Mode tampilan">
+                <button type="button" class="mission-mode-btn" id="mission-mode-2d" data-mode="2d">2D</button>
+                <button type="button" class="mission-mode-btn is-active" id="mission-mode-3d" data-mode="3d">3D</button>
+            </div>
+            <button type="button" class="mission-tool-btn app-shell-mission-only" id="mission-tasks-btn" title="Work Board / Tasks">
+                <i data-lucide="list-checks"></i>
+                <span>Tasks</span>
+            </button>
+            <button type="button" class="mission-tool-btn app-shell-mission-only" id="mission-calendar-btn" title="Jadwal &amp; Kalender">
+                <i data-lucide="calendar"></i>
+                <span>Calendar</span>
+            </button>
+            <button type="button" class="mission-tool-btn is-active app-shell-mission-only" id="mission-panel-btn" title="Panel kanan" aria-pressed="true">
+                <i data-lucide="panel-right"></i>
+                <span>Panel</span>
+            </button>
+            <span class="mission-synced app-shell-mission-only" id="mission-synced" title="Terakhir disinkronkan">
+                <i data-lucide="radio"></i>
+                <span>SYNCED <time id="mission-synced-time">—</time></span>
+            </span>
+            <button type="button" class="mission-tool-btn mission-refresh-btn app-shell-mission-only" id="mission-refresh-btn" title="Segarkan">
+                <i data-lucide="refresh-cw"></i>
+                <span>REFRESH</span>
+            </button>
+            <div id="app-user-badge" class="app-user-badge app-shell-user-badge hidden" title="Pengguna login"></div>
+            <button type="button" class="mission-tool-btn app-shell-app-only" id="app-shell-create-post-btn" title="Buat postingan">
+                <i data-lucide="plus"></i>
+                <span>Buat Post</span>
+            </button>
+        </div>
+        <nav class="mission-nav-menu hidden" id="mission-nav-menu" aria-label="Navigasi aplikasi">
+            <button type="button" data-mission-nav="mission" class="is-active">Ruang / Office</button>
+            <button type="button" data-mission-nav="dashboard">Dasbor</button>
+            <button type="button" data-mission-nav="composer">Buat Postingan</button>
+            <button type="button" data-mission-nav="queue">Jadwal &amp; Kalender</button>
+            <button type="button" data-mission-nav="office">Work Board Kantor AI</button>
+            <button type="button" data-mission-nav="accounts">Akun Terhubung</button>
+            <button type="button" data-mission-nav="analytics">Analisis Konten</button>
+            <hr>
+            <button type="button" id="mission-logout-btn" class="mission-nav-logout">Keluar</button>
+        </nav>
+    </header>
 
+    <!-- Mission Control — halaman depan (full-bleed di bawah top bar) -->
+    <section id="view-mission" class="mission-shell hidden" aria-label="Mission Control PiK's Digital Lab">
         <div class="mission-body">
             <div class="mission-stage">
                 <div class="office-3d-viewport mission-3d-viewport" id="office-3d-viewport">
@@ -175,8 +181,8 @@
     </section>
 
     <div class="app-container">
-        <!-- Navigasi Sidebar -->
-        <aside class="sidebar">
+        <!-- Sidebar legacy: disembunyikan — navigasi lewat top bar / hamburger -->
+        <aside class="sidebar" id="sidebar" hidden aria-hidden="true">
             <div class="sidebar-header">
                 <div class="logo">
                     <div class="logo-icon">
@@ -184,76 +190,31 @@
                     </div>
                     <span class="logo-text">PiK's Digital Lab</span>
                 </div>
-                <div class="workspace-badge">
-                    <span class="badge-dot"></span>
-                    <span class="badge-text">Ruang Kerja Pribadi</span>
-                </div>
-                <div id="app-user-badge" class="app-user-badge hidden" title="Pengguna login"></div>
                 <button type="button" id="app-logout-btn" class="btn btn-secondary app-logout-btn" title="Keluar">
                     <i data-lucide="log-out"></i>
                     <span>Keluar</span>
                 </button>
             </div>
-
             <nav class="sidebar-menu">
                 <ul>
-                    <li data-view="mission">
-                        <a href="#mission">
-                            <i data-lucide="radar"></i>
-                            <span>Ruang / Office</span>
-                        </a>
-                    </li>
-                    <li data-view="dashboard">
-                        <a href="#dashboard">
-                            <i data-lucide="layout-dashboard"></i>
-                            <span>Dasbor</span>
-                        </a>
-                    </li>
-                    <li data-view="composer">
-                        <a href="#composer">
-                            <i data-lucide="pen-tool"></i>
-                            <span>Buat Postingan</span>
-                        </a>
-                    </li>
-                    <li data-view="queue">
-                        <a href="#queue">
-                            <i data-lucide="calendar"></i>
-                            <span>Jadwal & Kalender</span>
-                        </a>
-                    </li>
-                    <li data-view="office">
-                        <a href="#office">
-                            <i data-lucide="building-2"></i>
-                            <span>Kantor AI</span>
-                        </a>
-                    </li>
+                    <li data-view="mission"><a href="#mission"><span>Ruang / Office</span></a></li>
+                    <li data-view="dashboard"><a href="#dashboard"><span>Dasbor</span></a></li>
+                    <li data-view="composer"><a href="#composer"><span>Buat Postingan</span></a></li>
+                    <li data-view="queue"><a href="#queue"><span>Jadwal & Kalender</span></a></li>
+                    <li data-view="office"><a href="#office"><span>Kantor AI</span></a></li>
                     <li data-view="accounts">
                         <a href="#accounts">
-                            <i data-lucide="users"></i>
                             <span>Akun Terhubung</span>
                             <span class="menu-counter" id="active-accounts-count">0</span>
                         </a>
                     </li>
-                    <li data-view="analytics">
-                        <a href="#analytics">
-                            <i data-lucide="bar-chart-3"></i>
-                            <span>Analisis Konten</span>
-                        </a>
-                    </li>
+                    <li data-view="analytics"><a href="#analytics"><span>Analisis Konten</span></a></li>
                 </ul>
             </nav>
-
             <div class="sidebar-footer">
-                <div class="user-profile">
-                    <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=256&auto=format&fit=crop" alt="Avatar pengguna" class="user-avatar">
-                    <div class="user-info">
-                        <span class="user-name">Jane Doe</span>
-                        <span class="user-role">Editor Sosial</span>
-                    </div>
-                    <button class="settings-btn" id="open-settings-btn" title="Pengaturan">
-                        <i data-lucide="settings"></i>
-                    </button>
-                </div>
+                <button class="settings-btn" id="open-settings-btn" title="Pengaturan" type="button">
+                    <i data-lucide="settings"></i>
+                </button>
             </div>
         </aside>
 

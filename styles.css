@@ -1,65 +1,75 @@
 /* ==========================================================================
    PiK's Digital Lab - Main Stylesheet
-   Theme: Clean Light UI with Soft Surfaces and Brand Accents
+   Theme: Dark app shell (Mission Control aesthetic) + readable login gate
    ========================================================================== */
 
 /* Google Fonts Import in HTML */
 
 :root {
-    /* Color Palette — light default */
-    --bg-primary: #f1f4f9;
-    --bg-secondary: #ffffff;
-    --bg-sidebar: #ffffff;
-    --bg-card: #ffffff;
-    --bg-card-hover: #f8fafc;
-    
-    --border-color: rgba(15, 23, 42, 0.08);
-    --border-color-hover: rgba(15, 23, 42, 0.14);
-    --border-accent: rgba(79, 70, 229, 0.35);
-    
-    --text-primary: #0f172a;
-    --text-secondary: #475569;
-    --text-muted: #94a3b8;
-    
-    /* Soft interactive surfaces (replaces white-on-dark overlays) */
-    --surface-faint: rgba(15, 23, 42, 0.02);
-    --surface-muted: rgba(15, 23, 42, 0.035);
-    --surface-hover: rgba(15, 23, 42, 0.055);
-    --surface-strong: rgba(15, 23, 42, 0.08);
-    --surface-border: rgba(15, 23, 42, 0.14);
-    
+    /* Color Palette — dark app shell (selaras Mission Control) */
+    --bg-primary: #0b0f14;
+    --bg-secondary: #121820;
+    --bg-sidebar: #0e131a;
+    --bg-card: #141b24;
+    --bg-card-hover: #1a232e;
+
+    --border-color: rgba(148, 163, 184, 0.14);
+    --border-color-hover: rgba(148, 163, 184, 0.28);
+    --border-accent: rgba(45, 212, 191, 0.4);
+
+    --text-primary: #e2e8f0;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+
+    /* Soft interactive surfaces on dark */
+    --surface-faint: rgba(255, 255, 255, 0.03);
+    --surface-muted: rgba(255, 255, 255, 0.05);
+    --surface-hover: rgba(255, 255, 255, 0.08);
+    --surface-strong: rgba(255, 255, 255, 0.11);
+    --surface-border: rgba(148, 163, 184, 0.22);
+
     /* Branding Colors */
-    --indigo: #4f46e5;
-    --indigo-hover: #4338ca;
-    --indigo-glow: rgba(79, 70, 229, 0.12);
-    
-    --violet: #7c3aed;
-    --emerald: #059669;
-    --emerald-glow: rgba(5, 150, 105, 0.14);
-    --pink: #db2777;
-    --red: #dc2626;
-    --yellow: #d97706;
-    
+    --indigo: #6366f1;
+    --indigo-hover: #4f46e5;
+    --indigo-glow: rgba(99, 102, 241, 0.28);
+
+    --violet: #8b5cf6;
+    --emerald: #14b8a6;
+    --emerald-glow: rgba(20, 184, 166, 0.22);
+    --pink: #ec4899;
+    --red: #f87171;
+    --yellow: #fbbf24;
+
     /* Social Brand Colors */
     --color-instagram: #e1306c;
     --color-facebook: #1877f2;
     --color-tiktok: #00f2fe;
     --color-youtube: #ff0000;
-    
+
     /* Typography */
     --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
     --font-heading: 'Plus Jakarta Sans', var(--font-sans);
-    
+
     /* Layout & Shadows */
     --sidebar-width: 280px;
+    --app-shell-topbar-h: 56px;
     --border-radius-lg: 16px;
     --border-radius-md: 12px;
     --border-radius-sm: 8px;
-    
-    --shadow-sm: 0 1px 2px 0 rgba(15, 23, 42, 0.04);
-    --shadow-md: 0 4px 8px -2px rgba(15, 23, 42, 0.08), 0 2px 4px -2px rgba(15, 23, 42, 0.04);
-    --shadow-lg: 0 12px 20px -6px rgba(15, 23, 42, 0.1), 0 4px 8px -4px rgba(15, 23, 42, 0.05);
-    --shadow-xl: 0 20px 28px -8px rgba(15, 23, 42, 0.12), 0 8px 12px -6px rgba(15, 23, 42, 0.06);
+
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.35);
+    --shadow-md: 0 4px 8px -2px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 12px 20px -6px rgba(0, 0, 0, 0.45), 0 4px 8px -4px rgba(0, 0, 0, 0.3);
+    --shadow-xl: 0 20px 28px -8px rgba(0, 0, 0, 0.5), 0 8px 12px -6px rgba(0, 0, 0, 0.35);
+
+    /* Mission / chrome tokens (shared) */
+    --mc-bg: #0b0f14;
+    --mc-panel: rgba(14, 18, 24, 0.92);
+    --mc-border: rgba(148, 163, 184, 0.16);
+    --mc-text: #e2e8f0;
+    --mc-muted: #94a3b8;
+    --mc-accent: #14b8a6;
+    --mc-accent-dim: rgba(20, 184, 166, 0.18);
 }
 
 /* ==========================================================================
@@ -200,17 +210,79 @@ button, input, textarea, select {
     width: 100vw;
     height: 100vh;
     overflow: hidden;
+    padding-top: var(--app-shell-topbar-h);
+    background: var(--bg-primary);
 }
 
-/* Sidebar styling */
-.sidebar {
-    width: var(--sidebar-width);
-    background-color: var(--bg-sidebar);
-    border-right: 1px solid var(--border-color);
+body.is-login-mode .app-container,
+body.is-login-mode #app-shell-topbar,
+body.is-login-mode #view-mission {
+    display: none !important;
+}
+
+/* Global post-login chrome */
+.app-shell-topbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    min-height: var(--app-shell-topbar-h);
+    z-index: 60;
     display: flex;
-    flex-direction: column;
-    height: 100%;
-    z-index: 10;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--mc-border);
+    background: rgba(8, 11, 16, 0.96);
+    backdrop-filter: blur(10px);
+    color: var(--mc-text);
+}
+
+.app-shell-topbar.hidden {
+    display: none !important;
+}
+
+.app-shell-topbar-left,
+.app-shell-topbar-right {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px 10px;
+    min-width: 0;
+}
+
+.app-shell-topbar-left {
+    flex: 1;
+}
+
+.app-shell-user-badge {
+    margin: 0;
+    max-width: 220px;
+    padding: 5px 10px;
+    border-radius: 7px;
+    border: 1px solid var(--mc-border);
+    background: rgba(255, 255, 255, 0.04);
+    font-size: 0.68rem;
+    color: var(--mc-muted);
+}
+
+body:not(.is-mission-mode) .app-shell-mission-only {
+    display: none !important;
+}
+
+body.is-mission-mode .app-shell-app-only {
+    display: none !important;
+}
+
+/* Sidebar styling — disembunyikan global; nav via hamburger */
+.sidebar,
+#sidebar {
+    display: none !important;
+    width: 0 !important;
+    border: none !important;
+    overflow: hidden !important;
+    pointer-events: none !important;
 }
 
 .sidebar-header {
@@ -247,7 +319,7 @@ button, input, textarea, select {
     font-weight: 800;
     letter-spacing: -0.02em;
     line-height: 1.2;
-    background: linear-gradient(135deg, #0f172a, #334155);
+    background: linear-gradient(135deg, #e2e8f0, #94a3b8);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
 }
@@ -427,7 +499,7 @@ button, input, textarea, select {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    background-color: rgba(255, 255, 255, 0.82);
+    background-color: rgba(12, 16, 22, 0.9);
     backdrop-filter: blur(10px);
     z-index: 5;
 }
@@ -639,7 +711,7 @@ button, input, textarea, select {
 
 .form-control:focus {
     border-color: var(--indigo);
-    background-color: #fff;
+    background-color: var(--bg-secondary);
     box-shadow: 0 0 0 3px var(--indigo-glow);
 }
 
@@ -2864,7 +2936,7 @@ button, input, textarea, select {
 .office-employee-workload {
     display: block;
     font-size: 0.75rem;
-    color: #0f766e;
+    color: #5eead4;
     font-weight: 600;
     margin-top: 2px;
 }
@@ -2872,7 +2944,7 @@ button, input, textarea, select {
 .office-job-error {
     display: block;
     font-size: 0.7rem;
-    color: #b91c1c;
+    color: #fca5a5;
     margin-top: 4px;
 }
 
@@ -3052,12 +3124,12 @@ button, input, textarea, select {
     gap: 7px;
     padding: 5px 10px;
     border-radius: 6px;
-    border: 1px solid rgba(15, 23, 42, 0.14);
-    background: rgba(255, 255, 255, 0.86);
+    border: 1px solid var(--mc-border);
+    background: rgba(12, 16, 22, 0.86);
     backdrop-filter: blur(6px);
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     font-size: 0.68rem;
-    color: var(--text-primary);
+    color: var(--mc-text);
     white-space: nowrap;
 }
 
@@ -3078,11 +3150,11 @@ button, input, textarea, select {
 
 .office-3d-tool-btn {
     appearance: none;
-    border: 1px solid rgba(15, 23, 42, 0.16);
+    border: 1px solid var(--mc-border);
     border-radius: 6px;
-    background: rgba(255, 255, 255, 0.9);
+    background: rgba(12, 16, 22, 0.9);
     backdrop-filter: blur(6px);
-    color: var(--text-primary);
+    color: var(--mc-text);
     font-size: 0.68rem;
     font-weight: 650;
     padding: 6px 10px;
@@ -3106,9 +3178,9 @@ button, input, textarea, select {
     padding: 3px 7px;
     margin-bottom: 3px;
     border-radius: 4px;
-    border: 1px dashed rgba(15, 23, 42, 0.55);
-    background: rgba(255, 255, 255, 0.94);
-    color: #0f172a;
+    border: 1px dashed rgba(148, 163, 184, 0.45);
+    background: rgba(12, 16, 22, 0.92);
+    color: var(--mc-text);
     font-size: 0.62rem;
     line-height: 1.25;
     text-align: center;
@@ -3118,9 +3190,9 @@ button, input, textarea, select {
 
 .office-3d-action.is-idle {
     border-style: dashed;
-    color: #64748b;
+    color: #94a3b8;
     font-style: italic;
-    background: rgba(248, 250, 252, 0.92);
+    background: rgba(15, 23, 32, 0.9);
 }
 
 .office-3d-action.hidden {
@@ -3132,21 +3204,21 @@ button, input, textarea, select {
     padding: 2px 7px;
     margin-bottom: 2px;
     border-radius: 4px;
-    border: 1px solid rgba(15, 23, 42, 0.7);
-    background: #fff;
+    border: 1px solid rgba(148, 163, 184, 0.45);
+    background: rgba(15, 23, 32, 0.95);
     font-size: 0.58rem;
     font-weight: 700;
     letter-spacing: 0.03em;
     text-transform: capitalize;
-    color: #0f172a;
+    color: var(--mc-text);
 }
 
-.office-3d-status-pill[data-status="working"] { border-color: #0f766e; color: #0f766e; }
+.office-3d-status-pill[data-status="working"] { border-color: #2dd4bf; color: #5eead4; }
 .office-3d-status-pill[data-status="needs_info"],
-.office-3d-status-pill[data-status="awaiting_approval"] { border-color: #c2410c; color: #c2410c; }
-.office-3d-status-pill[data-status="done"] { border-color: #059669; color: #059669; }
-.office-3d-status-pill[data-status="failed"] { border-color: #dc2626; color: #dc2626; }
-.office-3d-status-pill[data-status="idle"] { border-color: #64748b; color: #64748b; }
+.office-3d-status-pill[data-status="awaiting_approval"] { border-color: #fb923c; color: #fdba74; }
+.office-3d-status-pill[data-status="done"] { border-color: #34d399; color: #6ee7b7; }
+.office-3d-status-pill[data-status="failed"] { border-color: #f87171; color: #fca5a5; }
+.office-3d-status-pill[data-status="idle"] { border-color: #64748b; color: #94a3b8; }
 
 .office-3d-role-badge {
     display: inline-block;
@@ -3203,7 +3275,7 @@ button, input, textarea, select {
     line-height: 1.35;
     padding: 6px 8px;
     border-radius: 8px;
-    background: rgba(15, 23, 42, 0.04);
+    background: var(--surface-muted);
     color: var(--text-secondary);
 }
 
@@ -3225,7 +3297,7 @@ button, input, textarea, select {
     color: var(--text-secondary);
     line-height: 1.35;
     padding: 3px 0;
-    border-bottom: 1px dashed rgba(15, 23, 42, 0.06);
+    border-bottom: 1px dashed var(--border-color);
 }
 
 .office-activity-audit li:last-child {
@@ -3263,9 +3335,9 @@ button, input, textarea, select {
     z-index: 3;
     margin: 0;
     font-size: 0.65rem;
-    color: rgba(15, 23, 42, 0.62);
+    color: rgba(226, 232, 240, 0.65);
     pointer-events: none;
-    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.55);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
 }
 
 .office-3d-fallback {
@@ -3277,7 +3349,8 @@ button, input, textarea, select {
     justify-content: center;
     padding: 24px;
     text-align: center;
-    background: rgba(241, 244, 249, 0.96);
+    background: rgba(11, 15, 20, 0.96);
+    color: var(--text-primary);
 }
 
 .office-3d-fallback p {
@@ -3378,7 +3451,7 @@ button, input, textarea, select {
     justify-content: center;
     font-size: 1.15rem;
     flex-shrink: 0;
-    box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.08);
+    box-shadow: inset 0 0 0 1px var(--border-color);
 }
 
 .office-employee-info {
@@ -3526,9 +3599,14 @@ button, input, textarea, select {
 }
 
 /* ==========================================================================
-   App login gate
+   App login gate — tetap readable (light card) meski app shell gelap
    ========================================================================== */
 .app-login-gate {
+    --login-text: #0f172a;
+    --login-muted: #64748b;
+    --login-card: #ffffff;
+    --login-border: rgba(15, 23, 42, 0.1);
+    --login-surface: rgba(15, 23, 42, 0.04);
     position: fixed;
     inset: 0;
     z-index: 200;
@@ -3540,16 +3618,18 @@ button, input, textarea, select {
         radial-gradient(ellipse at 20% 20%, rgba(79, 70, 229, 0.12), transparent 50%),
         radial-gradient(ellipse at 80% 80%, rgba(5, 150, 105, 0.1), transparent 45%),
         linear-gradient(160deg, #e8eef8 0%, #f1f4f9 45%, #eef2f7 100%);
+    color: var(--login-text);
 }
 .app-login-gate.hidden { display: none; }
 .app-login-card {
     width: 100%;
     max-width: 400px;
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-color);
+    background: var(--login-card);
+    border: 1px solid var(--login-border);
     border-radius: var(--border-radius-lg);
-    box-shadow: var(--shadow-xl);
+    box-shadow: 0 20px 28px -8px rgba(15, 23, 42, 0.12), 0 8px 12px -6px rgba(15, 23, 42, 0.06);
     padding: 28px 28px 22px;
+    color: var(--login-text);
 }
 .app-login-brand {
     text-align: center;
@@ -3562,12 +3642,24 @@ button, input, textarea, select {
     font-size: 1.35rem;
     font-weight: 800;
     margin: 0 0 6px;
-    color: var(--text-primary);
+    color: var(--login-text);
 }
 .app-login-brand p {
     margin: 0;
     font-size: 0.875rem;
-    color: var(--text-secondary);
+    color: #475569;
+}
+.app-login-gate .form-label {
+    color: var(--login-text);
+}
+.app-login-gate .form-control {
+    background: #f8fafc;
+    border-color: var(--login-border);
+    color: var(--login-text);
+}
+.app-login-gate .form-control:focus {
+    background: #fff;
+    border-color: var(--indigo);
 }
 .app-login-error {
     margin-top: 12px;
@@ -3581,7 +3673,7 @@ button, input, textarea, select {
 .app-login-host {
     margin: 14px 0 0;
     font-size: 0.72rem;
-    color: var(--text-secondary);
+    color: #475569;
     line-height: 1.35;
 }
 .app-login-host[data-tone="warn"] {
@@ -3590,14 +3682,15 @@ button, input, textarea, select {
 .app-login-hint {
     margin: 10px 0 0;
     font-size: 0.7rem;
-    color: var(--text-muted);
+    color: var(--login-muted);
     line-height: 1.4;
 }
 .app-login-hint code {
     font-size: 0.68rem;
-    background: var(--surface-muted);
+    background: var(--login-surface);
     padding: 1px 4px;
     border-radius: 4px;
+    color: #334155;
 }
 .app-login-hint[data-tone="warn"] {
     color: #b45309;
@@ -3617,18 +3710,14 @@ button, input, textarea, select {
 }
 
 /* ==========================================================================
-   Mission Control — full-bleed Ruang / Office (scoped dark aesthetic)
+   Mission Control — full-bleed di bawah top bar global
    ========================================================================== */
 .mission-shell {
-    --mc-bg: #0b0f14;
-    --mc-panel: rgba(14, 18, 24, 0.92);
-    --mc-border: rgba(148, 163, 184, 0.16);
-    --mc-text: #e2e8f0;
-    --mc-muted: #94a3b8;
-    --mc-accent: #14b8a6;
-    --mc-accent-dim: rgba(20, 184, 166, 0.18);
     position: fixed;
-    inset: 0;
+    top: var(--app-shell-topbar-h);
+    left: 0;
+    right: 0;
+    bottom: 0;
     z-index: 40;
     display: flex;
     flex-direction: column;
@@ -3650,31 +3739,9 @@ body.is-mission-mode #app-login-gate:not(.hidden) ~ .mission-shell {
     display: none !important;
 }
 
+/* Alias: topbar lama diganti app-shell-topbar; class tetap untuk kompatibilitas */
 .mission-topbar {
-    position: relative;
-    flex-shrink: 0;
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 16px;
-    padding: 12px 16px 10px;
-    border-bottom: 1px solid var(--mc-border);
-    background: rgba(8, 11, 16, 0.94);
-    backdrop-filter: blur(10px);
-    z-index: 5;
-}
-
-.mission-topbar-left,
-.mission-topbar-right {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 8px 10px;
-    min-width: 0;
-}
-
-.mission-topbar-left {
-    flex: 1;
+    display: none;
 }
 
 .mission-brand {
@@ -4120,9 +4187,18 @@ body.is-mission-mode #app-login-gate:not(.hidden) ~ .mission-shell {
 }
 
 @media (max-width: 900px) {
-    .mission-topbar {
-        flex-direction: column;
-        align-items: stretch;
+    :root {
+        --app-shell-topbar-h: 64px;
+    }
+
+    .app-shell-topbar {
+        align-items: center;
+        padding: 8px 12px;
+    }
+
+    .mission-pills,
+    .app-shell-user-badge {
+        display: none !important;
     }
 
     .mission-panel {

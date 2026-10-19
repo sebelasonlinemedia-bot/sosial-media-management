@@ -187,8 +187,11 @@ const app = {
     },
     showLoginGate(message) {
         document.body.classList.remove('is-mission-mode');
+        document.body.classList.add('is-login-mode');
         const missionEl = document.getElementById('view-mission');
         if (missionEl) missionEl.classList.add('hidden');
+        const topbar = document.getElementById('app-shell-topbar');
+        if (topbar) topbar.classList.add('hidden');
         if (typeof PiksAuthUI !== 'undefined') return PiksAuthUI.showLoginGate(this, message);
         const gate = document.getElementById('app-login-gate');
         const appRoot = document.querySelector('.app-container');
@@ -211,10 +214,13 @@ const app = {
     },
     hideLoginGate() {
         if (typeof PiksAuthUI !== 'undefined') return PiksAuthUI.hideLoginGate();
+        document.body.classList.remove('is-login-mode');
         const gate = document.getElementById('app-login-gate');
         const appRoot = document.querySelector('.app-container');
+        const topbar = document.getElementById('app-shell-topbar');
         if (gate) gate.classList.add('hidden');
         if (appRoot) appRoot.classList.remove('hidden');
+        if (topbar) topbar.classList.remove('hidden');
     },
     updateUserBadge() {
         if (typeof PiksAuthUI !== 'undefined') return PiksAuthUI.updateUserBadge();
@@ -374,16 +380,30 @@ const app = {
             btn.classList.toggle('is-active', btn.getAttribute('data-mission-nav') === viewName);
         });
 
+        const sectionLabel = document.getElementById('app-shell-section-label');
+        if (sectionLabel) {
+            const labels = {
+                mission: 'OFFICE',
+                dashboard: 'DASBOR',
+                composer: 'COMPOSER',
+                queue: 'JADWAL',
+                office: 'WORK BOARD',
+                accounts: 'AKUN',
+                analytics: 'ANALISIS'
+            };
+            sectionLabel.textContent = labels[viewName] || 'APP';
+        }
+
         // Jika keluar dari view composer, hapus status edit
         if (viewName !== 'composer') {
             appState.editingPostId = null;
             this.showCancelEditButton(false);
         }
 
-        // Scene 3D hanya di Mission Control
+        // Scene 3D hanya di Mission Control; tutup drawer saat ganti view
+        this.closeMissionNavMenu();
         if (!isMission) {
             this.teardownOffice3D();
-            this.closeMissionNavMenu();
         }
 
         if (location.hash.replace(/^#/, '') !== viewName) {
@@ -393,7 +413,7 @@ const app = {
         }
 
         const titles = {
-            mission: { title: 'Ruang / Office', subtitle: 'Mission Control — Tim Konten AI PiK\'s Digital Lab.' },
+            mission: { title: 'Ruang / Office', subtitle: "Mission Control — Tim Konten AI PiK's Digital Lab." },
             dashboard: { title: 'Dasbor Utama', subtitle: 'Ikhtisar saluran terhubung dan antrean postingan terjadwal Anda.' },
             composer: { title: 'Buat Postingan Baru', subtitle: 'Tulis, unggah media, dan kirim postingan secara bersamaan ke berbagai sosmed.' },
             queue: { title: 'Jadwal & Kalender', subtitle: 'Atur kalender konten Anda di masa mendatang secara presisi.' },
@@ -441,11 +461,16 @@ const app = {
                 this.switchView(targetView);
             });
         });
-        document.getElementById('header-create-post-btn').addEventListener('click', () => {
+        const goComposer = () => {
             appState.editingPostId = null;
             this.switchView('composer');
-        });
-        document.getElementById('dashboard-view-queue-btn').addEventListener('click', () => this.switchView('queue'));
+        };
+        const headerCreate = document.getElementById('header-create-post-btn');
+        if (headerCreate) headerCreate.addEventListener('click', goComposer);
+        const shellCreate = document.getElementById('app-shell-create-post-btn');
+        if (shellCreate) shellCreate.addEventListener('click', goComposer);
+        const queueBtn = document.getElementById('dashboard-view-queue-btn');
+        if (queueBtn) queueBtn.addEventListener('click', () => this.switchView('queue'));
     },
 
     updateActiveAccountsCounter() {
