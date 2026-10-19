@@ -351,14 +351,29 @@ const app = {
         setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.3s'; setTimeout(() => toast.remove(), 300); }, 3500);
     },
 
+    /** Jam 24 jam (tanpa AM/PM). */
+    _formatTime24(date, withSeconds) {
+        const d = date instanceof Date ? date : new Date(date);
+        if (Number.isNaN(d.getTime())) return '';
+        const opts = { hour: '2-digit', minute: '2-digit', hour12: false };
+        if (withSeconds) opts.second = '2-digit';
+        return d.toLocaleTimeString('id-ID', opts).replace(/\./g, ':');
+    },
+
+    _formatDateTime24(date) {
+        const d = date instanceof Date ? date : new Date(date);
+        if (Number.isNaN(d.getTime())) return '';
+        const day = d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+        return `${day}, ${this._formatTime24(d, false)}`;
+    },
+
     updateClock() {
         const timeDisplay = document.getElementById('header-time');
         if (timeDisplay) {
             const now = new Date();
             const indonesianDays = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
             const dayName = indonesianDays[now.getDay()];
-            const timeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-            timeDisplay.innerText = `${dayName}, ${timeStr}`;
+            timeDisplay.innerText = `${dayName}, ${this._formatTime24(now)}`;
         }
     },
 
@@ -527,7 +542,7 @@ app.renderDashboard = function () {
         scheduledPosts.slice(0, 3).forEach(post => {
             const dateObj = new Date(post.publishDate);
             const dateStr = dateObj.toLocaleDateString('id-ID', { month: 'short', day: 'numeric' });
-            const timeStr = dateObj.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+            const timeStr = this._formatTime24(dateObj);
             let platformPillsHtml = '';
             post.platforms.forEach(p => {
                 const info = appState.platforms[p];
@@ -871,9 +886,7 @@ app.updateMissionSynced = function () {
     appState.mission.syncedAt = new Date();
     const el = document.getElementById('mission-synced-time');
     if (el) {
-        el.textContent = appState.mission.syncedAt.toLocaleTimeString('en-US', {
-            hour: 'numeric', minute: '2-digit', second: '2-digit'
-        });
+        el.textContent = this._formatTime24(appState.mission.syncedAt, true);
     }
 };
 
@@ -886,7 +899,7 @@ app._nextCronLabel = function () {
     const now = new Date();
     const next = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 12, 0, 0));
     if (next <= now) next.setUTCDate(next.getUTCDate() + 1);
-    return next.toLocaleString('en-US');
+    return this._formatDateTime24(next);
 };
 
 app.updateMissionPills = function () {
@@ -1512,9 +1525,7 @@ app.loadOfficeActivityLog = async function () {
             return;
         }
         auditEl.innerHTML = entries.map((e) => {
-            const when = e.createdAt ? new Date(e.createdAt).toLocaleString('id-ID', {
-                hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short'
-            }) : '';
+            const when = e.createdAt ? this._formatDateTime24(e.createdAt) : '';
             const actor = this._escapeHtml(e.actor || 'system');
             const action = this._escapeHtml(e.action || '');
             const target = this._escapeHtml(e.target || '');
@@ -2874,7 +2885,7 @@ app.renderQueue = function () {
         postsContainer.className = 'timeline-posts';
 
         groups[dayLabel].forEach(post => {
-            const timeVal = new Date(post.publishDate).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+            const timeVal = this._formatTime24(post.publishDate);
             const platformsHtml = post.platforms.map(p => {
                 const info = appState.platforms[p];
                 return info ? `<div class="platform-pill ${info.colorClass}" title="${info.name}"><i data-lucide="${info.icon}"></i></div>` : '';
@@ -2973,7 +2984,7 @@ app.openPostDetailsModal = function (postId) {
     const indonesianMonths = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
     const pDate = new Date(post.publishDate);
     const dateStr = `${pDate.getDate()} ${indonesianMonths[pDate.getMonth()]} ${pDate.getFullYear()}`;
-    const timeStr = pDate.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+    const timeStr = this._formatTime24(pDate);
     const platformsHtml = post.platforms.map(p => { const info = appState.platforms[p]; return info ? `<div class="platform-pill ${info.colorClass}"><i data-lucide="${info.icon}"></i></div>` : ''; }).join('');
     const statusMap = {
         scheduled: 'Dijadwalkan',
@@ -3089,7 +3100,7 @@ app.renderAnalytics = function () {
     } else {
         publishedPosts.forEach(post => {
             const d = new Date(post.publishDate);
-            const dateStr = `${d.getDate()} ${indonesianMonths[d.getMonth()]} ${d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}`;
+            const dateStr = `${d.getDate()} ${indonesianMonths[d.getMonth()]} ${this._formatTime24(d)}`;
             const platformPills = (post.platforms || []).map(p => { const info = appState.platforms[p]; return info ? `<div class="platform-pill ${info.colorClass}" style="width:24px;height:24px;" title="${info.name}"><i data-lucide="${info.icon}" style="width:12px;height:12px;"></i></div>` : ''; }).join('');
             const thumbHtml = post.mediaUrl ? (post.mediaType === 'video' ? `<i data-lucide="video" style="color:var(--indigo);"></i>` : `<img src="${post.mediaUrl}" alt="Thumb" class="cell-thumbnail">`) : '<i data-lucide="image"></i>';
             const src = (post.stats && post.stats.statsSource) || (post.stats ? 'mock' : '—');
