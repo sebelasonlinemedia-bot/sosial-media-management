@@ -854,6 +854,22 @@ app.get('/api/auth/tiktok/callback', async (req, res) => {
  * Body: { platform: 'instagram'|'facebook'|'tiktok'|'youtube', username, password }
  * Membuka browser Puppeteer untuk login dan menyimpan session.
  */
+/** Kapabilitas login browser (lokal saja — tidak tersedia di Vercel serverless). */
+app.get('/api/auth/browser-login/status', (req, res) => {
+    const platforms = Object.keys(automationModules);
+    res.json({
+        success: true,
+        available: platforms.length > 0,
+        vercel: IS_VERCEL,
+        platforms,
+        hint: IS_VERCEL
+            ? 'Login username/password hanya jalan di lokal (npm run dev). Di cloud, hubungkan Instagram/Facebook via OAuth Meta.'
+            : (platforms.length
+                ? 'Browser/private-API login siap di server lokal.'
+                : 'Modul automation gagal dimuat. Cek dependensi puppeteer / instagram-private-api.')
+    });
+});
+
 app.post('/api/auth/browser-login', async (req, res) => {
     // requireAuthForApi sudah memastikan session app; jangan log password.
     const { platform, username, password } = req.body || {};
@@ -861,9 +877,32 @@ app.post('/api/auth/browser-login', async (req, res) => {
         return res.status(400).json({ success: false, message: 'Platform, username, dan password wajib diisi.' });
     }
 
+    if (IS_VERCEL) {
+        return res.status(400).json({
+            success: false,
+            code: 'BROWSER_LOGIN_CLOUD',
+            message:
+                'Login username/password tidak tersedia di Vercel (serverless). ' +
+                'Untuk Instagram/Facebook: pakai Hubungkan Akun → OAuth Meta. ' +
+                'Atau jalankan app lokal (npm run dev) untuk login browser.',
+            useOAuth: platform === 'instagram' || platform === 'facebook',
+            oauthPath: platform === 'instagram' || platform === 'facebook' ? '/api/auth/meta' : null
+        });
+    }
+
     const mod = automationModules[platform];
     if (!mod) {
-        return res.status(400).json({ success: false, message: `Platform '${platform}' tidak didukung untuk mode browser login.` });
+        return res.status(400).json({
+            success: false,
+            code: 'BROWSER_LOGIN_UNAVAILABLE',
+            message:
+                `Platform '${platform}' belum siap untuk browser login di server ini. ` +
+                (platform === 'instagram' || platform === 'facebook'
+                    ? 'Gunakan OAuth Meta, atau pastikan modul automation terpasang.'
+                    : 'Pastikan modul automation terpasang (npm install).'),
+            useOAuth: platform === 'instagram' || platform === 'facebook',
+            oauthPath: platform === 'instagram' || platform === 'facebook' ? '/api/auth/meta' : null
+        });
     }
 
     try {

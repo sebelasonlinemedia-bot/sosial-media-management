@@ -2586,21 +2586,55 @@ app.setupAccountsEvents = function () {
 
     // Submit browser login
     document.getElementById('browser-login-submit-btn').addEventListener('click', () => app.submitBrowserLogin());
+    const blPlatform = document.getElementById('browser-login-platform');
+    if (blPlatform) {
+        blPlatform.addEventListener('change', () => app._syncBrowserLoginOauthHint());
+    }
+    const oauthBtn = document.getElementById('browser-login-oauth-btn');
+    if (oauthBtn) {
+        oauthBtn.addEventListener('click', () => {
+            window.location.href = '/api/auth/meta';
+        });
+    }
 };
 
-app.openBrowserLoginModal = function (platform) {
-    const modal = document.getElementById('browser-login-modal');
-    // Pre-select platform
+app._syncBrowserLoginOauthHint = function () {
     const sel = document.getElementById('browser-login-platform');
-    if (platform) sel.value = platform;
-    // Reset form state
+    const hint = document.getElementById('browser-login-oauth-hint');
+    if (!sel || !hint) return;
+    const p = sel.value;
+    const show = p === 'instagram' || p === 'facebook';
+    hint.classList.toggle('hidden', !show);
+};
+
+app.openBrowserLoginModal = async function (platform) {
+    const modal = document.getElementById('browser-login-modal');
+    const sel = document.getElementById('browser-login-platform');
+    if (platform && sel) sel.value = platform;
     document.getElementById('browser-login-username').value = '';
     document.getElementById('browser-login-password').value = '';
     document.getElementById('browser-login-status').classList.add('hidden');
     document.getElementById('browser-login-submit-btn').disabled = false;
     document.getElementById('browser-login-submit-text').innerText = 'Masuk Sekarang';
+    this._syncBrowserLoginOauthHint();
     modal.classList.remove('hidden');
     lucide.createIcons();
+    try {
+        const st = await api.get('/api/auth/browser-login/status');
+        if (st && st.success === false) return;
+        if (st && st.available === false) {
+            const statusBox = document.getElementById('browser-login-status');
+            const statusText = document.getElementById('browser-login-status-text');
+            if (statusBox && statusText) {
+                statusBox.classList.remove('hidden');
+                statusText.innerText = st.hint || 'Browser login tidak tersedia di lingkungan ini.';
+                statusBox.style.background = 'rgba(245,158,11,0.08)';
+                statusBox.style.borderColor = 'rgba(245,158,11,0.3)';
+            }
+        }
+    } catch {
+        /* ignore */
+    }
 };
 
 app.submitBrowserLogin = async function () {
@@ -2638,7 +2672,8 @@ app.submitBrowserLogin = async function () {
             statusBox.style.borderColor = 'rgba(239,68,68,0.3)';
             submitBtn.disabled = false;
             document.getElementById('browser-login-submit-text').innerText = 'Coba Lagi';
-            this.showToast(`❌ Login ${platform} gagal: ${result.message || 'periksa kredensial'}`, 'red');
+            if (result.useOAuth) this._syncBrowserLoginOauthHint();
+            this.showToast(result.message || `Login ${platform} gagal`, 'red');
         }
     } catch (e) {
         statusText.innerText = '❌ Tidak bisa terhubung ke server.';

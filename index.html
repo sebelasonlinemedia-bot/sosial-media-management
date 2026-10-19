@@ -1247,9 +1247,16 @@
             </div>
             <div class="modal-body" style="padding: 24px;">
                 <!-- Warning banner -->
-                <div style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:10px;padding:12px 14px;margin-bottom:20px;display:flex;gap:10px;align-items:flex-start;">
+                <div style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:10px;padding:12px 14px;margin-bottom:12px;display:flex;gap:10px;align-items:flex-start;">
                     <i data-lucide="alert-triangle" style="width:16px;height:16px;color:#f59e0b;flex-shrink:0;margin-top:2px;"></i>
-                    <p style="font-size:0.78rem;color:#fde68a;margin:0;line-height:1.5;">Browser otomatis akan terbuka di background. Pastikan akun tidak mengaktifkan 2FA. Sesi akan disimpan lokal.</p>
+                    <p style="font-size:0.78rem;color:#fde68a;margin:0;line-height:1.5;">Mode ini hanya untuk <strong>lokal</strong> (<code>npm run dev</code>). Di Vercel/cloud, Instagram &amp; Facebook harus lewat <strong>OAuth Meta</strong>. Matikan 2FA jika memakai login password lokal.</p>
+                </div>
+                <div id="browser-login-oauth-hint" class="hidden" style="background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.3);border-radius:10px;padding:12px 14px;margin-bottom:20px;">
+                    <p style="font-size:0.78rem;margin:0 0 10px;line-height:1.5;color:var(--text-secondary);">Instagram di cloud: hubungkan lewat Meta (akun IG Business/Creator yang terhubung ke Halaman Facebook).</p>
+                    <button type="button" class="btn btn-primary btn-sm" id="browser-login-oauth-btn" style="width:100%;justify-content:center;">
+                        <i data-lucide="link"></i>
+                        <span>Hubungkan via OAuth Meta</span>
+                    </button>
                 </div>
 
                 <div class="form-group" style="margin-bottom:16px;">
