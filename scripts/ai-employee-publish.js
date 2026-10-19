@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 /**
- * Karyawan AI — CLI publish langsung (tanpa approval).
+ * Karyawan AI — CLI publish langsung (tetap di-gate otonomi).
+ *
+ * Auth: login dulu (ADMIN_EMAIL + ADMIN_PASSWORD atau PIKS_EMAIL + PIKS_PASSWORD),
+ * lalu kirim Authorization: Bearer <token>.
  *
  * Contoh:
  *   node scripts/ai-employee-publish.js --brief "Promo flash sale sepatu" --platforms instagram
@@ -40,13 +43,30 @@ async function ensureServer() {
     }
 }
 
-async function uploadMedia(filePath) {
+async function login() {
+    const email = process.env.PIKS_EMAIL || process.env.ADMIN_EMAIL;
+    const password = process.env.PIKS_PASSWORD || process.env.ADMIN_PASSWORD;
+    if (!email || !password) {
+        throw new Error('Set PIKS_EMAIL+PIKS_PASSWORD atau ADMIN_EMAIL+ADMIN_PASSWORD untuk CLI auth.');
+    }
+    const { data } = await axios.post(`${BASE}/api/auth/login`, { email, password });
+    if (!data?.success || !data.token) {
+        throw new Error(data?.message || 'Login CLI gagal');
+    }
+    return data.token;
+}
+
+function authHeaders(token) {
+    return { Authorization: `Bearer ${token}` };
+}
+
+async function uploadMedia(filePath, token) {
     const abs = path.resolve(filePath);
     if (!fs.existsSync(abs)) throw new Error(`File media tidak ditemukan: ${abs}`);
     const form = new FormData();
     form.append('file', fs.createReadStream(abs));
     const res = await axios.post(`${BASE}/api/media/upload`, form, {
-        headers: form.getHeaders(),
+        headers: { ...form.getHeaders(), ...authHeaders(token) },
         maxContentLength: Infinity,
         maxBodyLength: Infinity
     });
@@ -61,7 +81,9 @@ async function main() {
         console.log(`Usage:
   node scripts/ai-employee-publish.js --context
   node scripts/ai-employee-publish.js --brief "..." [--platforms ig,fb] [--media path] [--name "Karyawan AI"]
-  node scripts/ai-employee-publish.js --caption "..." ...`);
+  node scripts/ai-employee-publish.js --caption "..." ...
+
+Env auth: PIKS_EMAIL + PIKS_PASSWORD (atau ADMIN_EMAIL + ADMIN_PASSWORD)`);
         process.exit(0);
     }
 
@@ -72,8 +94,12 @@ async function main() {
         process.exit(1);
     }
 
+    const token = await login();
+
     if (args.context) {
-        const { data } = await axios.get(`${BASE}/api/ai/employee/context`);
+        const { data } = await axios.get(`${BASE}/api/ai/employee/context`, {
+            headers: authHeaders(token)
+        });
         console.log(JSON.stringify(data, null, 2));
         process.exit(0);
     }
@@ -86,7 +112,7 @@ async function main() {
     let mediaUrl = '';
     let mediaType = '';
     if (args.media) {
-        const uploaded = await uploadMedia(args.media);
+        const uploaded = await uploadMedia(args.media, token);
         mediaUrl = uploaded.mediaUrl;
         mediaType = uploaded.mediaType;
     }
@@ -100,7 +126,9 @@ async function main() {
         employeeName: args.name
     };
 
-    const { data } = await axios.post(`${BASE}/api/ai/employee/publish`, payload);
+    const { data } = await axios.post(`${BASE}/api/ai/employee/publish`, payload, {
+        headers: authHeaders(token)
+    });
     console.log(JSON.stringify(data, null, 2));
     process.exit(data.success ? 0 : 2);
 }

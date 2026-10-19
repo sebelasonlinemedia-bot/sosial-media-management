@@ -16,5 +16,6 @@ Saat user meminta posting, publish, brief konten, Kantor AI, atau operasi PiK's 
    - `limited_autonomous` + low-risk + brief **cukup** → boleh `/run` atau employee publish.
    - Brief **tipis** → `needs_info`; tanya field kosong saja; **jangan nebak** / **jangan publish**.
    - Setelah publish: baca `GET /api/ai/insights` (panel Apa berikutnya) untuk brief siklus berikutnya.
-5. Pastikan `npm run dev` / server di port 3000 aktif. Jangan log token OAuth.
-6. Laporkan hasil per platform, alasan approval, atau pertanyaan klarifikasi.
+5. Pastikan `npm run dev` / server di port 3000 aktif. Login dulu (`POST /api/auth/login` / cookie session / Bearer token). Jangan log token OAuth / password.
+6. `forcePublish` hanya admin/approver; setelah approve pakai `/run` tanpa force.
+7. Laporkan hasil per platform, alasan approval, atau pertanyaan klarifikasi.

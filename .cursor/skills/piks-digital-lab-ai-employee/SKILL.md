@@ -61,9 +61,12 @@ Brand memory: `GET /api/accounts/:platform/brand-memory` — sertakan ringkasan 
 Settings: `notifications.enabled`, `notifications.email`, `notifications.whatsappWebhookUrl`.
 Saat job → `needs_info` atau `awaiting_approval`, server memanggil notifier (HTTP POST webhook + log audit). Gagal kirim **tidak** menggagalkan job.
 
-### Token
+### Token & auth app
 
-Access/refresh token dienkripsi at-rest jika `TOKEN_ENCRYPTION_KEY` (≥16 char) di env. **Jangan pernah log nilai token.** Tanpa key: plain + warn sekali (lokal).
+- Access/refresh token dienkripsi at-rest jika `TOKEN_ENCRYPTION_KEY` (≥16 char) di env. **Jangan pernah log nilai token OAuth / password / session.**
+- Tanpa key: plain + warn (lebih jelas di production).
+- App login: `POST /api/auth/login`, `GET /api/auth/me`, `POST /api/auth/logout`.
+- Media publik: set `PUBLIC_BASE_URL` / `APP_ORIGIN` di cloud (bukan localhost).
 
 ### Insights (penggerak agen)
 
@@ -83,9 +86,14 @@ Opsional A/B: kirim `variantA` / `variantB` saat create/run job; `abWinner` (`A`
 ## Prasyarat
 
 1. Server `http://localhost:3000` hidup (`npm run dev`).
-2. `GET /api/ai/employee/context` — cek `connectedPlatforms`, `emergencyPause`, `policy`, `accounts[].brandMemorySummary`.
-3. Tanpa akun terhubung → stop; minta user hubungkan akun.
-4. Cek `rolePermissions` di settings jika create/run gagal 403 platform.
+2. **Login wajib** — mutasi `/api/*` butuh session. UI: gate login. Agent/CLI:
+   - `POST /api/auth/login` `{ "email", "password" }` → cookie `piks_sid` + `token`
+   - Kirim `Authorization: Bearer <token>` atau cookie pada request berikutnya
+   - Env bootstrap: `ADMIN_EMAIL` + `ADMIN_PASSWORD` / `ADMIN_PASSWORD_HASH`
+3. `GET /api/ai/employee/context` — cek `connectedPlatforms`, `emergencyPause`, `policy`, `accounts[].brandMemorySummary`.
+4. Tanpa akun terhubung → stop; minta user hubungkan akun.
+5. Cek `rolePermissions` di settings jika create/run gagal 403 platform.
+6. `forcePublish: true` hanya role **admin** / **approver**. Setelah `/approve`, `/run` memakai `approvedAt` (tanpa force).
 
 ## Alur operasi
 
@@ -130,8 +138,10 @@ Jika response `awaitingApproval: true` → beri tahu user; Setujui di UI atau:
 ```http
 POST /api/ai/jobs/:id/approve
 POST /api/ai/jobs/:id/run
-{ "forcePublish": true, "caption": "..." }
+{ "caption": "..." }
 ```
+
+(`approvedAt` dari approve sudah mengizinkan gate; `forcePublish` hanya admin/approver.)
 
 ### C. Publish cepat (tetap di-gate)
 
@@ -171,7 +181,7 @@ Pakai `nextUp.recommendations[].cta` / `roleId` / `platforms` untuk menyusun bri
 
 `queued` → `publishing` → `done` | `failed`  
 atau `needs_info` → `queued` → …  
-atau `awaiting_approval` → (approve) → `queued` → `/run` + `forcePublish`
+atau `awaiting_approval` → (approve) → `queued` → `/run` (via `approvedAt`)
 
 Kartu karyawan: `idle` | `needs_info` | `awaiting_approval` | `working` | `done` | `failed` (+ label beban kerja).
 

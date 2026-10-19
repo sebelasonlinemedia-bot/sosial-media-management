@@ -133,7 +133,7 @@ async function postYouTube(account, post) {
         await new Promise(r => setTimeout(r, 2000));
 
         // Isi judul video (dari caption, maks 100 karakter)
-        const title = (post.caption || 'Video PiK\'s Digital Lab').substring(0, 100);
+        const title = (post.caption || "Video PiK's Digital Lab").substring(0, 100);
         const titleInput = await page.$('[placeholder*="Add a title"], #textbox[aria-label*="Title"]');
         if (titleInput) {
             await titleInput.click({ clickCount: 3 });

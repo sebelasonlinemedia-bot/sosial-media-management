@@ -18,6 +18,29 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body class="light-theme">
+    <!-- Gate login aplikasi (session cookie) -->
+    <div id="app-login-gate" class="app-login-gate hidden">
+        <div class="app-login-card">
+            <div class="app-login-brand">
+                <div class="logo-icon"><i data-lucide="layers"></i></div>
+                <h1>PiK's Digital Lab</h1>
+                <p>Masuk untuk mengelola akun &amp; Tim Konten AI</p>
+            </div>
+            <form id="app-login-form" autocomplete="on">
+                <label class="form-label" for="app-login-email">Email</label>
+                <input type="email" id="app-login-email" class="form-control" required placeholder="admin@example.com" autocomplete="username">
+                <label class="form-label" for="app-login-password" style="margin-top:12px;">Password</label>
+                <input type="password" id="app-login-password" class="form-control" required placeholder="••••••••" autocomplete="current-password">
+                <p id="app-login-error" class="app-login-error hidden" role="alert"></p>
+                <button type="submit" id="app-login-submit" class="btn btn-primary" style="width:100%;margin-top:18px;">
+                    <i data-lucide="log-in"></i>
+                    <span>Masuk</span>
+                </button>
+            </form>
+            <p class="app-login-hint">Bootstrap: set <code>ADMIN_EMAIL</code> + <code>ADMIN_PASSWORD</code> (atau <code>ADMIN_PASSWORD_HASH</code>) di .env</p>
+        </div>
+    </div>
+
     <div class="app-container">
         <!-- Navigasi Sidebar -->
         <aside class="sidebar">
@@ -32,6 +55,11 @@
                     <span class="badge-dot"></span>
                     <span class="badge-text">Ruang Kerja Pribadi</span>
                 </div>
+                <div id="app-user-badge" class="app-user-badge hidden" title="Pengguna login"></div>
+                <button type="button" id="app-logout-btn" class="btn btn-secondary app-logout-btn" title="Keluar">
+                    <i data-lucide="log-out"></i>
+                    <span>Keluar</span>
+                </button>
             </div>
 
             <nav class="sidebar-menu">

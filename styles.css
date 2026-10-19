@@ -3523,3 +3523,82 @@ button, input, textarea, select {
         grid-template-columns: 1fr;
     }
 }
+
+/* ==========================================================================
+   App login gate
+   ========================================================================== */
+.app-login-gate {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background:
+        radial-gradient(ellipse at 20% 20%, rgba(79, 70, 229, 0.12), transparent 50%),
+        radial-gradient(ellipse at 80% 80%, rgba(5, 150, 105, 0.1), transparent 45%),
+        linear-gradient(160deg, #e8eef8 0%, #f1f4f9 45%, #eef2f7 100%);
+}
+.app-login-gate.hidden { display: none; }
+.app-login-card {
+    width: 100%;
+    max-width: 400px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-lg);
+    box-shadow: var(--shadow-xl);
+    padding: 28px 28px 22px;
+}
+.app-login-brand {
+    text-align: center;
+    margin-bottom: 22px;
+}
+.app-login-brand .logo-icon {
+    margin: 0 auto 12px;
+}
+.app-login-brand h1 {
+    font-size: 1.35rem;
+    font-weight: 800;
+    margin: 0 0 6px;
+    color: var(--text-primary);
+}
+.app-login-brand p {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+.app-login-error {
+    margin-top: 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: rgba(220, 38, 38, 0.08);
+    border: 1px solid rgba(220, 38, 38, 0.25);
+    color: #b91c1c;
+    font-size: 0.8125rem;
+}
+.app-login-hint {
+    margin: 16px 0 0;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    line-height: 1.4;
+}
+.app-login-hint code {
+    font-size: 0.68rem;
+    background: var(--surface-muted);
+    padding: 1px 4px;
+    border-radius: 4px;
+}
+.app-user-badge {
+    margin-top: 10px;
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    word-break: break-all;
+    line-height: 1.35;
+}
+.app-logout-btn {
+    margin-top: 10px;
+    width: 100%;
+    font-size: 0.75rem;
+    padding: 8px 10px;
+}

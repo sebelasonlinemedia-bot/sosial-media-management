@@ -28,8 +28,11 @@ Login CLI harus akun **sebelasonlinemedia-bot** (bukan akun lain).
 | Name | Value |
 |------|--------|
 | `DATABASE_URL` | URI dari Neon |
-| `SESSION_SECRET` | string acak |
-| `CRON_SECRET` | string acak (opsional) |
+| `SESSION_SECRET` | string acak (≥16) |
+| `CRON_SECRET` | string acak (**wajib** di production) |
+| `APP_ORIGIN` / `PUBLIC_BASE_URL` | `https://<domain-vercel>` |
+| `ADMIN_EMAIL` + `ADMIN_PASSWORD_HASH` | bootstrap login admin |
+| `TOKEN_ENCRYPTION_KEY` | ≥16 (disarankan production) |
 | OAuth keys | sama seperti `.env.example` (opsional) |
 | Redirect URI | `https://<domain-vercel>/api/auth/.../callback` |
 
@@ -60,7 +63,8 @@ Lokal (`db.json`) mendapat `aiSettings` + `auditLog` otomatis saat load.
 |------|--------|---------|
 | Analitik penggerak agen | Live | `GET /api/ai/insights` dari posts/stats; panel **Apa berikutnya** di dasbor & Kantor AI |
 | Notifikasi email/WhatsApp | Live | `settings.notifications` + stub HTTP POST webhook; audit log; gagal tidak memblokir job |
-| Token encryption at rest | Live | `lib/token-crypto.js` di-wire ke upsert/read akun. Set `TOKEN_ENCRYPTION_KEY` (≥16). Kosong = plain + warn sekali |
+| Token encryption at rest | Live | `lib/token-crypto.js` di-wire ke upsert/read akun. Set `TOKEN_ENCRYPTION_KEY` (≥16). Kosong = plain + warn (lebih keras di production) |
+| App AuthN/AuthZ | Live | Session cookie `piks_sid`; `POST /api/auth/login`; mutasi `/api/*` butuh login; `forcePublish` = admin/approver |
 | Izin per peran/akun | Live | `settings.rolePermissions` enforced di create job / run / employee publish; checklist UI |
 
 Jangan commit `.env`, `db.json`, atau secrets.

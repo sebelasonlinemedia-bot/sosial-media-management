@@ -40,11 +40,13 @@ const {
     ALL_PLATFORMS,
     AUTONOMY_LEVELS
 } = require('./lib/ai-policy');
-const { isEncryptionEnabled } = require('./lib/token-crypto');
+const { isEncryptionEnabled, warnIfNoEncryptionKey } = require('./lib/token-crypto');
 const { buildInsights } = require('./lib/ai-insights');
 const { notifyJobAttention } = require('./lib/ai-notify');
+const auth = require('./lib/auth');
 
 const IS_VERCEL = !!process.env.VERCEL;
+const IS_PRODUCTION = auth.isProduction();
 
 // ============================================================
 // Modul Otomasi Browser (Puppeteer) — tidak dimuat di Vercel
@@ -75,9 +77,21 @@ function ensureDb() {
     if (!dbReady) dbReady = db.load();
     return dbReady;
 }
+let bootstrapDone = null;
+function ensureBootstrap() {
+    if (!bootstrapDone) {
+        bootstrapDone = auth.ensureBootstrapAdmin(db).catch(err => {
+            console.warn('[auth] Bootstrap admin gagal:', err.message);
+            bootstrapDone = null;
+        });
+    }
+    return bootstrapDone;
+}
+
 app.use(async (req, res, next) => {
     try {
         await ensureDb();
+        await ensureBootstrap();
         next();
     } catch (err) {
         console.error('[DB] Init gagal:', err.message);
@@ -99,12 +113,68 @@ if (SANDBOX_MODE) {
     console.log('✅ [SERVER] Mode REAL aktif — menggunakan kredensial API dari .env');
 }
 
+if (IS_PRODUCTION && !isEncryptionEnabled()) {
+    console.warn('[token-crypto] PRODUCTION: TOKEN_ENCRYPTION_KEY kosong/lemah — token OAuth disimpan plain. Set key ≥16 karakter.');
+} else {
+    warnIfNoEncryptionKey();
+}
+
+/** Base URL publik untuk media yang diambil platform eksternal (bukan localhost di cloud). */
+function getPublicBaseUrl(req) {
+    const fromEnv = (process.env.PUBLIC_BASE_URL || process.env.APP_ORIGIN || '').replace(/\/$/, '');
+    if (fromEnv) return fromEnv;
+    if (req && req.get) {
+        const host = req.get('x-forwarded-host') || req.get('host');
+        const proto = (req.get('x-forwarded-proto') || req.protocol || 'http').split(',')[0].trim();
+        if (host) return `${proto}://${host}`;
+    }
+    return `http://localhost:${PORT}`;
+}
+
+function absoluteMediaUrl(mediaPath, req) {
+    if (!mediaPath) return null;
+    if (/^https?:\/\//i.test(mediaPath)) return mediaPath;
+    const base = getPublicBaseUrl(req);
+    const pathPart = mediaPath.startsWith('/') ? mediaPath : `/${mediaPath}`;
+    return `${base}${pathPart}`;
+}
+
+function rejectSandboxInReal(req, res) {
+    if (req.query.sandbox === '1' && !SANDBOX_MODE) {
+        res.status(403).json({
+            success: false,
+            message: 'Override ?sandbox=1 diblokir saat mode REAL (kredensial OAuth ada).'
+        });
+        return true;
+    }
+    return false;
+}
+
 // ============================================================
 // Middleware
 // ============================================================
-app.use(cors());
+const corsAllowed = [
+    process.env.APP_ORIGIN,
+    process.env.PUBLIC_BASE_URL,
+    'http://localhost:3000',
+    'http://127.0.0.1:3000'
+].filter(Boolean).map(o => String(o).replace(/\/$/, ''));
+
+app.use(cors({
+    origin(origin, callback) {
+        if (!origin) return callback(null, true);
+        if (!IS_PRODUCTION) return callback(null, true);
+        const normalized = origin.replace(/\/$/, '');
+        if (corsAllowed.includes(normalized)) return callback(null, true);
+        console.warn('[cors] Ditolak origin:', origin);
+        return callback(null, false);
+    },
+    credentials: true
+}));
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '50mb' }));
+app.use(auth.attachUser);
+app.use(auth.requireAuthForApi);
 
 // Setup storage media (lokal /tmp di Vercel — ephemeral)
 const uploadDir = IS_VERCEL ? path.join('/tmp', 'uploads') : path.join(__dirname, 'uploads');
@@ -135,12 +205,67 @@ const SANDBOX_PROFILES = {
 app.get('/api/status', (req, res) => {
     res.json({
         mode: SANDBOX_MODE ? 'sandbox' : 'real',
+        authRequired: true,
+        authenticated: !!req.user,
         platforms: {
             meta: !!process.env.META_CLIENT_ID,
             youtube: !!process.env.GOOGLE_CLIENT_ID,
             tiktok: !!process.env.TIKTOK_CLIENT_KEY
         }
     });
+});
+
+// ============================================================
+// API Routes: App Login (session cookie)
+// ============================================================
+
+app.get('/api/auth/me', (req, res) => {
+    res.json({
+        success: true,
+        authenticated: !!req.user,
+        user: auth.publicUser(req.user)
+    });
+});
+
+app.post('/api/auth/login', async (req, res) => {
+    try {
+        const email = String(req.body?.email || '').trim().toLowerCase();
+        const password = req.body?.password;
+        if (!email || !password) {
+            return res.status(400).json({ success: false, message: 'Email dan password wajib.' });
+        }
+
+        await auth.ensureBootstrapAdmin(db);
+
+        const user = await db.getUserByEmail(email);
+        if (!user || !(await auth.verifyPassword(password, user.passwordHash))) {
+            return res.status(401).json({ success: false, message: 'Email atau password salah.' });
+        }
+
+        const token = auth.createSessionToken(user);
+        auth.setSessionCookie(res, token);
+        await db.appendAuditLog({
+            actor: user.email,
+            action: 'login',
+            target: user.id,
+            detail: { role: user.role || 'editor' }
+        });
+
+        res.json({
+            success: true,
+            user: auth.publicUser(user),
+            // Token untuk CLI / Cursor agent (kirim sebagai Authorization: Bearer)
+            token
+        });
+    } catch (err) {
+        console.error('[auth/login]', err.message);
+        res.status(500).json({ success: false, message: 'Login gagal.' });
+    }
+});
+
+app.post('/api/auth/logout', (req, res) => {
+    auth.clearSessionCookie(res);
+    res.json({ success: true });
 });
 
 // ============================================================
@@ -246,6 +371,7 @@ app.get('/api/auth/meta', (req, res) => {
 // Step 2: Callback setelah pengguna setuju di Facebook
 app.get('/api/auth/meta/callback', async (req, res) => {
     try {
+        if (rejectSandboxInReal(req, res)) return;
         let profileData;
 
         if (req.query.sandbox === '1' || SANDBOX_MODE) {
@@ -369,6 +495,7 @@ app.get('/api/auth/youtube', (req, res) => {
 
 app.get('/api/auth/youtube/callback', async (req, res) => {
     try {
+        if (rejectSandboxInReal(req, res)) return;
         let profileData;
 
         if (req.query.sandbox === '1' || SANDBOX_MODE) {
@@ -443,6 +570,7 @@ app.get('/api/auth/tiktok', (req, res) => {
 
 app.get('/api/auth/tiktok/callback', async (req, res) => {
     try {
+        if (rejectSandboxInReal(req, res)) return;
         let profileData;
 
         if (req.query.sandbox === '1' || SANDBOX_MODE) {
@@ -514,7 +642,8 @@ app.get('/api/auth/tiktok/callback', async (req, res) => {
  * Membuka browser Puppeteer untuk login dan menyimpan session.
  */
 app.post('/api/auth/browser-login', async (req, res) => {
-    const { platform, username, password } = req.body;
+    // requireAuthForApi sudah memastikan session app; jangan log password.
+    const { platform, username, password } = req.body || {};
     if (!platform || !username || !password) {
         return res.status(400).json({ success: false, message: 'Platform, username, dan password wajib diisi.' });
     }
@@ -534,12 +663,23 @@ app.post('/api/auth/browser-login', async (req, res) => {
             default: throw new Error('Platform tidak dikenal.');
         }
         profileData.sandbox = false;
+        // Jangan persist password sosmed di DB / response
+        delete profileData.password;
         await db.upsertAccount(profileData);
-        console.log(`[AUTH-BROWSER] ${platform} terhubung: ${profileData.handle}`);
-        res.json({ success: true, account: { ...profileData, password: undefined } });
+        console.log(`[AUTH-BROWSER] ${platform} terhubung: ${profileData.handle || username}`);
+        const safeAccount = {
+            platform: profileData.platform,
+            name: profileData.name,
+            handle: profileData.handle,
+            avatar: profileData.avatar,
+            connected: true,
+            automationType: profileData.automationType || null,
+            sandbox: false
+        };
+        res.json({ success: true, account: safeAccount });
     } catch (err) {
         console.error(`[AUTH-BROWSER] Error login ${platform}:`, err.message);
-        res.status(500).json({ success: false, message: err.message });
+        res.status(500).json({ success: false, message: 'Browser login gagal.' });
     }
 });
 
@@ -570,7 +710,14 @@ app.post('/api/media/upload', upload.single('file'), (req, res) => {
     }
     const fileUrl = `/uploads/${req.file.filename}`;
     const fileType = req.file.mimetype.startsWith('video/') ? 'video' : 'image';
-    res.json({ success: true, url: fileUrl, type: fileType, filename: req.file.filename });
+    const publicUrl = absoluteMediaUrl(fileUrl, req);
+    res.json({
+        success: true,
+        url: fileUrl,
+        publicUrl,
+        type: fileType,
+        filename: req.file.filename
+    });
 });
 
 // ============================================================
@@ -738,7 +885,8 @@ async function callPlatformAPI(platform, acc, post) {
     }
 
     // === OAUTH API MODE (credential asli) ===
-    const mediaUrl = post.mediaUrl ? `http://localhost:${PORT}${post.mediaUrl.startsWith('/') ? post.mediaUrl : '/' + post.mediaUrl}` : null;
+    // PUBLIC_BASE_URL / APP_ORIGIN agar platform cloud bisa fetch media (bukan localhost)
+    const mediaUrl = absoluteMediaUrl(post.mediaUrl, null);
 
     switch (platform) {
         case 'facebook': {
@@ -786,7 +934,7 @@ async function callPlatformAPI(platform, acc, post) {
             const FormData = require('form-data');
             const form = new FormData();
             form.append('snippet', JSON.stringify({
-                title: post.caption ? post.caption.substring(0, 100) : 'PiK\'s Digital Lab Upload',
+                title: post.caption ? post.caption.substring(0, 100) : "PiK's Digital Lab Upload",
                 description: post.caption || '',
                 categoryId: '22'
             }), { contentType: 'application/json' });
@@ -805,7 +953,7 @@ async function callPlatformAPI(platform, acc, post) {
             if (!mediaUrl || post.mediaType !== 'video') throw new Error('TikTok memerlukan file video.');
             const initRes = await axios.post('https://open.tiktokapis.com/v2/post/publish/video/init/', {
                 post_info: {
-                    title: post.caption ? post.caption.substring(0, 150) : 'PiK\'s Digital Lab Video',
+                    title: post.caption ? post.caption.substring(0, 150) : "PiK's Digital Lab Video",
                     privacy_level: 'PUBLIC_TO_EVERYONE',
                     disable_duet: false, disable_comment: false, disable_stitch: false,
                     video_cover_timestamp_ms: 1000
@@ -963,7 +1111,7 @@ app.get('/api/ai/employee/context', async (req, res) => {
         roles: listRoles().map(r => ({ id: r.id, name: r.name, title: r.title, outputs: r.outputs })),
         briefTemplates: BRIEF_TEMPLATES.map(t => ({ id: t.id, label: t.label })),
         tokenEncryption: isEncryptionEnabled(),
-        baseUrl: `http://localhost:${PORT}`,
+        baseUrl: getPublicBaseUrl(req),
         connectedPlatforms: accounts.map(a => a.platform),
         accounts,
         recentAiPosts,
@@ -1009,8 +1157,13 @@ app.post('/api/ai/employee/publish', async (req, res) => {
                 success: false,
                 message: connected.length
                     ? 'Tidak ada platform target yang terhubung. Sesuaikan daftar platforms.'
-                    : 'Belum ada akun terhubung. Hubungkan akun dulu di UI PiK\'s Digital Lab.'
+                    : "Belum ada akun terhubung. Hubungkan akun dulu di UI PiK's Digital Lab."
             });
+        }
+
+        const forceCheck = auth.assertForcePublish(req, !!forcePublish);
+        if (!forceCheck.ok) {
+            return res.status(forceCheck.status).json({ success: false, message: forceCheck.message });
         }
 
         const pubRole = resolveRole({ roleId, employeeRole, employeeName });
@@ -1601,8 +1754,9 @@ app.post('/api/ai/jobs/:id/approve', async (req, res) => {
             });
         }
 
+        const actor = req.user?.email || 'user';
         const decisionLog = appendDecision(job.decisionLog, {
-            actor: 'user',
+            actor,
             reason: req.body?.note || 'Disetujui manusia',
             status: 'approved'
         });
@@ -1610,11 +1764,12 @@ app.post('/api/ai/jobs/:id/approve', async (req, res) => {
         await db.updateAiJob(job.id, {
             status: 'queued',
             decisionLog,
-            approvedAt: new Date().toISOString()
+            approvedAt: new Date().toISOString(),
+            approvedBy: req.user?.id || null
         });
 
         await db.appendAuditLog({
-            actor: 'user',
+            actor,
             action: 'job_approved',
             target: job.id,
             detail: { note: req.body?.note || '' }
@@ -1650,6 +1805,13 @@ app.post('/api/ai/jobs/:id/run', async (req, res) => {
         if (job.status === 'publishing') {
             return res.status(409).json({ success: false, message: 'Job sedang publishing.' });
         }
+        if (job.status === 'done' || job.status === 'posted') {
+            return res.status(409).json({
+                success: false,
+                message: 'Job sudah dipublish (idempotent).',
+                job
+            });
+        }
 
         const {
             caption,
@@ -1684,7 +1846,7 @@ app.post('/api/ai/jobs/:id/run', async (req, res) => {
                 success: false,
                 message: connected.length
                     ? 'Tidak ada platform target yang terhubung.'
-                    : 'Belum ada akun terhubung. Hubungkan akun dulu di UI PiK\'s Digital Lab.'
+                    : "Belum ada akun terhubung. Hubungkan akun dulu di UI PiK's Digital Lab."
             });
         }
 
@@ -1707,6 +1869,12 @@ app.post('/api/ai/jobs/:id/run', async (req, res) => {
                     message: perm.message || 'Tidak ada platform yang diizinkan untuk peran ini.'
                 });
             }
+        }
+
+        // forcePublish dari body hanya admin/approver; approvedAt dari /approve sudah cukup
+        const forceCheck = auth.assertForcePublish(req, !!forcePublish);
+        if (!forceCheck.ok) {
+            return res.status(forceCheck.status).json({ success: false, message: forceCheck.message });
         }
 
         const brandMemories = await collectBrandMemories(targetPlatforms);
@@ -1932,10 +2100,24 @@ app.post('/api/ai/jobs/:id/run', async (req, res) => {
 
 // Cron Vercel: publish postingan terjadwal yang jatuh tempo
 app.get('/api/cron/publish', async (req, res) => {
-    const auth = req.headers.authorization || '';
-    if (process.env.CRON_SECRET && auth !== `Bearer ${process.env.CRON_SECRET}`) {
+    const header = req.headers.authorization || '';
+    const cronSecret = process.env.CRON_SECRET || '';
+
+    if (IS_PRODUCTION) {
+        if (!cronSecret) {
+            console.error('[cron] CRON_SECRET wajib di production — fail closed');
+            return res.status(503).json({
+                success: false,
+                message: 'CRON_SECRET wajib di production.'
+            });
+        }
+        if (header !== `Bearer ${cronSecret}`) {
+            return res.status(401).json({ success: false, message: 'Unauthorized' });
+        }
+    } else if (cronSecret && header !== `Bearer ${cronSecret}`) {
         return res.status(401).json({ success: false, message: 'Unauthorized' });
     }
+
     await runScheduler();
     res.json({ success: true, message: 'Scheduler dijalankan' });
 });
@@ -1957,14 +2139,22 @@ app.get('*', (req, res) => {
 module.exports = app;
 
 if (require.main === module) {
-    app.listen(PORT, () => {
-        console.log('');
-        console.log('╔══════════════════════════════════════════════════╗');
-        console.log(`║  PiK's Digital Lab Server — port ${PORT}            ║`);
-        console.log(`║  Buka: http://localhost:${PORT}                     ║`);
-        console.log(`║  Mode: ${SANDBOX_MODE ? 'SANDBOX (simulasi)             ' : 'REAL (API terhubung)          '} ║`);
-        console.log(`║  DB: ${process.env.DATABASE_URL ? 'Neon Postgres                ' : 'db.json (lokal)              '} ║`);
-        console.log('╚══════════════════════════════════════════════════╝');
-        console.log('');
-    });
+    ensureDb()
+        .then(() => auth.ensureBootstrapAdmin(db))
+        .then(() => {
+            app.listen(PORT, () => {
+                console.log('');
+                console.log('╔══════════════════════════════════════════════════╗');
+                console.log(`║  PiK's Digital Lab Server — port ${PORT}            ║`);
+                console.log(`║  Buka: http://localhost:${PORT}                     ║`);
+                console.log(`║  Mode: ${SANDBOX_MODE ? 'SANDBOX (simulasi)             ' : 'REAL (API terhubung)          '} ║`);
+                console.log(`║  DB: ${process.env.DATABASE_URL ? 'Neon Postgres                ' : 'db.json (lokal)              '} ║`);
+                console.log('╚══════════════════════════════════════════════════╝');
+                console.log('');
+            });
+        })
+        .catch(err => {
+            console.error('[SERVER] Gagal start:', err.message);
+            process.exit(1);
+        });
 }

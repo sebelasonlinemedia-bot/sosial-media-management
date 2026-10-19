@@ -32,6 +32,7 @@ const appState = {
         auditEntries: []
     },
     serverMode: 'sandbox',  // 'sandbox' | 'real'
+    user: null,
     currentView: 'dashboard',
     composerSelectedPlatforms: [],
     composerMedia: null,
@@ -44,35 +45,53 @@ const appState = {
 // API Client — Komunikasi ke Backend Express
 // ============================================================
 const api = {
+    _authHandler: null,
+    onAuthRequired(fn) {
+        this._authHandler = fn;
+    },
+    async _parse(res) {
+        let data = {};
+        try {
+            data = await res.json();
+        } catch {
+            data = { success: false, message: 'Respons tidak valid' };
+        }
+        if (res.status === 401 || data.authRequired) {
+            if (typeof this._authHandler === 'function') this._authHandler(data);
+        }
+        return data;
+    },
     async get(path) {
-        const res = await fetch(path);
-        return res.json();
+        const res = await fetch(path, { credentials: 'include' });
+        return this._parse(res);
     },
     async post(path, body) {
         const res = await fetch(path, {
             method: 'POST',
+            credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
         });
-        return res.json();
+        return this._parse(res);
     },
     async put(path, body) {
         const res = await fetch(path, {
             method: 'PUT',
+            credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
         });
-        return res.json();
+        return this._parse(res);
     },
     async delete(path) {
-        const res = await fetch(path, { method: 'DELETE' });
-        return res.json();
+        const res = await fetch(path, { method: 'DELETE', credentials: 'include' });
+        return this._parse(res);
     },
     async uploadFile(file) {
         const formData = new FormData();
         formData.append('file', file);
-        const res = await fetch('/api/media/upload', { method: 'POST', body: formData });
-        return res.json();
+        const res = await fetch('/api/media/upload', { method: 'POST', body: formData, credentials: 'include' });
+        return this._parse(res);
     }
 };
 
@@ -81,9 +100,22 @@ const api = {
 // ============================================================
 const app = {
     async init() {
+        api.onAuthRequired(() => this.showLoginGate('Sesi berakhir. Silakan login lagi.'));
+        this.setupLoginGate();
+
         // Cek mode server (sandbox / real)
         const status = await api.get('/api/status').catch(() => ({ mode: 'sandbox' }));
         appState.serverMode = status.mode || 'sandbox';
+
+        const me = await api.get('/api/auth/me').catch(() => ({ authenticated: false }));
+        if (!me.authenticated || !me.user) {
+            this.showLoginGate();
+            lucide.createIcons();
+            return;
+        }
+        appState.user = me.user;
+        this.hideLoginGate();
+        this.updateUserBadge();
 
         // Muat data awal dari backend
         await this.loadAccountsFromServer();
@@ -120,6 +152,87 @@ const app = {
         // Render pertama
         this.switchView('dashboard');
         lucide.createIcons();
+    },
+
+    setupLoginGate() {
+        const form = document.getElementById('app-login-form');
+        const logoutBtn = document.getElementById('app-logout-btn');
+        if (form) {
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                await this.submitLogin();
+            });
+        }
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', async () => {
+                await api.post('/api/auth/logout', {});
+                appState.user = null;
+                this.showLoginGate('Anda telah keluar.');
+            });
+        }
+    },
+
+    showLoginGate(message) {
+        const gate = document.getElementById('app-login-gate');
+        const appRoot = document.querySelector('.app-container');
+        const err = document.getElementById('app-login-error');
+        if (appRoot) appRoot.classList.add('hidden');
+        if (gate) gate.classList.remove('hidden');
+        if (err) {
+            if (message) {
+                err.textContent = message;
+                err.classList.remove('hidden');
+            } else {
+                err.textContent = '';
+                err.classList.add('hidden');
+            }
+        }
+    },
+
+    hideLoginGate() {
+        const gate = document.getElementById('app-login-gate');
+        const appRoot = document.querySelector('.app-container');
+        if (gate) gate.classList.add('hidden');
+        if (appRoot) appRoot.classList.remove('hidden');
+    },
+
+    updateUserBadge() {
+        const el = document.getElementById('app-user-badge');
+        if (!el || !appState.user) return;
+        el.textContent = `${appState.user.email} · ${appState.user.role || 'editor'}`;
+        el.classList.remove('hidden');
+    },
+
+    async submitLogin() {
+        const email = (document.getElementById('app-login-email')?.value || '').trim();
+        const password = document.getElementById('app-login-password')?.value || '';
+        const err = document.getElementById('app-login-error');
+        const btn = document.getElementById('app-login-submit');
+        if (err) {
+            err.classList.add('hidden');
+            err.textContent = '';
+        }
+        if (btn) btn.disabled = true;
+        try {
+            const data = await api.post('/api/auth/login', { email, password });
+            if (!data.success || !data.user) {
+                if (err) {
+                    err.textContent = data.message || 'Login gagal.';
+                    err.classList.remove('hidden');
+                }
+                return;
+            }
+            appState.user = data.user;
+            window.location.reload();
+            return;
+        } catch (e) {
+            if (err) {
+                err.textContent = e.message || 'Login gagal.';
+                err.classList.remove('hidden');
+            }
+        } finally {
+            if (btn) btn.disabled = false;
+        }
     },
 
     // --- Deteksi & Tampilkan Notifikasi Hasil OAuth ---
@@ -1272,11 +1385,13 @@ app.runOfficeJob = async function (forcePublish) {
     }
 
     try {
+        const canForce = ['admin', 'approver'].includes(appState.user?.role);
         const data = await api.post(`/api/ai/jobs/${jobId}/run`, {
             caption: job.caption || job.brief,
             platforms: job.platforms || [],
             employeeName: job.employeeName,
-            forcePublish: !!forcePublish
+            // forcePublish hanya admin/approver; setelah /approve pakai approvedAt
+            forcePublish: !!(forcePublish && canForce)
         });
         if (data.awaitingApproval) {
             this.showToast(data.message || 'Menunggu approval.', 'yellow');
@@ -1309,11 +1424,11 @@ app.approveOfficeJob = async function () {
             return;
         }
         const job = approve.job || (appState.aiJobs || []).find(j => j.id === jobId);
+        // Setelah approve, server memakai job.approvedAt — jangan kirim forcePublish anon
         const data = await api.post(`/api/ai/jobs/${jobId}/run`, {
             caption: job?.caption || job?.brief,
             platforms: job?.platforms || [],
-            employeeName: job?.employeeName,
-            forcePublish: true
+            employeeName: job?.employeeName
         });
         if (!data.success && !data.awaitingApproval) {
             this.showToast(data.message || 'Publish setelah approve gagal.', 'red');
@@ -1630,7 +1745,7 @@ app.updatePreviewAccounts = function () {
         if (fbNameEl) fbNameEl.innerText = fbAcc.name;
         if (fbAvatarEl) fbAvatarEl.src = fbAcc.avatar || defaultAvatar;
     } else {
-        if (fbNameEl) fbNameEl.innerText = 'Akun PiK\'s Digital Lab';
+        if (fbNameEl) fbNameEl.innerText = "Akun PiK's Digital Lab";
         if (fbAvatarEl) fbAvatarEl.src = defaultAvatar;
     }
 
