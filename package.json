@@ -7,7 +7,8 @@
     "start": "node server.js",
     "dev": "node server.js",
     "ai:context": "node scripts/ai-employee-publish.js --context",
-    "ai:publish": "node scripts/ai-employee-publish.js"
+    "ai:publish": "node scripts/ai-employee-publish.js",
+    "test:auth": "node scripts/test-auth-login.js"
   },
   "engines": {
     "node": ">=18"

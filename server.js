@@ -10,12 +10,15 @@
  *               Melakukan redirect OAuth asli dan mengirim ke API sosmed.
  */
 
-require('dotenv').config();
+const path = require('path');
+// Load .env sebelum modul lain membaca process.env (auth bootstrap, DB mode, dll).
+// Perubahan .env membutuhkan restart proses Node (`npm run dev` / `npm start`).
+require('dotenv').config({ path: path.join(__dirname, '.env') });
+
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const axios = require('axios');
-const path = require('path');
 const multer = require('multer');
 const fs = require('fs');
 

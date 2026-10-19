@@ -71,6 +71,19 @@ class JsonDatabase {
         return user;
     }
 
+    async updateUser(id, updates) {
+        const idx = (this._data.users || []).findIndex(u => u.id === id);
+        if (idx === -1) return null;
+        const { id: _id, createdAt: _c, ...safe } = updates || {};
+        this._data.users[idx] = {
+            ...this._data.users[idx],
+            ...safe,
+            updatedAt: new Date().toISOString()
+        };
+        await this.save();
+        return this._data.users[idx];
+    }
+
     async getAccounts() {
         return (this._data.accounts || []).map(decryptAccountTokens);
     }

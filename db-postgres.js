@@ -136,6 +136,20 @@ class PostgresDatabase {
         return { id, ...rest, createdAt };
     }
 
+    async updateUser(id, updates) {
+        const sql = getSql();
+        const rows = await sql`SELECT id, data, created_at FROM users WHERE id = ${id} LIMIT 1`;
+        if (!rows[0]) return null;
+        const { id: _id, createdAt: _c, ...safe } = updates || {};
+        const merged = {
+            ...(rows[0].data || {}),
+            ...safe,
+            updatedAt: new Date().toISOString()
+        };
+        await sql`UPDATE users SET data = ${merged} WHERE id = ${id}`;
+        return { id, ...merged, createdAt: rows[0].created_at };
+    }
+
     async getAccounts() {
         const sql = getSql();
         const rows = await sql`
