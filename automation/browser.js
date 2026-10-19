@@ -6,6 +6,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { encryptSecret, decryptSecret, isEncryptionEnabled } = require('../lib/token-crypto');
 
 let puppeteerExtra, StealthPlugin;
 try {
@@ -31,7 +32,7 @@ async function getBrowser(headless = true) {
     if (!puppeteerExtra) throw new Error('puppeteer-extra tidak terinstall.');
 
     browserInstance = await puppeteerExtra.launch({
-        headless: false, // Menampilkan browser asli sesuai permintaan user
+        headless: headless !== false,
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
@@ -62,18 +63,37 @@ async function newPageWithSession(platform, headless = true) {
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
     );
 
-    // Muat cookies session jika tersedia
+    // Muat cookies session jika tersedia (boleh terenkripsi at-rest)
     const sessionFile = path.join(SESSIONS_DIR, `${platform}.json`);
     if (fs.existsSync(sessionFile)) {
         try {
-            const cookies = JSON.parse(fs.readFileSync(sessionFile, 'utf8'));
-            await page.setCookie(...cookies);
+            const cookies = readSessionPayload(sessionFile);
+            if (Array.isArray(cookies) && cookies.length) await page.setCookie(...cookies);
         } catch (e) {
             console.warn(`[BROWSER] Gagal memuat session ${platform}:`, e.message);
         }
     }
 
     return { browser, page };
+}
+
+function readSessionPayload(sessionFile) {
+    const raw = fs.readFileSync(sessionFile, 'utf8');
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object' && parsed.enc) {
+        const plain = decryptSecret(parsed.enc);
+        return JSON.parse(plain);
+    }
+    return parsed;
+}
+
+function writeSessionPayload(sessionFile, data) {
+    const raw = JSON.stringify(data);
+    if (isEncryptionEnabled()) {
+        fs.writeFileSync(sessionFile, JSON.stringify({ enc: encryptSecret(raw), v: 1 }));
+    } else {
+        fs.writeFileSync(sessionFile, JSON.stringify(data, null, 2));
+    }
 }
 
 /**
@@ -83,7 +103,7 @@ async function saveSession(platform, page) {
     try {
         const cookies = await page.cookies();
         const sessionFile = path.join(SESSIONS_DIR, `${platform}.json`);
-        fs.writeFileSync(sessionFile, JSON.stringify(cookies, null, 2));
+        writeSessionPayload(sessionFile, cookies);
         console.log(`[BROWSER] Session ${platform} tersimpan.`);
     } catch (e) {
         console.warn(`[BROWSER] Gagal menyimpan session ${platform}:`, e.message);

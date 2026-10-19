@@ -63,10 +63,13 @@ Saat job → `needs_info` atau `awaiting_approval`, server memanggil notifier (H
 
 ### Token & auth app
 
-- Access/refresh token dienkripsi at-rest jika `TOKEN_ENCRYPTION_KEY` (≥16 char) di env. **Jangan pernah log nilai token OAuth / password / session.**
+- Access/refresh/**pageToken** dienkripsi at-rest jika `TOKEN_ENCRYPTION_KEY` (≥16 char). Session browser/IG juga dienkripsi jika key set. **Jangan pernah log nilai token OAuth / password / session.**
 - Tanpa key: plain + warn (lebih jelas di production).
-- App login: `POST /api/auth/login`, `GET /api/auth/me`, `POST /api/auth/logout`.
-- Media publik: set `PUBLIC_BASE_URL` / `APP_ORIGIN` di cloud (bukan localhost).
+- App login: `POST /api/auth/login`, `GET /api/auth/me`, `POST /api/auth/logout` (rate-limit ringan).
+- Media publik: set `PUBLIC_BASE_URL` / `APP_ORIGIN` HTTPS di cloud. Publish OAuth menolak localhost di production.
+- OAuth connect: CSRF `state` signed; sandbox `?sandbox=1` hanya jika mode SANDBOX.
+- `POST /api/ai/jobs/:id/approve` default **autoRun** → publish atomik (pakai `approvedAt`; `forcePublish` tidak wajib). `autoRun: false` hanya menandai approved.
+- Manual publish hormati `emergencyPause`. Cron production wajib `CRON_SECRET` (fail closed).
 
 ### Insights (penggerak agen)
 
@@ -93,7 +96,7 @@ Opsional A/B: kirim `variantA` / `variantB` saat create/run job; `abWinner` (`A`
 3. `GET /api/ai/employee/context` — cek `connectedPlatforms`, `emergencyPause`, `policy`, `accounts[].brandMemorySummary`.
 4. Tanpa akun terhubung → stop; minta user hubungkan akun.
 5. Cek `rolePermissions` di settings jika create/run gagal 403 platform.
-6. `forcePublish: true` hanya role **admin** / **approver**. Setelah `/approve`, `/run` memakai `approvedAt` (tanpa force).
+6. `forcePublish: true` hanya role **admin** / **approver**. `POST .../approve` default auto-run (atomik); atau `autoRun: false` lalu `/run` memakai `approvedAt` (tanpa force).
 
 ## Alur operasi
 
@@ -137,11 +140,10 @@ Jika response `awaitingApproval: true` → beri tahu user; Setujui di UI atau:
 
 ```http
 POST /api/ai/jobs/:id/approve
-POST /api/ai/jobs/:id/run
 { "caption": "..." }
 ```
 
-(`approvedAt` dari approve sudah mengizinkan gate; `forcePublish` hanya admin/approver.)
+(Default `autoRun: true` — approve+publish atomik. `autoRun: false` lalu panggil `/run`. `forcePublish` hanya admin/approver.)
 
 ### C. Publish cepat (tetap di-gate)
 
@@ -175,13 +177,13 @@ Pakai `nextUp.recommendations[].cta` / `roleId` / `platforms` untuk menyusun bri
 | GET/POST | `/api/ai/jobs` | List / buat job (+ variantA/B) |
 | POST | `/api/ai/jobs/:id/answer` | Klarifikasi |
 | POST | `/api/ai/jobs/:id/run` | Run + gate + permissions |
-| POST | `/api/ai/jobs/:id/approve` | Setujui |
+| POST | `/api/ai/jobs/:id/approve` | Setujui (+ auto-run default) |
 
 ### Status job
 
 `queued` → `publishing` → `done` | `failed`  
 atau `needs_info` → `queued` → …  
-atau `awaiting_approval` → (approve) → `queued` → `/run` (via `approvedAt`)
+atau `awaiting_approval` → approve (auto-run) → `done` / `failed`
 
 Kartu karyawan: `idle` | `needs_info` | `awaiting_approval` | `working` | `done` | `failed` (+ label beban kerja).
 

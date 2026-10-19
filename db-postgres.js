@@ -207,6 +207,10 @@ class PostgresDatabase {
         const now = new Date().toISOString();
         const { id, platform: p, connected, createdAt, updatedAt, ...data } = existing;
         data.accessToken = null;
+        data.refreshToken = null;
+        data.pageToken = null;
+        data.sessionState = null;
+        data.password = null;
         await sql`
             UPDATE accounts
             SET connected = false, data = ${data}, updated_at = ${now}

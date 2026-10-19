@@ -119,9 +119,14 @@ class JsonDatabase {
     async disconnectAccount(platform) {
         const idx = this._data.accounts.findIndex(a => a.platform === platform);
         if (idx === -1) return false;
-        this._data.accounts[idx].connected = false;
-        this._data.accounts[idx].accessToken = null;
-        this._data.accounts[idx].updatedAt = new Date().toISOString();
+        const row = this._data.accounts[idx];
+        row.connected = false;
+        row.accessToken = null;
+        row.refreshToken = null;
+        row.pageToken = null;
+        row.sessionState = null;
+        row.password = null;
+        row.updatedAt = new Date().toISOString();
         await this.save();
         return true;
     }

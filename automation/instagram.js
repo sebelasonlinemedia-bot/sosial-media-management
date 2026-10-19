@@ -1,20 +1,30 @@
 const { IgApiClient } = require('instagram-private-api');
 const fs = require('fs');
 const path = require('path');
+const { encryptSecret, decryptSecret, isEncryptionEnabled } = require('../lib/token-crypto');
 
 const sessionsDir = path.join(__dirname, '..', 'sessions');
 if (!fs.existsSync(sessionsDir)) fs.mkdirSync(sessionsDir, { recursive: true });
 
 async function saveSession(ig, username) {
     const state = await ig.state.serialize();
-    delete state.constants; 
-    fs.writeFileSync(path.join(sessionsDir, `${username}-ig-state.json`), JSON.stringify(state));
+    delete state.constants;
+    const sessionPath = path.join(sessionsDir, `${username}-ig-state.json`);
+    const raw = JSON.stringify(state);
+    if (isEncryptionEnabled()) {
+        fs.writeFileSync(sessionPath, JSON.stringify({ enc: encryptSecret(raw), v: 1 }));
+    } else {
+        fs.writeFileSync(sessionPath, raw);
+    }
 }
 
 async function loadSession(ig, username) {
     const sessionPath = path.join(sessionsDir, `${username}-ig-state.json`);
     if (fs.existsSync(sessionPath)) {
-        const state = JSON.parse(fs.readFileSync(sessionPath, 'utf8'));
+        const parsed = JSON.parse(fs.readFileSync(sessionPath, 'utf8'));
+        const state = parsed && parsed.enc
+            ? JSON.parse(decryptSecret(parsed.enc))
+            : parsed;
         await ig.state.deserialize(state);
         return true;
     }

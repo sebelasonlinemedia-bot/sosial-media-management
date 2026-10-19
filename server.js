@@ -47,6 +47,9 @@ const { isEncryptionEnabled, warnIfNoEncryptionKey } = require('./lib/token-cryp
 const { buildInsights } = require('./lib/ai-insights');
 const { notifyJobAttention } = require('./lib/ai-notify');
 const auth = require('./lib/auth');
+const { createOAuthState, verifyOAuthState } = require('./lib/oauth-state');
+const { createRateLimiter } = require('./lib/rate-limit');
+const { sanitizeFilename, multerFileFilter } = require('./lib/upload-safe');
 
 const IS_VERCEL = !!process.env.VERCEL;
 const IS_PRODUCTION = auth.isProduction();
@@ -142,6 +145,27 @@ function absoluteMediaUrl(mediaPath, req) {
     return `${base}${pathPart}`;
 }
 
+/** Di cloud, media untuk Graph/TikTok tidak boleh localhost. */
+function assertCloudMediaUrl(mediaUrl) {
+    if (!IS_PRODUCTION || !mediaUrl) return;
+    if (/localhost|127\.0\.0\.1/i.test(mediaUrl)) {
+        throw new Error(
+            'PUBLIC_BASE_URL wajib di cloud (HTTPS publik). Media localhost tidak bisa di-fetch Meta/TikTok. ' +
+            'Set PUBLIC_BASE_URL / APP_ORIGIN, atau unggah ke Blob/S3 (lihat DEPLOY.md).'
+        );
+    }
+}
+
+async function assertNotEmergencyPaused() {
+    const settings = await db.getAiSettings();
+    if (settings && settings.emergencyPause) {
+        const err = new Error('Emergency pause aktif — publish diblokir.');
+        err.statusCode = 423;
+        throw err;
+    }
+    return settings;
+}
+
 function rejectSandboxInReal(req, res) {
     if (req.query.sandbox === '1' && !SANDBOX_MODE) {
         res.status(403).json({
@@ -179,15 +203,37 @@ app.use(bodyParser.urlencoded({ extended: true, limit: '50mb' }));
 app.use(auth.attachUser);
 app.use(auth.requireAuthForApi);
 
-// Setup storage media (lokal /tmp di Vercel — ephemeral)
+const rateLimitLogin = createRateLimiter({
+    windowMs: 15 * 60 * 1000,
+    max: 15,
+    message: 'Terlalu banyak percobaan login. Coba lagi dalam 15 menit.'
+});
+const rateLimitPublish = createRateLimiter({
+    windowMs: 15 * 60 * 1000,
+    max: 40,
+    message: 'Terlalu banyak publish. Coba lagi nanti.'
+});
+
+// Setup storage media (lokal /tmp di Vercel — ephemeral; produksi → Blob/S3)
 const uploadDir = IS_VERCEL ? path.join('/tmp', 'uploads') : path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
 const storage = multer.diskStorage({
     destination: (req, file, cb) => cb(null, uploadDir),
-    filename: (req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`)
+    filename: (req, file, cb) => cb(null, `${Date.now()}-${sanitizeFilename(file.originalname)}`)
 });
-const upload = multer({ storage, limits: { fileSize: 50 * 1024 * 1024 } });
+const upload = multer({
+    storage,
+    limits: { fileSize: 50 * 1024 * 1024 },
+    fileFilter: multerFileFilter
+});
+
+if (IS_PRODUCTION) {
+    const pub = (process.env.PUBLIC_BASE_URL || process.env.APP_ORIGIN || '').replace(/\/$/, '');
+    if (!pub || /localhost|127\.0\.0\.1/i.test(pub)) {
+        console.warn('[media] PRODUCTION: set PUBLIC_BASE_URL ke HTTPS publik (bukan localhost) agar Graph/TikTok bisa fetch media.');
+    }
+}
 
 // Sajikan file frontend (HTML, CSS, JS) dan media upload
 app.use(express.static(__dirname));
@@ -236,7 +282,12 @@ app.get('/api/status', async (req, res) => {
             meta: !!process.env.META_CLIENT_ID,
             youtube: !!process.env.GOOGLE_CLIENT_ID,
             tiktok: !!process.env.TIKTOK_CLIENT_KEY
-        }
+        },
+        publicBaseUrl: getPublicBaseUrl(req),
+        tokenEncryption: isEncryptionEnabled(),
+        scheduler: IS_VERCEL
+            ? { kind: 'vercel-cron', note: 'Hobby: sekali sehari (lihat vercel.json)' }
+            : { kind: 'local-interval', everySeconds: 60 }
     });
 });
 
@@ -252,7 +303,7 @@ app.get('/api/auth/me', (req, res) => {
     });
 });
 
-app.post('/api/auth/login', async (req, res) => {
+app.post('/api/auth/login', rateLimitLogin, async (req, res) => {
     try {
         const email = String(req.body?.email || '').trim().toLowerCase();
         const password = req.body?.password;
@@ -321,7 +372,7 @@ app.post('/api/auth/logout', (req, res) => {
 // GET: Daftar semua akun terhubung (tanpa token sensitif)
 app.get('/api/accounts', async (req, res) => {
     const accounts = (await db.getAccounts()).map(a => {
-        const { accessToken, refreshToken, ...safe } = a;
+        const { accessToken, refreshToken, pageToken, sessionState, password, ...safe } = a;
         return safe;
     });
     res.json({ success: true, accounts });
@@ -410,7 +461,8 @@ app.get('/api/auth/meta', (req, res) => {
         'instagram_basic',
         'pages_show_list'
     ].join(',');
-    const authUrl = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${process.env.META_CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.META_REDIRECT_URI)}&scope=${scopes}&response_type=code`;
+    const state = createOAuthState({ provider: 'meta', userId: req.user?.id });
+    const authUrl = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${process.env.META_CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.META_REDIRECT_URI)}&scope=${scopes}&response_type=code&state=${encodeURIComponent(state)}`;
     res.redirect(authUrl);
 });
 
@@ -444,6 +496,10 @@ app.get('/api/auth/meta/callback', async (req, res) => {
             });
         } else {
             // REAL: Tukar code dengan access token
+            const stateCheck = verifyOAuthState(req.query.state, 'meta');
+            if (!stateCheck.ok) {
+                return res.redirect(`/?auth=meta&status=error&msg=${encodeURIComponent(stateCheck.message)}`);
+            }
             const code = req.query.code;
             if (!code) return res.redirect('/?auth=meta&status=error&msg=no_code');
 
@@ -535,7 +591,8 @@ app.get('/api/auth/youtube', (req, res) => {
         'profile',
         'email'
     ].join(' ');
-    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${process.env.GOOGLE_CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.GOOGLE_REDIRECT_URI)}&response_type=code&scope=${encodeURIComponent(scopes)}&access_type=offline&prompt=consent`;
+    const state = createOAuthState({ provider: 'youtube', userId: req.user?.id });
+    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${process.env.GOOGLE_CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.GOOGLE_REDIRECT_URI)}&response_type=code&scope=${encodeURIComponent(scopes)}&access_type=offline&prompt=consent&state=${encodeURIComponent(state)}`;
     res.redirect(authUrl);
 });
 
@@ -556,6 +613,10 @@ app.get('/api/auth/youtube/callback', async (req, res) => {
                 connected: true
             };
         } else {
+            const stateCheck = verifyOAuthState(req.query.state, 'youtube');
+            if (!stateCheck.ok) {
+                return res.redirect(`/?auth=youtube&status=error&msg=${encodeURIComponent(stateCheck.message)}`);
+            }
             const code = req.query.code;
             if (!code) return res.redirect('/?auth=youtube&status=error&msg=no_code');
 
@@ -610,7 +671,8 @@ app.get('/api/auth/tiktok', (req, res) => {
         return res.redirect('/api/auth/tiktok/callback?sandbox=1');
     }
     const scopes = ['user.info.basic', 'video.upload', 'video.publish'].join(',');
-    const authUrl = `https://www.tiktok.com/v2/auth/authorize/?client_key=${process.env.TIKTOK_CLIENT_KEY}&scope=${scopes}&response_type=code&redirect_uri=${encodeURIComponent(process.env.TIKTOK_REDIRECT_URI)}&state=piks-digital-lab`;
+    const state = createOAuthState({ provider: 'tiktok', userId: req.user?.id });
+    const authUrl = `https://www.tiktok.com/v2/auth/authorize/?client_key=${process.env.TIKTOK_CLIENT_KEY}&scope=${scopes}&response_type=code&redirect_uri=${encodeURIComponent(process.env.TIKTOK_REDIRECT_URI)}&state=${encodeURIComponent(state)}`;
     res.redirect(authUrl);
 });
 
@@ -631,6 +693,10 @@ app.get('/api/auth/tiktok/callback', async (req, res) => {
                 connected: true
             };
         } else {
+            const stateCheck = verifyOAuthState(req.query.state, 'tiktok');
+            if (!stateCheck.ok) {
+                return res.redirect(`/?auth=tiktok&status=error&msg=${encodeURIComponent(stateCheck.message)}`);
+            }
             const code = req.query.code;
             if (!code) return res.redirect('/?auth=tiktok&status=error&msg=no_code');
 
@@ -749,20 +815,28 @@ app.delete('/api/auth/browser-logout/:platform', async (req, res) => {
 // API Routes: Unggah Media
 // ============================================================
 
-// Upload file media (gambar/video) ke server
-app.post('/api/media/upload', upload.single('file'), (req, res) => {
-    if (!req.file) {
-        return res.status(400).json({ success: false, message: 'Tidak ada file yang diunggah.' });
-    }
-    const fileUrl = `/uploads/${req.file.filename}`;
-    const fileType = req.file.mimetype.startsWith('video/') ? 'video' : 'image';
-    const publicUrl = absoluteMediaUrl(fileUrl, req);
-    res.json({
-        success: true,
-        url: fileUrl,
-        publicUrl,
-        type: fileType,
-        filename: req.file.filename
+// Upload file media (gambar/video) ke server — MIME allowlist + sanitize nama
+app.post('/api/media/upload', (req, res) => {
+    upload.single('file')(req, res, (err) => {
+        if (err) {
+            const msg = err.code === 'LIMIT_FILE_SIZE'
+                ? 'File terlalu besar (maks 50MB).'
+                : (err.message || 'Upload ditolak.');
+            return res.status(400).json({ success: false, message: msg });
+        }
+        if (!req.file) {
+            return res.status(400).json({ success: false, message: 'Tidak ada file yang diunggah.' });
+        }
+        const fileUrl = `/uploads/${req.file.filename}`;
+        const fileType = req.file.mimetype.startsWith('video/') ? 'video' : 'image';
+        const publicUrl = absoluteMediaUrl(fileUrl, req);
+        res.json({
+            success: true,
+            url: fileUrl,
+            publicUrl,
+            type: fileType,
+            filename: req.file.filename
+        });
     });
 });
 
@@ -777,40 +851,47 @@ app.get('/api/posts', async (req, res) => {
 });
 
 // POST: Buat postingan baru (langsung atau terjadwal)
-app.post('/api/posts', async (req, res) => {
-    const { caption, mediaUrl, mediaType, platforms, status, publishDate } = req.body;
+app.post('/api/posts', rateLimitPublish, async (req, res) => {
+    try {
+        const { caption, mediaUrl, mediaType, platforms, status, publishDate } = req.body;
 
-    if (!platforms || platforms.length === 0) {
-        return res.status(400).json({ success: false, message: 'Pilih setidaknya satu platform.' });
-    }
+        if (!platforms || platforms.length === 0) {
+            return res.status(400).json({ success: false, message: 'Pilih setidaknya satu platform.' });
+        }
 
-    let postStatus = status || 'posted';
-    let finalPublishDate = publishDate || new Date().toISOString();
+        let postStatus = status || 'posted';
+        let finalPublishDate = publishDate || new Date().toISOString();
 
-    // Simpan postingan ke database
-    const newPost = await db.addPost({
-        caption: caption || '',
-        mediaUrl: mediaUrl || '',
-        mediaType: mediaType || '',
-        platforms,
-        status: postStatus,
-        publishDate: finalPublishDate,
-        stats: null,
-        publishResults: {}
-    });
+        if (postStatus === 'posted') await assertNotEmergencyPaused();
 
-    // Jika langsung dikirim, proses sekarang
-    if (postStatus === 'posted') {
-        const results = await publishToAllPlatforms(newPost);
-        await db.updatePost(newPost.id, {
-            status: 'posted',
-            publishResults: results,
-            stats: generateMockStats()
+        // Simpan postingan ke database
+        const newPost = await db.addPost({
+            caption: caption || '',
+            mediaUrl: mediaUrl || '',
+            mediaType: mediaType || '',
+            platforms,
+            status: postStatus,
+            publishDate: finalPublishDate,
+            stats: null,
+            publishResults: {}
         });
-        return res.json({ success: true, post: await db.getPostById(newPost.id), results });
-    }
 
-    res.json({ success: true, post: newPost });
+        // Jika langsung dikirim, proses sekarang
+        if (postStatus === 'posted') {
+            const results = await publishToAllPlatforms(newPost);
+            await db.updatePost(newPost.id, {
+                status: 'posted',
+                publishResults: results,
+                stats: generateMockStats()
+            });
+            return res.json({ success: true, post: await db.getPostById(newPost.id), results });
+        }
+
+        res.json({ success: true, post: newPost });
+    } catch (err) {
+        const code = err.statusCode || 500;
+        res.status(code).json({ success: false, message: err.message });
+    }
 });
 
 // DELETE: Hapus satu postingan
@@ -841,35 +922,47 @@ app.put('/api/posts/:id', async (req, res) => {
     if (status !== undefined) updates.status = status;
     if (publishDate !== undefined) updates.publishDate = publishDate;
 
-    // Jika diedit dan status diubah menjadi langsung dikirim (posted), jalankan mesin publikasi
-    const updatedPost = await db.updatePost(id, updates);
-    if (status === 'posted' && post.status !== 'posted') {
-        const results = await publishToAllPlatforms(updatedPost);
-        await db.updatePost(id, {
-            status: 'posted',
-            publishResults: results,
-            stats: generateMockStats()
-        });
-        return res.json({ success: true, post: await db.getPostById(id), results });
-    }
+    try {
+        // Jika diedit dan status diubah menjadi langsung dikirim (posted), jalankan mesin publikasi
+        const updatedPost = await db.updatePost(id, updates);
+        if (status === 'posted' && post.status !== 'posted') {
+            await assertNotEmergencyPaused();
+            const results = await publishToAllPlatforms(updatedPost);
+            await db.updatePost(id, {
+                status: 'posted',
+                publishResults: results,
+                stats: generateMockStats()
+            });
+            return res.json({ success: true, post: await db.getPostById(id), results });
+        }
 
-    res.json({ success: true, post: updatedPost });
+        res.json({ success: true, post: updatedPost });
+    } catch (err) {
+        const code = err.statusCode || 500;
+        res.status(code).json({ success: false, message: err.message });
+    }
 });
 
 // POST: Publikasikan postingan terjadwal secara langsung
-app.post('/api/posts/:id/publish', async (req, res) => {
-    const post = await db.getPostById(req.params.id);
-    if (!post) {
-        return res.status(404).json({ success: false, message: 'Postingan tidak ditemukan.' });
+app.post('/api/posts/:id/publish', rateLimitPublish, async (req, res) => {
+    try {
+        await assertNotEmergencyPaused();
+        const post = await db.getPostById(req.params.id);
+        if (!post) {
+            return res.status(404).json({ success: false, message: 'Postingan tidak ditemukan.' });
+        }
+        const results = await publishToAllPlatforms(post);
+        await db.updatePost(post.id, {
+            status: 'posted',
+            publishDate: new Date().toISOString(),
+            publishResults: results,
+            stats: generateMockStats()
+        });
+        res.json({ success: true, post: await db.getPostById(post.id), results });
+    } catch (err) {
+        const code = err.statusCode || 500;
+        res.status(code).json({ success: false, message: err.message });
     }
-    const results = await publishToAllPlatforms(post);
-    await db.updatePost(post.id, {
-        status: 'posted',
-        publishDate: new Date().toISOString(),
-        publishResults: results,
-        stats: generateMockStats()
-    });
-    res.json({ success: true, post: await db.getPostById(post.id), results });
 });
 
 // ============================================================
@@ -933,13 +1026,17 @@ async function callPlatformAPI(platform, acc, post) {
     // === OAUTH API MODE (credential asli) ===
     // PUBLIC_BASE_URL / APP_ORIGIN agar platform cloud bisa fetch media (bukan localhost)
     const mediaUrl = absoluteMediaUrl(post.mediaUrl, null);
+    if (platform === 'facebook' || platform === 'instagram' || platform === 'tiktok') {
+        assertCloudMediaUrl(mediaUrl);
+    }
 
     switch (platform) {
         case 'facebook': {
-            const params = { message: post.caption, access_token: acc.accessToken };
+            const token = acc.pageToken || acc.accessToken;
+            const params = { message: post.caption, access_token: token };
             if (mediaUrl && post.mediaType === 'image') {
                 const photoRes = await axios.post(`https://graph.facebook.com/v19.0/${acc.pageId}/photos`, {
-                    url: mediaUrl, caption: post.caption, access_token: acc.accessToken
+                    url: mediaUrl, caption: post.caption, access_token: token
                 });
                 return { status: 'success', postId: photoRes.data.id };
             } else {
@@ -951,22 +1048,23 @@ async function callPlatformAPI(platform, acc, post) {
         case 'instagram': {
             if (!acc.igUserId) throw new Error('Akun Instagram Business belum terhubung ke halaman Facebook.');
             if (!mediaUrl) throw new Error('Instagram memerlukan media (gambar/video).');
+            const token = acc.pageToken || acc.accessToken;
 
             if (post.mediaType === 'video') {
                 const containerRes = await axios.post(`https://graph.facebook.com/v19.0/${acc.igUserId}/media`, {
-                    video_url: mediaUrl, caption: post.caption, media_type: 'REELS', access_token: acc.accessToken
+                    video_url: mediaUrl, caption: post.caption, media_type: 'REELS', access_token: token
                 });
                 await new Promise(r => setTimeout(r, 5000));
                 const publishRes = await axios.post(`https://graph.facebook.com/v19.0/${acc.igUserId}/media_publish`, {
-                    creation_id: containerRes.data.id, access_token: acc.accessToken
+                    creation_id: containerRes.data.id, access_token: token
                 });
                 return { status: 'success', postId: publishRes.data.id };
             } else {
                 const containerRes = await axios.post(`https://graph.facebook.com/v19.0/${acc.igUserId}/media`, {
-                    image_url: mediaUrl, caption: post.caption, access_token: acc.accessToken
+                    image_url: mediaUrl, caption: post.caption, access_token: token
                 });
                 const publishRes = await axios.post(`https://graph.facebook.com/v19.0/${acc.igUserId}/media_publish`, {
-                    creation_id: containerRes.data.id, access_token: acc.accessToken
+                    creation_id: containerRes.data.id, access_token: token
                 });
                 return { status: 'success', postId: publishRes.data.id };
             }
@@ -974,8 +1072,11 @@ async function callPlatformAPI(platform, acc, post) {
 
         case 'youtube': {
             if (!mediaUrl || post.mediaType !== 'video') throw new Error('YouTube memerlukan file video.');
-            const videoPath = path.join(__dirname, 'uploads', path.basename(post.mediaUrl));
+            const videoPath = path.join(uploadDir, path.basename(post.mediaUrl));
             if (!fs.existsSync(videoPath)) throw new Error('File video tidak ditemukan di server.');
+
+            const fresh = await refreshYouTubeAccessToken(acc);
+            const accessToken = fresh.accessToken || acc.accessToken;
 
             const FormData = require('form-data');
             const form = new FormData();
@@ -990,7 +1091,7 @@ async function callPlatformAPI(platform, acc, post) {
             const ytRes = await axios.post(
                 'https://www.googleapis.com/upload/youtube/v3/videos?uploadType=multipart&part=snippet,status',
                 form,
-                { headers: { ...form.getHeaders(), Authorization: `Bearer ${acc.accessToken}` } }
+                { headers: { ...form.getHeaders(), Authorization: `Bearer ${accessToken}` } }
             );
             return { status: 'success', postId: ytRes.data.id, videoUrl: `https://youtu.be/${ytRes.data.id}` };
         }
@@ -1016,12 +1117,43 @@ async function callPlatformAPI(platform, acc, post) {
     }
 }
 
-// Helper buat statistik palsu
+/** Refresh YouTube access_token via refresh_token sebelum upload (INT-02). */
+async function refreshYouTubeAccessToken(acc) {
+    if (!acc || !acc.refreshToken) return acc;
+    if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) return acc;
+    try {
+        const tokenRes = await axios.post('https://oauth2.googleapis.com/token', {
+            client_id: process.env.GOOGLE_CLIENT_ID,
+            client_secret: process.env.GOOGLE_CLIENT_SECRET,
+            refresh_token: acc.refreshToken,
+            grant_type: 'refresh_token'
+        });
+        const access_token = tokenRes.data.access_token;
+        if (!access_token) return acc;
+        const expiresIn = tokenRes.data.expires_in;
+        await db.upsertAccount({
+            platform: 'youtube',
+            accessToken: access_token,
+            refreshToken: acc.refreshToken,
+            tokenExpiresAt: expiresIn
+                ? new Date(Date.now() + expiresIn * 1000).toISOString()
+                : null,
+            connected: true
+        });
+        return { ...acc, accessToken: access_token };
+    } catch (err) {
+        console.warn('[youtube] refresh token gagal:', err.response?.data?.error || err.message);
+        return acc;
+    }
+}
+
+// Statistik lokal (mock) — sumber ditandai agar insights tidak dianggap live platform
 function generateMockStats() {
     return {
         reach: Math.floor(Math.random() * 5000) + 100,
         engagement: Math.floor(Math.random() * 800) + 12,
-        clicks: Math.floor(Math.random() * 150)
+        clicks: Math.floor(Math.random() * 150),
+        statsSource: 'mock'
     };
 }
 
@@ -1030,6 +1162,12 @@ function generateMockStats() {
 // ============================================================
 async function runScheduler() {
     await ensureDb();
+    try {
+        await assertNotEmergencyPaused();
+    } catch (err) {
+        console.warn('[SCHEDULER]', err.message);
+        return { skipped: true, reason: err.message };
+    }
     const duePosts = await db.getDueScheduledPosts();
     if (duePosts.length > 0) {
         console.log(`[SCHEDULER] ${duePosts.length} postingan siap diterbitkan...`);
@@ -1050,6 +1188,7 @@ async function runScheduler() {
             }
         }
     }
+    return { skipped: false, processed: duePosts.length };
 }
 
 // Scheduler lokal saja (di Vercel pakai Cron → /api/cron/publish)
@@ -1168,7 +1307,7 @@ app.get('/api/ai/employee/context', async (req, res) => {
 /**
  * Karyawan AI publish — di-gate oleh otonomi / pause / high-risk / daily cap.
  */
-app.post('/api/ai/employee/publish', async (req, res) => {
+app.post('/api/ai/employee/publish', rateLimitPublish, async (req, res) => {
     try {
         const {
             brief,
@@ -1786,9 +1925,10 @@ app.post('/api/ai/jobs/:id/answer', async (req, res) => {
 });
 
 /**
- * Setujui job awaiting_approval lalu publish (forcePublish).
+ * Setujui job awaiting_approval; default autoRun=true → publish atomik via /run (approvedAt).
+ * Body: { note?, autoRun?: boolean, caption?, ... } — autoRun false hanya menandai approved.
  */
-app.post('/api/ai/jobs/:id/approve', async (req, res) => {
+app.post('/api/ai/jobs/:id/approve', rateLimitPublish, async (req, res) => {
     try {
         const job = await db.getAiJobById(req.params.id);
         if (!job) return res.status(404).json({ success: false, message: 'Job tidak ditemukan.' });
@@ -1818,24 +1958,32 @@ app.post('/api/ai/jobs/:id/approve', async (req, res) => {
             actor,
             action: 'job_approved',
             target: job.id,
-            detail: { note: req.body?.note || '' }
+            detail: { note: req.body?.note || '', autoRun: req.body?.autoRun !== false }
         });
 
-        // Re-run with forcePublish via internal call pattern — set flag on job
-        req.body = { ...(req.body || {}), forcePublish: true, caption: req.body?.caption || job.caption };
-        // Fall through by calling run logic: redirect client to /run with forcePublish
-        res.json({
-            success: true,
-            message: 'Disetujui. Panggil POST /run dengan forcePublish:true atau gunakan tombol Publish di UI.',
-            job: await db.getAiJobById(job.id),
-            next: { method: 'POST', path: `/api/ai/jobs/${job.id}/run`, body: { forcePublish: true } }
-        });
+        const autoRun = req.body?.autoRun !== false;
+        if (!autoRun) {
+            return res.json({
+                success: true,
+                message: 'Disetujui. Panggil POST /run (approvedAt sudah cukup; forcePublish tidak wajib).',
+                job: await db.getAiJobById(job.id),
+                next: { method: 'POST', path: `/api/ai/jobs/${job.id}/run`, body: {} }
+            });
+        }
+
+        // Atomik: lanjutkan ke handler /run (gate hormati approvedAt)
+        req.body = {
+            ...(req.body || {}),
+            forcePublish: false,
+            caption: req.body?.caption != null ? req.body.caption : undefined
+        };
+        return runAiJobHandler(req, res);
     } catch (err) {
         res.status(500).json({ success: false, message: err.message });
     }
 });
 
-app.post('/api/ai/jobs/:id/run', async (req, res) => {
+async function runAiJobHandler(req, res) {
     try {
         const job = await db.getAiJobById(req.params.id);
         if (!job) return res.status(404).json({ success: false, message: 'Job tidak ditemukan.' });
@@ -2141,10 +2289,13 @@ app.post('/api/ai/jobs/:id/run', async (req, res) => {
         } catch (_) { /* ignore */ }
         res.status(500).json({ success: false, message: err.message });
     }
-});
+}
+
+app.post('/api/ai/jobs/:id/run', rateLimitPublish, runAiJobHandler);
 
 
 // Cron Vercel: publish postingan terjadwal yang jatuh tempo
+// Production: CRON_SECRET wajib (fail closed). Lokal: interval 60s; Vercel Hobby: 1×/hari (vercel.json).
 app.get('/api/cron/publish', async (req, res) => {
     const header = req.headers.authorization || '';
     const cronSecret = process.env.CRON_SECRET || '';
@@ -2164,8 +2315,12 @@ app.get('/api/cron/publish', async (req, res) => {
         return res.status(401).json({ success: false, message: 'Unauthorized' });
     }
 
-    await runScheduler();
-    res.json({ success: true, message: 'Scheduler dijalankan' });
+    const result = await runScheduler();
+    res.json({
+        success: true,
+        message: result?.skipped ? 'Scheduler dilewati (emergency pause)' : 'Scheduler dijalankan',
+        ...result
+    });
 });
 
 // ============================================================

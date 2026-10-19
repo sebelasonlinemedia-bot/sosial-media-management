@@ -8,7 +8,8 @@
     "dev": "node server.js",
     "ai:context": "node scripts/ai-employee-publish.js --context",
     "ai:publish": "node scripts/ai-employee-publish.js",
-    "test:auth": "node scripts/test-auth-login.js"
+    "test:auth": "node scripts/test-auth-login.js",
+    "test:p1": "node scripts/test-p1-hardening.js"
   },
   "engines": {
     "node": ">=18"

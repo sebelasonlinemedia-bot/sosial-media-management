@@ -40,9 +40,18 @@ Login CLI harus akun **sebelasonlinemedia-bot** (bukan akun lain).
 
 ## Batasan di Vercel
 
-- Puppeteer / Instagram private API **tidak** jalan di serverless
-- Upload file ke `/tmp` (sementara; hilang setelah cold start) — untuk produksi pakai Blob/S3
-- Jadwal post: Cron tiap 5 menit (`/api/cron/publish`)
+- Puppeteer / Instagram private API **tidak** jalan di serverless (pakai worker VPS terpisah)
+- Upload file ke `/tmp` (ephemeral) — hilang setelah cold start
+- Jadwal post di **Vercel Hobby**: cron **1× sehari** `0 12 * * *` → `GET /api/cron/publish` (lihat `vercel.json`). Bukan tiap 5 menit.
+- Lokal / VPS: scheduler in-process tiap **60 detik** (tidak memakai cron Vercel)
+- `CRON_SECRET` **wajib** di production (fail closed 503/401 tanpa Bearer)
+- Media OAuth (Meta/TikTok `PULL_FROM_URL`): set `PUBLIC_BASE_URL` ke HTTPS publik (bukan localhost)
+
+### Path media publik → Blob (nanti, tanpa deps berbayar wajib sekarang)
+
+1. Set `PUBLIC_BASE_URL=https://<domain-vercel>` agar path `/uploads/...` bisa di-fetch (hanya hidup selama instance punya file).
+2. Untuk persistensi: unggah ke **Vercel Blob** (`BLOB_READ_WRITE_TOKEN`) atau S3-compatible, simpan URL absolut di `post.mediaUrl`, lalu publish memakai URL itu (sudah didukung jika `mediaUrl` absolute `https://`).
+3. Integrasi SDK Blob belum di-wire di kode — langkah berikutnya non-breaking: ganti handler `/api/media/upload` agar menulis ke Blob dan mengembalikan URL publik.
 
 Untuk otomasi browser penuh, tetap jalankan `npm run dev` di VPS/lokal.
 
@@ -61,10 +70,14 @@ Lokal (`db.json`) mendapat `aiSettings` + `auditLog` otomatis saat load.
 
 | Item | Status | Catatan |
 |------|--------|---------|
-| Analitik penggerak agen | Live | `GET /api/ai/insights` dari posts/stats; panel **Apa berikutnya** di dasbor & Kantor AI |
+| Analitik penggerak agen | Partial | Agregasi live dari posts lokal; `statsSource: mock\|live` — sering mock sampai Insights API platform di-wire |
 | Notifikasi email/WhatsApp | Live | `settings.notifications` + stub HTTP POST webhook; audit log; gagal tidak memblokir job |
-| Token encryption at rest | Live | `lib/token-crypto.js` di-wire ke upsert/read akun. Set `TOKEN_ENCRYPTION_KEY` (≥16). Kosong = plain + warn (lebih keras di production) |
+| Token encryption at rest | Live | `accessToken` / `refreshToken` / `pageToken` (+ session file jika key set). `TOKEN_ENCRYPTION_KEY` ≥16 |
 | App AuthN/AuthZ | Live | Session cookie `piks_sid`; `POST /api/auth/login`; mutasi `/api/*` butuh login; `forcePublish` = admin/approver |
 | Izin per peran/akun | Live | `settings.rolePermissions` enforced di create job / run / employee publish; checklist UI |
+| OAuth CSRF state | Live | Signed `state` Meta/YouTube/TikTok; verify di callback REAL |
+| Upload hardening | Live | MIME/extension allowlist + sanitize filename |
+| Rate limit | Live | In-memory pada login + publish endpoints |
+| Approve atomik | Live | `POST .../approve` default `autoRun=true` → lanjut `/run` (pakai `approvedAt`) |
 
 Jangan commit `.env`, `db.json`, atau secrets.
