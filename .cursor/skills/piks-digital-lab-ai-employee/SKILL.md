@@ -78,6 +78,17 @@ UI: panel **Apa berikutnya** di dasbor & Kantor AI.
 
 Opsional A/B: kirim `variantA` / `variantB` saat create/run job; `abWinner` (`A`|`B`) dicatat di `decisionLog`.
 
+## Chat CEO (webapp)
+
+CEO bisa perintah lewat panel Mission **Chat** (atau API):
+
+1. Set LLM di `PUT /api/ai/settings` → `{ "llm": { "provider": "openai"|"anthropic", "model": "...", "apiKey": "sk-…" } }` (key dienkripsi at-rest).
+2. `GET /api/ai/chat` — riwayat.
+3. `POST /api/ai/chat` `{ "message": "…", "roleId": "manager" }` — memanggil OpenAI/Anthropic; boleh auto-`createJob` ke work board.
+4. Tanpa API key → 400 `LLM_NOT_CONFIGURED`.
+
+Jangan log API key. Provider resmi: OpenAI Chat Completions + Anthropic Messages.
+
 ## Kebijakan brief
 
 1. **Brief cukup** + otonomi mengizinkan → job + `/run` (atau employee publish).

@@ -29,7 +29,8 @@ const appState = {
         insights: null,
         platforms: ['instagram', 'facebook', 'tiktok', 'youtube'],
         activityLive: [],
-        auditEntries: []
+        auditEntries: [],
+        chatMessages: []
     },
     mission: {
         panelOpen: true,
@@ -659,6 +660,36 @@ app.setupOfficeEvents = function () {
     if (pauseBtn) {
         pauseBtn.addEventListener('click', () => this.toggleEmergencyPause());
     }
+    const chatForm = document.getElementById('ceo-chat-form');
+    if (chatForm) {
+        chatForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await this.sendCeoChat();
+        });
+    }
+    const chatClear = document.getElementById('ceo-chat-clear');
+    if (chatClear) {
+        chatClear.addEventListener('click', async () => {
+            try {
+                await api.delete('/api/ai/chat');
+                appState.office.chatMessages = [];
+                this.renderCeoChatMessages([]);
+                this.showToast('Riwayat chat dihapus.', 'emerald');
+            } catch (_) {
+                this.showToast('Gagal hapus chat.', 'red');
+            }
+        });
+    }
+    const llmProv = document.getElementById('office-llm-provider');
+    if (llmProv) {
+        llmProv.addEventListener('change', () => {
+            const model = document.getElementById('office-llm-model');
+            if (!model || model.value.trim()) return;
+            model.value = llmProv.value === 'anthropic'
+                ? 'claude-sonnet-4-20250514'
+                : 'gpt-4o-mini';
+        });
+    }
     const brandSave = document.getElementById('office-brand-save');
     if (brandSave) {
         brandSave.addEventListener('click', () => this.saveOfficeBrandMemory());
@@ -806,13 +837,14 @@ app.setMissionTab = function (tab) {
         el.classList.toggle('is-active', on);
         el.setAttribute('aria-selected', on ? 'true' : 'false');
     });
-    ['crew', 'stats', 'activity'].forEach(id => {
+    ['crew', 'stats', 'activity', 'chat'].forEach(id => {
         const pane = document.getElementById(`mission-tab-${id}`);
         if (!pane) return;
         const on = id === next;
         pane.classList.toggle('is-active', on);
         pane.hidden = !on;
     });
+    if (next === 'chat') this.loadCeoChat();
 };
 
 app.applyMission3DMode = function (enabled3d) {
@@ -1114,11 +1146,28 @@ app.renderOfficeSettings = function () {
     if (notifyEmail) notifyEmail.value = n.email || '';
     if (notifyWh) notifyWh.value = n.whatsappWebhookUrl || n.whatsapp || '';
     this.renderOfficeRolePermissions();
+    const llm = s.llm || {};
+    const llmProv = document.getElementById('office-llm-provider');
+    const llmModel = document.getElementById('office-llm-model');
+    const llmKey = document.getElementById('office-llm-api-key');
+    const llmHint = document.getElementById('office-llm-key-hint');
+    const llmClear = document.getElementById('office-llm-clear-key');
+    if (llmProv) llmProv.value = llm.provider || 'openai';
+    if (llmModel) llmModel.value = llm.model || '';
+    if (llmKey) llmKey.value = '';
+    if (llmClear) llmClear.checked = false;
+    if (llmHint) {
+        llmHint.textContent = llm.configured
+            ? `Key tersimpan: ${llm.apiKeyMasked || '••••'} — isi field untuk mengganti.`
+            : 'Belum ada API key. Tempel key OpenAI (sk-…) atau Anthropic (sk-ant-…).';
+    }
+    this._syncCeoChatLlmHint(llm);
     if (status) {
         status.textContent = s.emergencyPause
             ? '⛔ Jeda darurat AKTIF — agen tidak boleh publish.'
             : `Otonomi: ${s.autonomyLevel} · cap ${s.dailyPostCap}/hari` +
-                (n.enabled ? ' · notifikasi on' : '');
+                (n.enabled ? ' · notifikasi on' : '') +
+                (llm.configured ? ` · LLM ${llm.provider}` : ' · LLM belum dikonfigurasi');
     }
     if (pauseBtn) {
         pauseBtn.textContent = s.emergencyPause ? 'Lepas jeda' : 'Jeda darurat';
@@ -1137,28 +1186,132 @@ app.saveOfficeSettings = async function () {
             whatsappWebhookUrl: document.getElementById('office-notify-webhook')?.value?.trim() || null
         };
         const rolePermissions = this._collectRolePermissionsFromUi();
+        const llm = {
+            provider: document.getElementById('office-llm-provider')?.value || 'openai',
+            model: document.getElementById('office-llm-model')?.value?.trim() || undefined,
+            clearApiKey: !!document.getElementById('office-llm-clear-key')?.checked
+        };
+        const apiKeyVal = document.getElementById('office-llm-api-key')?.value?.trim();
+        if (apiKeyVal) llm.apiKey = apiKeyVal;
+
         const data = await api.put('/api/ai/settings', {
             autonomyLevel,
             dailyPostCap,
             notifications,
-            rolePermissions
+            rolePermissions,
+            llm
         });
         if (!data.success) {
             this.showToast(data.message || 'Gagal simpan settings.', 'red');
             return;
         }
-        appState.office.settings = {
-            autonomyLevel: data.settings.autonomyLevel,
-            emergencyPause: data.settings.emergencyPause,
-            dailyPostCap: data.settings.dailyPostCap,
-            notifications: data.settings.notifications,
-            rolePermissions: data.settings.rolePermissions,
-            insightsEnabled: data.settings.insightsEnabled
-        };
+        appState.office.settings = data.settings;
         this.renderOfficeSettings();
-        this.showToast('Settings Tim Konten disimpan.', 'emerald');
+        this.showToast('Settings Tim Konten & LLM disimpan.', 'emerald');
     } catch (e) {
         this.showToast('Gagal simpan settings.', 'red');
+    }
+};
+
+app._syncCeoChatLlmHint = function (llm) {
+    const hint = document.getElementById('ceo-chat-llm-hint');
+    if (!hint) return;
+    if (llm && llm.configured) {
+        hint.textContent = `LLM siap · ${llm.provider} · ${llm.apiKeyMasked || 'key ok'}`;
+        hint.classList.add('is-ready');
+    } else {
+        hint.textContent = 'Atur API key di Kantor AI → Otonomi & Pengaman → LLM / Chat CEO.';
+        hint.classList.remove('is-ready');
+    }
+};
+
+app._fillCeoChatRoles = function () {
+    const sel = document.getElementById('ceo-chat-role');
+    if (!sel) return;
+    const employees = appState.office.employees || [];
+    const cur = sel.value;
+    if (!employees.length) return;
+    sel.innerHTML = employees.map(e =>
+        `<option value="${e.id}">${this._escapeHtml(e.name)} — ${this._escapeHtml(e.title || e.id)}</option>`
+    ).join('');
+    if (cur && [...sel.options].some(o => o.value === cur)) sel.value = cur;
+};
+
+app.renderCeoChatMessages = function (messages) {
+    const ul = document.getElementById('ceo-chat-messages');
+    if (!ul) return;
+    const list = messages || appState.office.chatMessages || [];
+    if (!list.length) {
+        ul.innerHTML = '<li class="ceo-chat-empty">Belum ada percakapan. Ketik perintah sebagai CEO.</li>';
+        return;
+    }
+    ul.innerHTML = list.map(m => {
+        const who = m.role === 'user'
+            ? 'CEO'
+            : (m.employeeName || m.roleId || 'AI');
+        const cls = m.role === 'user' ? 'is-ceo' : 'is-ai';
+        return `<li class="ceo-chat-bubble ${cls}">
+            <span class="ceo-chat-who">${this._escapeHtml(who)}</span>
+            <div class="ceo-chat-text">${this._escapeHtml(m.content || '').replace(/\n/g, '<br>')}</div>
+        </li>`;
+    }).join('');
+    ul.scrollTop = ul.scrollHeight;
+};
+
+app.loadCeoChat = async function () {
+    try {
+        this._fillCeoChatRoles();
+        const data = await api.get('/api/ai/chat?limit=80');
+        if (!data.success) return;
+        appState.office.chatMessages = data.messages || [];
+        if (data.llm) {
+            appState.office.settings = {
+                ...(appState.office.settings || {}),
+                llm: data.llm
+            };
+            this._syncCeoChatLlmHint(data.llm);
+        }
+        this.renderCeoChatMessages(appState.office.chatMessages);
+    } catch (e) {
+        /* ignore */
+    }
+};
+
+app.sendCeoChat = async function (text) {
+    const input = document.getElementById('ceo-chat-input');
+    const sendBtn = document.getElementById('ceo-chat-send');
+    const roleId = document.getElementById('ceo-chat-role')?.value || 'manager';
+    const message = (text || input?.value || '').trim();
+    if (!message) return;
+    if (sendBtn) sendBtn.disabled = true;
+    try {
+        const data = await api.post('/api/ai/chat', { message, roleId });
+        if (input) input.value = '';
+        if (data.messages && data.messages.length) {
+            appState.office.chatMessages = [
+                ...(appState.office.chatMessages || []),
+                ...data.messages
+            ].slice(-200);
+        }
+        this.renderCeoChatMessages(appState.office.chatMessages);
+        if (data.job) {
+            this.showToast(`Job dibuat: ${data.job.status}`, 'emerald');
+            await this.loadOfficeFromServer();
+        }
+        if (!data.success && data.message) {
+            this.showToast(data.message, 'red');
+            if (data.messages) {
+                appState.office.chatMessages = [
+                    ...(appState.office.chatMessages || []).filter(m => !data.messages.find(n => n.id === m.id)),
+                    ...data.messages
+                ];
+                this.renderCeoChatMessages(appState.office.chatMessages);
+            }
+        }
+    } catch (e) {
+        this.showToast(e.message || 'Gagal kirim chat.', 'red');
+    } finally {
+        if (sendBtn) sendBtn.disabled = false;
     }
 };
 

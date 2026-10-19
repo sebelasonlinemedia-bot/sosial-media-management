@@ -36,6 +36,7 @@ const {
     normalizeBrandMemory,
     summarizeBrandMemory,
     normalizeAiSettings,
+    publicAiSettings,
     evaluatePublishGate,
     evaluateManualPublishGate,
     assessStructuredBrief,
@@ -44,7 +45,9 @@ const {
     ALL_PLATFORMS,
     AUTONOMY_LEVELS
 } = require('./lib/ai-policy');
-const { isEncryptionEnabled, warnIfNoEncryptionKey } = require('./lib/token-crypto');
+const { isEncryptionEnabled, warnIfNoEncryptionKey, encryptSecret } = require('./lib/token-crypto');
+const { listProviders } = require('./lib/llm');
+const { runCeoChatTurn } = require('./lib/ceo-chat');
 const { buildInsights } = require('./lib/ai-insights');
 const { notifyJobAttention } = require('./lib/ai-notify');
 const auth = require('./lib/auth');
@@ -1683,9 +1686,10 @@ app.get('/api/ai/settings', async (req, res) => {
         const settings = await db.getAiSettings();
         res.json({
             success: true,
-            settings,
+            settings: publicAiSettings(settings),
             autonomyLevels: AUTONOMY_LEVELS,
-            tokenEncryption: isEncryptionEnabled()
+            tokenEncryption: isEncryptionEnabled(),
+            llmProviders: listProviders()
         });
     } catch (err) {
         res.status(500).json({ success: false, message: err.message });
@@ -1704,15 +1708,188 @@ app.put('/api/ai/settings', async (req, res) => {
         if (body.rolePermissions != null) patch.rolePermissions = body.rolePermissions;
         if (body.insightsEnabled != null) patch.insightsEnabled = !!body.insightsEnabled;
 
+        // LLM: provider/model + apiKey (plain dari client → encrypt at-rest)
+        if (body.llm != null && typeof body.llm === 'object') {
+            const llmPatch = {};
+            if (body.llm.provider != null) llmPatch.provider = body.llm.provider;
+            if (body.llm.model != null) llmPatch.model = body.llm.model;
+            if (body.llm.apiKey != null && String(body.llm.apiKey).trim()) {
+                const plain = String(body.llm.apiKey).trim();
+                if (plain !== '••••' && !plain.includes('…')) {
+                    llmPatch.apiKeyEnc = encryptSecret(plain);
+                }
+            }
+            if (body.llm.clearApiKey === true) llmPatch.apiKeyEnc = null;
+            patch.llm = llmPatch;
+        }
+
         const settings = await db.updateAiSettings(patch);
+        const auditDetail = { ...patch };
+        if (auditDetail.llm && auditDetail.llm.apiKeyEnc) {
+            auditDetail.llm = { ...auditDetail.llm, apiKeyEnc: '[redacted]' };
+        }
         await db.appendAuditLog({
-            actor: 'user',
+            actor: req.user?.email || 'user',
             action: 'ai_settings_update',
             target: 'ai_settings',
-            detail: patch
+            detail: auditDetail
         });
-        res.json({ success: true, settings });
+        res.json({ success: true, settings: publicAiSettings(settings) });
     } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+const rateLimitChat = createRateLimiter({ windowMs: 60 * 1000, max: 20, keyPrefix: 'chat' });
+
+app.get('/api/ai/chat', async (req, res) => {
+    try {
+        const messages = await db.getAiChatMessages({ limit: parseInt(req.query.limit, 10) || 80 });
+        const settings = publicAiSettings(await db.getAiSettings());
+        res.json({
+            success: true,
+            messages,
+            llm: settings.llm,
+            llmProviders: listProviders()
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+app.delete('/api/ai/chat', async (req, res) => {
+    try {
+        await db.clearAiChat();
+        await db.appendAuditLog({
+            actor: req.user?.email || 'user',
+            action: 'ai_chat_clear',
+            target: 'ai_chat',
+            detail: {}
+        });
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+app.post('/api/ai/chat', rateLimitChat, async (req, res) => {
+    try {
+        const message = String(req.body?.message || '').trim();
+        const roleId = req.body?.roleId ? normalizeRoleId(req.body.roleId) : 'manager';
+        if (!message) {
+            return res.status(400).json({ success: false, message: 'Pesan wajib diisi.' });
+        }
+
+        const userMsg = await db.appendAiChatMessage({
+            role: 'user',
+            content: message,
+            roleId,
+            employeeName: 'CEO',
+            meta: { source: 'webapp' }
+        });
+
+        const settings = await db.getAiSettings();
+        const history = await db.getAiChatMessages({ limit: 20 });
+        const histForLlm = history
+            .filter(m => m.id !== userMsg.id)
+            .map(m => ({ role: m.role, content: m.content }));
+
+        let turn;
+        try {
+            turn = await runCeoChatTurn({
+                settings,
+                ceoMessage: message,
+                roleId,
+                history: histForLlm
+            });
+        } catch (err) {
+            const assistantErr = await db.appendAiChatMessage({
+                role: 'assistant',
+                content: err.code === 'LLM_NOT_CONFIGURED'
+                    ? err.message
+                    : (`Gagal memanggil LLM: ${err.message}`),
+                roleId,
+                employeeName: getRoleById(roleId)?.name || 'Maya',
+                meta: { error: true, code: err.code || 'LLM_ERROR' }
+            });
+            return res.status(err.code === 'LLM_NOT_CONFIGURED' ? 400 : 502).json({
+                success: false,
+                message: err.message,
+                code: err.code || 'LLM_ERROR',
+                messages: [userMsg, assistantErr]
+            });
+        }
+
+        const role = getRoleById(turn.roleId) || getRoleById('manager');
+        let job = null;
+
+        if (turn.createJob && turn.brief) {
+            const assessment = assessStructuredBrief(turn.brief);
+            const briefText = assessment.text || turn.brief;
+            const status = assessment.thin ? 'needs_info' : 'queued';
+            let platforms = turn.platforms?.length
+                ? turn.platforms
+                : (role?.defaultPlatforms || []);
+            if (platforms.length && role?.id) {
+                const perm = enforceRolePlatforms(settings, role.id, platforms);
+                if (perm.ok) platforms = perm.platforms;
+            }
+            job = await db.addAiJob({
+                brief: briefText,
+                structuredBrief: assessment.structured || null,
+                status,
+                questions: assessment.questions || [],
+                needsInfo: !!assessment.thin,
+                platforms,
+                mediaUrl: '',
+                mediaType: '',
+                employeeName: role?.name || 'Maya',
+                employeeRole: role?.title || 'Manager',
+                roleId: role?.id || 'manager',
+                caption: turn.caption || '',
+                draftHistory: turn.caption
+                    ? [{ version: 1, caption: turn.caption, note: 'Dari Chat CEO', at: new Date().toISOString() }]
+                    : [],
+                decisionLog: appendDecision([], {
+                    actor: role?.name || 'AI',
+                    reason: 'Dibuat dari Chat CEO',
+                    status
+                }),
+                createdBy: 'ceo-chat',
+                workspaceId: resolveWorkspaceId(req)
+            });
+            await db.appendAuditLog({
+                actor: role?.name || 'ai',
+                action: 'ai_job_from_chat',
+                target: job.id,
+                detail: { status: job.status, roleId: job.roleId }
+            });
+        }
+
+        const assistantMsg = await db.appendAiChatMessage({
+            role: 'assistant',
+            content: turn.reply + (job
+                ? `\n\n📋 Job ${job.id} → ${job.status}${job.needsInfo ? ' (perlu info)' : ''}.`
+                : ''),
+            roleId: role?.id || turn.roleId,
+            employeeName: role?.name || 'Maya',
+            jobId: job?.id || null,
+            meta: {
+                createJob: !!job,
+                provider: turn.provider,
+                model: turn.model || null
+            }
+        });
+
+        res.json({
+            success: true,
+            reply: turn.reply,
+            job,
+            messages: [userMsg, assistantMsg],
+            llm: publicAiSettings(settings).llm
+        });
+    } catch (err) {
+        safeLog('error', '[CEO-CHAT]', err.message);
         res.status(500).json({ success: false, message: err.message });
     }
 });

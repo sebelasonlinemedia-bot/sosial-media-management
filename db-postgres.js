@@ -480,7 +480,20 @@ class PostgresDatabase {
     async updateAiSettings(partial) {
         const sql = getSql();
         const current = await this.getAiSettings();
-        const merged = normalizeAiSettings({ ...current, ...partial });
+        const p = partial || {};
+        const llmPatch = p.llm && typeof p.llm === 'object' ? p.llm : null;
+        const { llm: _drop, ...rest } = p;
+        const next = { ...current, ...rest };
+        if (llmPatch) {
+            next.llm = {
+                ...current.llm,
+                ...llmPatch,
+                apiKeyEnc: Object.prototype.hasOwnProperty.call(llmPatch, 'apiKeyEnc')
+                    ? llmPatch.apiKeyEnc
+                    : current.llm.apiKeyEnc
+            };
+        }
+        const merged = normalizeAiSettings(next);
         const now = new Date().toISOString();
         await sql`
             INSERT INTO app_meta (key, data, updated_at)
@@ -488,6 +501,68 @@ class PostgresDatabase {
             ON CONFLICT (key) DO UPDATE SET data = ${merged}, updated_at = ${now}
         `;
         return merged;
+    }
+
+    async getAiChatMessages({ limit = 80 } = {}) {
+        const sql = getSql();
+        await sql`
+            CREATE TABLE IF NOT EXISTS ai_chat (
+                id TEXT PRIMARY KEY,
+                data JSONB NOT NULL DEFAULT '{}'::jsonb,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+        `;
+        const lim = Math.min(200, Math.max(1, parseInt(limit, 10) || 80));
+        const all = await sql`
+            SELECT id, data, created_at FROM ai_chat
+            ORDER BY created_at DESC
+            LIMIT ${lim}
+        `;
+        return all.reverse().map(r => ({
+            id: r.id,
+            ...(r.data || {}),
+            createdAt: r.created_at
+        }));
+    }
+
+    async appendAiChatMessage(msg) {
+        const sql = getSql();
+        await sql`
+            CREATE TABLE IF NOT EXISTS ai_chat (
+                id TEXT PRIMARY KEY,
+                data JSONB NOT NULL DEFAULT '{}'::jsonb,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+        `;
+        const id = 'chat-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7);
+        const createdAt = new Date().toISOString();
+        const row = {
+            id,
+            role: msg.role === 'assistant' ? 'assistant' : 'user',
+            content: String(msg.content || '').slice(0, 8000),
+            roleId: msg.roleId || null,
+            employeeName: msg.employeeName || null,
+            jobId: msg.jobId || null,
+            meta: msg.meta || {},
+            createdAt
+        };
+        const { id: _i, createdAt: _c, ...data } = row;
+        await sql`
+            INSERT INTO ai_chat (id, data, created_at)
+            VALUES (${id}, ${data}, ${createdAt})
+        `;
+        return row;
+    }
+
+    async clearAiChat() {
+        const sql = getSql();
+        await sql`CREATE TABLE IF NOT EXISTS ai_chat (
+            id TEXT PRIMARY KEY,
+            data JSONB NOT NULL DEFAULT '{}'::jsonb,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )`;
+        await sql`DELETE FROM ai_chat`;
+        return true;
     }
 
     async appendAuditLog(entry) {

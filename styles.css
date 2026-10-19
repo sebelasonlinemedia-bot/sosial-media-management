@@ -4219,3 +4219,103 @@ body.is-mission-mode #app-login-gate:not(.hidden) ~ .mission-shell {
         display: none;
     }
 }
+
+/* CEO Chat (mission panel) */
+.ceo-chat {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    height: 100%;
+    min-height: 280px;
+}
+.ceo-chat-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+.ceo-chat-role-label {
+    font-size: 0.75rem;
+    color: var(--mc-muted, #94a3b8);
+}
+.ceo-chat-role {
+    flex: 1;
+    min-width: 140px;
+}
+.ceo-chat-llm-hint {
+    font-size: 0.72rem;
+    color: #fbbf24;
+    padding: 6px 8px;
+    border-radius: 8px;
+    background: rgba(251, 191, 36, 0.08);
+    border: 1px solid rgba(251, 191, 36, 0.25);
+}
+.ceo-chat-llm-hint.is-ready {
+    color: #6ee7b7;
+    background: rgba(16, 185, 129, 0.1);
+    border-color: rgba(16, 185, 129, 0.3);
+}
+.ceo-chat-messages {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: min(42vh, 420px);
+}
+.ceo-chat-empty {
+    color: var(--mc-muted, #94a3b8);
+    font-size: 0.85rem;
+    padding: 12px 4px;
+}
+.ceo-chat-bubble {
+    padding: 8px 10px;
+    border-radius: 10px;
+    border: 1px solid var(--mc-border, #334155);
+    background: rgba(255, 255, 255, 0.04);
+}
+.ceo-chat-bubble.is-ceo {
+    align-self: flex-end;
+    background: rgba(37, 99, 235, 0.2);
+    border-color: rgba(59, 130, 246, 0.35);
+    max-width: 92%;
+}
+.ceo-chat-bubble.is-ai {
+    align-self: flex-start;
+    background: rgba(20, 184, 166, 0.12);
+    border-color: rgba(45, 212, 191, 0.3);
+    max-width: 92%;
+}
+.ceo-chat-who {
+    display: block;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--mc-muted, #94a3b8);
+    margin-bottom: 4px;
+}
+.ceo-chat-text {
+    font-size: 0.88rem;
+    line-height: 1.45;
+    color: var(--mc-text, #e2e8f0);
+    word-break: break-word;
+}
+.ceo-chat-compose {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.office-settings-divider {
+    border: none;
+    border-top: 1px solid var(--border-color, #334155);
+    margin: 14px 0 10px;
+}
+.office-settings-subhead {
+    font-size: 0.85rem;
+    margin: 0 0 8px;
+    color: var(--text-primary, #e2e8f0);
+}

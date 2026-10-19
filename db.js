@@ -27,6 +27,7 @@ const DEFAULT_DB = {
     posts: [],
     aiJobs: [],
     aiSettings: { ...DEFAULT_AI_SETTINGS },
+    aiChat: [],
     auditLog: []
 };
 
@@ -45,6 +46,7 @@ class JsonDatabase {
                 if (!this._data.posts) this._data.posts = [];
                 if (!this._data.aiJobs) this._data.aiJobs = [];
                 if (!this._data.aiSettings) this._data.aiSettings = { ...DEFAULT_AI_SETTINGS };
+                if (!this._data.aiChat) this._data.aiChat = [];
                 if (!this._data.auditLog) this._data.auditLog = [];
                 await this._ensureDefaultWorkspace();
             } else {
@@ -289,10 +291,53 @@ class JsonDatabase {
 
     async updateAiSettings(partial) {
         const current = normalizeAiSettings(this._data.aiSettings);
-        const merged = normalizeAiSettings({ ...current, ...partial });
+        const p = partial || {};
+        const llmPatch = p.llm && typeof p.llm === 'object' ? p.llm : null;
+        const { llm: _drop, ...rest } = p;
+        const next = { ...current, ...rest };
+        if (llmPatch) {
+            next.llm = {
+                ...current.llm,
+                ...llmPatch,
+                apiKeyEnc: Object.prototype.hasOwnProperty.call(llmPatch, 'apiKeyEnc')
+                    ? llmPatch.apiKeyEnc
+                    : current.llm.apiKeyEnc
+            };
+        }
+        const merged = normalizeAiSettings(next);
         this._data.aiSettings = merged;
         await this.save();
         return merged;
+    }
+
+    async getAiChatMessages({ limit = 80 } = {}) {
+        const list = this._data.aiChat || [];
+        const lim = Math.min(200, Math.max(1, parseInt(limit, 10) || 80));
+        return list.slice(-lim);
+    }
+
+    async appendAiChatMessage(msg) {
+        if (!this._data.aiChat) this._data.aiChat = [];
+        const row = {
+            id: 'chat-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7),
+            role: msg.role === 'assistant' ? 'assistant' : 'user',
+            content: String(msg.content || '').slice(0, 8000),
+            roleId: msg.roleId || null,
+            employeeName: msg.employeeName || null,
+            jobId: msg.jobId || null,
+            meta: msg.meta || {},
+            createdAt: new Date().toISOString()
+        };
+        this._data.aiChat.push(row);
+        this._data.aiChat = this._data.aiChat.slice(-300);
+        await this.save();
+        return row;
+    }
+
+    async clearAiChat() {
+        this._data.aiChat = [];
+        await this.save();
+        return true;
     }
 
     async appendAuditLog(entry) {

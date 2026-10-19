@@ -132,6 +132,7 @@
                         <button type="button" class="mission-panel-tab is-active" role="tab" aria-selected="true" data-mission-tab="crew">Crew</button>
                         <button type="button" class="mission-panel-tab" role="tab" aria-selected="false" data-mission-tab="stats">Stats</button>
                         <button type="button" class="mission-panel-tab" role="tab" aria-selected="false" data-mission-tab="activity">Activity</button>
+                        <button type="button" class="mission-panel-tab" role="tab" aria-selected="false" data-mission-tab="chat">Chat</button>
                     </div>
                     <button type="button" class="mission-panel-close" id="mission-panel-close" title="Tutup panel" aria-label="Tutup panel">
                         <i data-lucide="x"></i>
@@ -165,6 +166,26 @@
                                 <h3>Audit</h3>
                             </div>
                             <ul class="office-activity-audit" id="office-activity-audit"></ul>
+                        </div>
+                    </div>
+                    <div class="mission-tab-pane" id="mission-tab-chat" role="tabpanel" hidden>
+                        <div class="ceo-chat" id="ceo-chat">
+                            <div class="ceo-chat-toolbar">
+                                <label class="ceo-chat-role-label" for="ceo-chat-role">Kepada</label>
+                                <select id="ceo-chat-role" class="form-control ceo-chat-role" title="Karyawan yang menjawab">
+                                    <option value="manager">Maya — Manager</option>
+                                </select>
+                                <button type="button" class="btn btn-sm btn-secondary" id="ceo-chat-clear" title="Hapus riwayat">Clear</button>
+                            </div>
+                            <div class="ceo-chat-llm-hint" id="ceo-chat-llm-hint">Atur API key di Kantor AI → LLM.</div>
+                            <ul class="ceo-chat-messages" id="ceo-chat-messages" aria-live="polite"></ul>
+                            <form class="ceo-chat-compose" id="ceo-chat-form">
+                                <textarea id="ceo-chat-input" class="form-control" rows="3" placeholder="Perintah CEO, mis. Suruh Dimas buat caption promo soft opening IG…" required></textarea>
+                                <button type="submit" class="btn btn-primary width-full" id="ceo-chat-send">
+                                    <i data-lucide="send"></i>
+                                    <span>Kirim</span>
+                                </button>
+                            </form>
                         </div>
                     </div>
                 </div>
@@ -939,6 +960,28 @@
                                         <div id="office-role-permissions" class="office-role-permissions"></div>
                                         <span class="input-hint">Kosongkan semua centang pada suatu peran = tidak dibatasi. Centang sebagian = hanya platform itu.</span>
                                     </div>
+                                    <hr class="office-settings-divider">
+                                    <h3 class="office-settings-subhead">LLM / Chat CEO</h3>
+                                    <div class="form-group">
+                                        <label for="office-llm-provider">Provider</label>
+                                        <select id="office-llm-provider" class="form-control">
+                                            <option value="openai">OpenAI</option>
+                                            <option value="anthropic">Anthropic (Claude)</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="office-llm-model">Model</label>
+                                        <input type="text" id="office-llm-model" class="form-control" placeholder="gpt-4o-mini / claude-sonnet-4-…">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="office-llm-api-key">API Key</label>
+                                        <input type="password" id="office-llm-api-key" class="form-control" placeholder="sk-… / sk-ant-…" autocomplete="off">
+                                        <span class="input-hint" id="office-llm-key-hint">Disimpan terenkripsi di server. Kosongkan untuk tidak mengubah key.</span>
+                                    </div>
+                                    <label class="office-3d-toggle">
+                                        <input type="checkbox" id="office-llm-clear-key">
+                                        <span>Hapus API key tersimpan</span>
+                                    </label>
                                     <div class="office-settings-actions">
                                         <button type="button" class="btn btn-sm btn-secondary" id="office-settings-save">Simpan</button>
                                         <button type="button" class="btn btn-sm btn-danger" id="office-emergency-pause-btn">Jeda darurat</button>
