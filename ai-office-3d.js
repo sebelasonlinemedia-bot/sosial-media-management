@@ -1,10 +1,9 @@
 /**
  * PiK's Digital Lab — Kantor AI 3D viewport (vanilla Three.js CDN).
  *
- * Cut-away isometric office inspired by corporate floor illustrations:
- * light grey flooring, wood desks + dual monitors, glass meeting room,
- * kitchen island, planter dividers, soft blue sky. Crew are stylized
- * humanoids (capsule + sphere — not blocky boxes). Activity labels + orbit.
+ * Startup office matching the reference illustration: white walls, “STARTUP”
+ * lettering, light blue-grey floor, wood desks, teal/yellow chairs, bean bags,
+ * coffee bar. Crew are stylized humanoids (capsule + sphere, not boxes).
  *
  * Work board remains the primary UI; this stage is decorative + focus helper.
  */
@@ -35,98 +34,67 @@
         failed: 'Failed'
     };
 
-    /* Ruang-inspired world units (y up, +z toward street). Sized for 7 agents. */
-    var PARTITION_X = 0.4;
-    var LOUNGE_PARTITION_END_Z = -0.5;
-    var GAME_ROOM = { minX: 9.5, maxX: 15.5, minZ: -5.2, maxZ: 0.6 };
-    var PING_PONG = [12.6, 0, -1.4];
-    var ARCADES = [[10.6, 0, -4.75], [11.6, 0, -4.75]];
-    var BEANBAGS = [[13.7, 0, -4.35], [14.7, 0, -4.35]];
-    var TV = [4.6, 0, -4.8];
-    var SOFA = [4.6, 0, -1.3];
-    var COFFEE_TABLE = [4.6, 0, -2.9];
-    var AISLE_Z = 0.4;
-    var WALL_H = 2.6;
-    var WALL = 0xf4f6f8;
-    var WALL_TOP = 0xe2e8f0;
+    /* Startup office — match illustration (y-up, +z toward front). */
+    var PARTITION_X = 2.85;
+    var AISLE_Z = 0.15;
+    var WALL_H = 2.55;
+    var WALL = 0xffffff;
+    var WALL_TOP = 0xf1f5f9;
+    var TEAL = 0x2dd4bf;
+    var YELLOW = 0xfbbf24;
+    var ORANGE = 0xfb923c;
 
     var LAYOUT = buildLayout(7);
 
     function buildLayout(agentCount) {
-        var deskCount = Math.max(1, agentCount);
-        var columns = Math.max(3, Math.ceil(deskCount / 2));
-        var DESK_RIGHT_X = -2;
-        var DESK_PITCH = 2.6;
-        var DESK_ROWS_Z = [-3.5, -1];
-        var desks = [];
-        var i;
-        for (i = 0; i < deskCount; i += 1) {
-            var row = i < columns ? 0 : 1;
-            var column = row === 0 ? i : i - columns;
-            desks.push([DESK_RIGHT_X - column * DESK_PITCH, DESK_ROWS_Z[row]]);
-        }
-        var minX = DESK_RIGHT_X - (columns - 1) * DESK_PITCH - 2.3;
-        var building = { minX: minX, maxX: 9.5, minZ: -5.2, maxZ: 4.2 };
-        var meetingCenterX = (minX - 3.2) / 2;
-        if (meetingCenterX > -4.5) meetingCenterX = -5.5;
+        var desks = [
+            [-4.2, -2.8], [-2.4, -2.8], [-0.5, -2.8],
+            [-4.2, -0.55], [-2.4, -0.55], [-0.5, -0.55],
+            [-3.3, 1.55]
+        ].slice(0, Math.max(1, agentCount));
+
+        var building = { minX: -6.2, maxX: 7.4, minZ: -4.6, maxZ: 3.8 };
 
         var meeting = [
-            { x: meetingCenterX - 0.85, z: 2.55, facing: Math.PI / 2, seated: true },
-            { x: meetingCenterX + 0.85, z: 2.55, facing: -Math.PI / 2, seated: true },
-            { x: meetingCenterX, z: 3.35, facing: Math.PI, seated: true },
-            { x: meetingCenterX, z: 1.75, facing: 0, seated: false }
+            { x: 1.35, z: 0.25, facing: Math.PI / 2, seated: false },
+            { x: 2.05, z: -0.35, facing: -0.5, seated: false },
+            { x: 1.55, z: 0.95, facing: Math.PI, seated: false },
+            { x: 2.15, z: 0.55, facing: -Math.PI / 2, seated: false }
         ];
 
         var idleStops = [
             {
                 key: 'lounge',
-                label: 'Relaxing in the lounge',
+                label: 'On the bean bag',
                 spots: [
-                    { x: 5.2, z: -1.6, facing: Math.PI, seated: true },
-                    { x: 3.8, z: -2.4, facing: Math.PI / 2, seated: true }
+                    { x: 4.55, z: -2.35, facing: -0.5, seated: true },
+                    { x: 5.55, z: -1.65, facing: Math.PI, seated: true }
                 ]
             },
             {
-                key: 'kitchen',
-                label: 'Coffee break at the island',
+                key: 'coffee',
+                label: 'At the coffee bar',
                 spots: [
-                    { x: 7.6, z: 1.15, facing: Math.PI, seated: true },
-                    { x: 8.2, z: 1.15, facing: Math.PI, seated: true },
-                    { x: 8.8, z: 1.15, facing: Math.PI, seated: true }
+                    { x: 4.95, z: 2.1, facing: Math.PI / 2, seated: true },
+                    { x: 5.65, z: 2.1, facing: Math.PI / 2, seated: true },
+                    { x: 6.35, z: 1.45, facing: Math.PI, seated: false }
                 ]
             },
             {
-                key: 'galon',
-                label: 'Getting water from the cooler',
+                key: 'chat',
+                label: 'Chatting in the aisle',
                 spots: [
-                    { x: 8.9, z: -0.55, facing: Math.PI / 2, seated: false },
-                    { x: 8.75, z: -1.15, facing: 2.2, seated: false }
-                ]
-            },
-            {
-                key: 'dapur',
-                label: 'In the kitchen',
-                spots: [
-                    { x: 8.25, z: 2.6, facing: Math.PI / 2, seated: false },
-                    { x: 8.3, z: 0.65, facing: Math.PI / 2, seated: false }
-                ]
-            },
-            {
-                key: 'meeting',
-                label: 'Chatting in the glass room',
-                spots: [
-                    { x: meetingCenterX - 0.9, z: 2.55, facing: Math.PI / 2, seated: true },
-                    { x: meetingCenterX + 0.9, z: 2.55, facing: -Math.PI / 2, seated: true },
-                    { x: meetingCenterX, z: 3.25, facing: Math.PI, seated: true }
+                    { x: 0.55, z: 0.25, facing: Math.PI / 2, seated: false },
+                    { x: 1.25, z: -0.2, facing: -Math.PI / 2, seated: false }
                 ]
             },
             {
                 key: 'jalan',
                 label: 'Walking the aisle',
                 spots: [
-                    { x: 1.2, z: AISLE_Z, facing: 0, seated: false },
-                    { x: -2.5, z: AISLE_Z, facing: Math.PI, seated: false },
-                    { x: 4.5, z: AISLE_Z, facing: 0, seated: false }
+                    { x: -1.4, z: AISLE_Z, facing: 0, seated: false },
+                    { x: 0.15, z: AISLE_Z, facing: Math.PI, seated: false },
+                    { x: 3.35, z: 0.75, facing: 0, seated: false }
                 ]
             }
         ];
@@ -136,12 +104,12 @@
             desks: desks,
             building: building,
             meeting: meeting,
-            meetingTable: { x: meetingCenterX, z: 2.55, radius: 0.95 },
-            cameraTarget: [(minX + 9.5) / 2, 0.55, 0.1],
-            cameraOffset: [-4.2, 14.8, 17.5],
-            pan: { minX: minX - 3, maxX: 12, minZ: -6, maxZ: 8 },
+            meetingTable: { x: 1.6, z: 0.2, radius: 0.35 },
+            cameraTarget: [0.55, 0.45, -0.15],
+            cameraOffset: [-5.2, 12.8, 13.8],
+            pan: { minX: -7, maxX: 8.5, minZ: -6, maxZ: 5 },
             idleStops: idleStops,
-            idleRoute: ['lounge', 'kitchen', 'galon', 'meeting', 'dapur', 'jalan', 'lounge']
+            idleRoute: ['lounge', 'coffee', 'chat', 'jalan', 'lounge']
         };
     }
 
@@ -650,8 +618,8 @@
 
     function buildScene() {
         scene = new THREE.Scene();
-        scene.background = new THREE.Color(0xb8d4e8);
-        scene.fog = new THREE.Fog(0xb8d4e8, 28, 55);
+        scene.background = new THREE.Color(0xa8d4ec);
+        scene.fog = new THREE.Fog(0xa8d4ec, 26, 48);
 
         var ct = LAYOUT.cameraTarget;
         camera = new THREE.PerspectiveCamera(40, 1, 0.4, 120);
@@ -673,184 +641,158 @@
         scene.add(roomRoot);
 
         var b = LAYOUT.building;
-        var mx = LAYOUT.meetingTable.x;
-        var mz = LAYOUT.meetingTable.z;
 
-        /* Soft ground under cut-away (illustration sky show-through) */
-        addFloorPlane(roomRoot, (b.minX + b.maxX) / 2, -0.04, (b.minZ + b.maxZ) / 2,
-            40, 32, 0x9ec9e8, 1);
+        /* Soft blue sky pad under cut-away */
+        addFloorPlane(roomRoot, (b.minX + b.maxX) / 2, -0.05, (b.minZ + b.maxZ) / 2,
+            36, 28, 0xa8d4ec, 1);
 
-        /* Main office — light grey corporate floor */
-        addFloorPlane(roomRoot, (b.minX + b.maxX) / 2, 0.005, (b.minZ + b.maxZ) / 2,
-            b.maxX - b.minX + 0.4, b.maxZ - b.minZ + 0.4, 0xd8dde3, 0.42);
+        /* Light blue-grey floor (illustration) */
+        addFloorPlane(roomRoot, (b.minX + b.maxX) / 2, 0.004, (b.minZ + b.maxZ) / 2,
+            b.maxX - b.minX, b.maxZ - b.minZ, 0xd5e0ea, 0.55);
 
-        /* Cut-away exterior walls (white) */
+        /* White room shell — front open for dollhouse */
         addWall(roomRoot, b.minX, b.minZ, b.maxX, b.minZ);
         addWall(roomRoot, b.minX, b.minZ, b.minX, b.maxZ);
         addWall(roomRoot, b.maxX, b.minZ, b.maxX, b.maxZ);
-        /* Front partially open for dollhouse view */
-        addWall(roomRoot, b.minX, b.maxZ, (b.minX + b.maxX) * 0.35, b.maxZ, 0.55);
+        addWall(roomRoot, b.minX, b.maxZ, b.minX + 2.2, b.maxZ, 0.5);
 
-        /* Windows along back wall */
-        [-6.5, -3.2, 0.5, 4.2, 7.2].forEach(function (wx) {
-            if (wx > b.minX + 0.8 && wx < b.maxX - 0.8) {
-                addWindow(roomRoot, wx, 1.5, b.minZ + 0.12, 1.7, 0);
-            }
+        /* Partition between work & break (doorway gap) */
+        addWall(roomRoot, PARTITION_X, b.minZ, PARTITION_X, -0.55);
+        addWall(roomRoot, PARTITION_X, 1.15, PARTITION_X, b.maxZ);
+
+        /* Left wall windows */
+        addWindow(roomRoot, b.minX + 0.12, 1.45, -2.6, 1.9, Math.PI / 2);
+        addWindow(roomRoot, b.minX + 0.12, 1.45, -0.4, 1.9, Math.PI / 2);
+
+        /* STARTUP lettering on back wall */
+        addStartupSign(roomRoot, -2.4, 1.85, b.minZ + 0.14);
+
+        /* Low cabinet under windows */
+        addLowCabinet(roomRoot, -4.6, -3.9, 2.4);
+        addPlant(roomRoot, -5.4, -3.85, 0.55);
+        addBookStack(roomRoot, -4.2, -3.85);
+
+        /* Work desks + colorful chairs */
+        var chairColors = [TEAL, YELLOW, TEAL, YELLOW, TEAL, YELLOW, TEAL];
+        LAYOUT.desks.forEach(function (d, i) {
+            addStartupDesk(roomRoot, d[0], d[1], chairColors[i % chairColors.length]);
         });
 
-        /* Glass meeting room (black frame + glass) */
-        addGlassMeetingRoom(roomRoot, mx, mz, 3.6, 2.9);
+        /* Break room: coffee bar, stools, bean bags, round table */
+        addCoffeeBar(roomRoot, 5.8, 2.35);
+        addColorStool(roomRoot, 4.95, 1.95, YELLOW);
+        addColorStool(roomRoot, 5.65, 1.95, TEAL);
+        addBeanBag(roomRoot, 4.55, -2.35, ORANGE);
+        addBeanBag(roomRoot, 5.55, -1.65, YELLOW);
+        addRoundLoungeTable(roomRoot, 5.1, -0.85);
+        addWallArt(roomRoot, 6.9, 1.7, b.maxZ - 0.12);
 
-        /* Long conference table + chairs */
-        addConferenceTable(roomRoot, mx, mz, 2.4, 0.9);
-        addMeetingChair(roomRoot, mx - 0.85, mz - 0.55, 0);
-        addMeetingChair(roomRoot, mx, mz - 0.55, 0);
-        addMeetingChair(roomRoot, mx + 0.85, mz - 0.55, 0);
-        addMeetingChair(roomRoot, mx - 0.85, mz + 0.55, Math.PI);
-        addMeetingChair(roomRoot, mx + 0.85, mz + 0.55, Math.PI);
-        addTelevision(roomRoot, mx, 1.4, mz - 1.35);
-
-        /* Planter dividers (illustration cue) */
-        addPlanterBox(roomRoot, -1.2, -0.2, 2.8, 0.45);
-        addPlanterBox(roomRoot, 2.4, -3.8, 3.2, 0.4);
-        addPlanterBox(roomRoot, 5.5, 0.2, 0.45, 2.4);
-
-        /* Work desks — light wood */
-        LAYOUT.desks.forEach(function (d) {
-            addCorporateDesk(roomRoot, d[0], d[1]);
-        });
-
-        /* Lounge — blue armchair + low table */
-        addArmchair(roomRoot, 5.2, -1.55, Math.PI, 0x3b6ea5);
-        addCoffeeTable(roomRoot, 5.2, -2.5);
-        addPlant(roomRoot, 6.4, -3.9, 1.05);
-        addPlant(roomRoot, 3.9, -3.85, 0.95);
-
-        /* Kitchen: counter, fridge, island + bar stools */
-        addFridge(roomRoot, b.maxX - 0.55, 2.8, -Math.PI / 2);
-        addPantryCounter(roomRoot, b.maxX - 0.5, 1.5, -Math.PI / 2);
-        addGalon(roomRoot, b.maxX - 0.5, -0.5, -Math.PI / 2);
-        addKitchenIsland(roomRoot, 8.2, 1.55);
-        addBarStool(roomRoot, 7.55, 1.05);
-        addBarStool(roomRoot, 8.2, 1.05);
-        addBarStool(roomRoot, 8.85, 1.05);
-
-        /* Accent plants */
-        addPlant(roomRoot, b.minX + 0.55, -4.4, 1.1);
-        addPlant(roomRoot, b.minX + 0.55, 3.6, 1.0);
-        addPlant(roomRoot, 1.0, 3.5, 0.85);
-        addPlant(roomRoot, b.maxX - 0.7, -4.3, 1.05);
-        addBookshelf(roomRoot, b.minX + 0.4, 0.4, Math.PI / 2);
+        /* Plants */
+        addPlant(roomRoot, -0.8, 3.2, 0.7);
+        addPlant(roomRoot, 3.4, -3.9, 0.75);
+        addPlant(roomRoot, 6.6, -3.5, 0.65);
+        addPlant(roomRoot, 6.5, 3.2, 0.55);
 
         LAYOUT.desks.forEach(function (d) {
-            addOfficeLight(roomRoot, d[0], 2.45, d[1] + 0.15);
+            addOfficeLight(roomRoot, d[0], 2.4, d[1]);
         });
-        addOfficeLight(roomRoot, mx, 2.45, mz);
-        addOfficeLight(roomRoot, 8.2, 2.45, 1.5);
-        addOfficeLight(roomRoot, 5.2, 2.45, -2.0);
-
-        /* Brand plaque */
-        box(roomRoot, 1.5, 2.35, b.minZ + 0.12, 2.4, 0.28, 0.04, 0x1e3a5f, 0.5);
+        addOfficeLight(roomRoot, 5.5, 2.4, 1.5);
+        addOfficeLight(roomRoot, 5.0, 2.4, -1.5);
     }
 
-    function addGlassMeetingRoom(parent, cx, cz, w, d) {
-        var hw = w / 2;
-        var hd = d / 2;
-        var frame = 0x1f2937;
-        var gh = WALL_H * 0.92;
-        addFloorPlane(parent, cx, 0.012, cz, w - 0.15, d - 0.15, 0xeef2f6, 0.48);
-        /* Thin black frames */
-        box(parent, cx - hw, gh / 2, cz, 0.05, gh, d, frame, 0.55);
-        box(parent, cx + hw, gh / 2, cz, 0.05, gh, d, frame, 0.55);
-        box(parent, cx, gh / 2, cz - hd, w, gh, 0.05, frame, 0.55);
-        box(parent, cx - hw * 0.25, gh / 2, cz + hd, w * 0.5, gh, 0.05, frame, 0.55);
-        /* Glass panes */
-        addGlassX(parent, cx - hw + 0.04, cz - hd + 0.05, cz + hd - 0.05, 0.35);
-        addGlassX(parent, cx + hw - 0.04, cz - hd + 0.05, cz + hd - 0.05, 0.35);
-        addGlassZ(parent, cx - hw + 0.05, cx + hw - 0.05, cz - hd + 0.04, 0.9);
-        addGlassZ(parent, cx - hw + 0.05, cx - 0.15, cz + hd - 0.04, 0.7);
-    }
-
-    function addGlassZ(parent, x0, x1, z, opacity) {
-        var w = Math.abs(x1 - x0);
-        var glass = new THREE.Mesh(
-            new THREE.BoxGeometry(w, WALL_H * 0.85, 0.04),
-            mat(0xb8d4e8, 0.15, 0.05, {
-                transparent: true,
-                opacity: opacity == null ? 0.28 : opacity * 0.35,
-                side: THREE.DoubleSide
-            })
-        );
-        glass.position.set((x0 + x1) / 2, WALL_H * 0.5, z);
-        parent.add(glass);
-    }
-
-    function addConferenceTable(parent, x, z, w, d) {
-        box(parent, x, 0.72, z, w, 0.06, d, 0xc4a574, 0.45);
-        box(parent, x - w * 0.35, 0.36, z - d * 0.3, 0.08, 0.72, 0.08, 0x3a3a3a, 0.5);
-        box(parent, x + w * 0.35, 0.36, z - d * 0.3, 0.08, 0.72, 0.08, 0x3a3a3a, 0.5);
-        box(parent, x - w * 0.35, 0.36, z + d * 0.3, 0.08, 0.72, 0.08, 0x3a3a3a, 0.5);
-        box(parent, x + w * 0.35, 0.36, z + d * 0.3, 0.08, 0.72, 0.08, 0x3a3a3a, 0.5);
-    }
-
-    function addMeetingChair(parent, x, z, rotY) {
-        var g = new THREE.Group();
-        g.position.set(x, 0, z);
-        if (rotY) g.rotation.y = rotY;
-        box(g, 0, 0.42, 0, 0.42, 0.06, 0.42, 0x2c3e50, 0.7);
-        box(g, 0, 0.72, -0.16, 0.42, 0.55, 0.06, 0x2c3e50, 0.7);
-        parent.add(g);
-    }
-
-    function addPlanterBox(parent, x, z, w, d) {
-        box(parent, x, 0.22, z, w, 0.44, d, 0xe8eaed, 0.55);
-        box(parent, x, 0.46, z, w - 0.08, 0.08, d - 0.08, 0x3d6b4f, 0.85);
+    function addStartupSign(parent, x, y, z) {
+        var letters = 'STARTUP';
         var i;
-        for (i = 0; i < 3; i += 1) {
-            addPlant(parent, x - w * 0.3 + i * (w * 0.3), z, 0.55 + (i % 2) * 0.12);
+        for (i = 0; i < letters.length; i += 1) {
+            box(parent, x + i * 0.38, y, z, 0.28, 0.36, 0.04, 0x111827, 0.55);
         }
     }
 
-    function addCorporateDesk(parent, x, z) {
-        /* Light wood desk + dual monitors + chair */
-        box(parent, x, 0.72, z, 1.35, 0.05, 0.7, 0xd4b896, 0.5);
-        box(parent, x - 0.55, 0.36, z - 0.25, 0.06, 0.72, 0.06, 0x2a2a2a, 0.55);
-        box(parent, x + 0.55, 0.36, z - 0.25, 0.06, 0.72, 0.06, 0x2a2a2a, 0.55);
-        box(parent, x - 0.55, 0.36, z + 0.25, 0.06, 0.72, 0.06, 0x2a2a2a, 0.55);
-        box(parent, x + 0.55, 0.36, z + 0.25, 0.06, 0.72, 0.06, 0x2a2a2a, 0.55);
-        /* Privacy screen */
-        box(parent, x, 1.05, z - 0.32, 1.2, 0.55, 0.04, 0x5b7fa6, 0.65);
-        addMonitor(parent, x - 0.28, z - 0.12);
-        addMonitor(parent, x + 0.28, z - 0.12);
+    function addLowCabinet(parent, x, z, w) {
+        box(parent, x, 0.35, z, w, 0.7, 0.45, 0xe8d5b5, 0.5);
+        box(parent, x, 0.72, z, w + 0.04, 0.04, 0.48, 0xddc49a, 0.45);
+    }
+
+    function addBookStack(parent, x, z) {
+        box(parent, x, 0.82, z, 0.28, 0.08, 0.2, 0x3b82f6, 0.7);
+        box(parent, x, 0.9, z, 0.26, 0.07, 0.18, 0xf97316, 0.7);
+        box(parent, x, 0.97, z, 0.24, 0.06, 0.16, 0xeab308, 0.7);
+    }
+
+    function addStartupDesk(parent, x, z, seatColor) {
+        box(parent, x, 0.7, z, 1.25, 0.05, 0.65, 0xe8d5b5, 0.48);
+        box(parent, x - 0.52, 0.35, z - 0.22, 0.05, 0.7, 0.05, 0xf8fafc, 0.4);
+        box(parent, x + 0.52, 0.35, z - 0.22, 0.05, 0.7, 0.05, 0xf8fafc, 0.4);
+        box(parent, x - 0.52, 0.35, z + 0.22, 0.05, 0.7, 0.05, 0xf8fafc, 0.4);
+        box(parent, x + 0.52, 0.35, z + 0.22, 0.05, 0.7, 0.05, 0xf8fafc, 0.4);
+        /* Laptop / monitor */
+        box(parent, x, 0.88, z - 0.1, 0.38, 0.26, 0.02, 0x1e293b, 0.4);
+        box(parent, x, 0.88, z - 0.08, 0.32, 0.2, 0.01, 0x38bdf8, 0.35, 0.05, {
+            emissive: 0x0ea5e9,
+            emissiveIntensity: 0.3
+        });
         /* Chair */
         var ch = new THREE.Group();
-        ch.position.set(x, 0, z + 0.72);
-        box(ch, 0, 0.4, 0, 0.4, 0.08, 0.4, 0x1e293b, 0.7);
-        box(ch, 0, 0.7, -0.14, 0.4, 0.5, 0.06, 0x334155, 0.7);
+        ch.position.set(x, 0, z + 0.68);
+        box(ch, 0, 0.38, 0, 0.38, 0.08, 0.38, seatColor, 0.65);
+        box(ch, 0, 0.68, -0.14, 0.38, 0.48, 0.06, seatColor, 0.65);
+        box(ch, 0, 0.12, 0, 0.06, 0.24, 0.06, 0xf8fafc, 0.4);
         parent.add(ch);
+        addPlant(parent, x + 0.45, z + 0.15, 0.35);
     }
 
-    function addMonitor(parent, x, z) {
-        box(parent, x, 0.95, z, 0.42, 0.28, 0.03, 0x111827, 0.4);
-        box(parent, x, 0.95, z + 0.01, 0.36, 0.22, 0.01, 0x38bdf8, 0.3, 0.05, {
-            emissive: 0x0ea5e9,
-            emissiveIntensity: 0.35
-        });
-        box(parent, x, 0.78, z, 0.06, 0.12, 0.04, 0x374151, 0.5);
+    function addCoffeeBar(parent, x, z) {
+        box(parent, x, 0.45, z, 2.2, 0.9, 0.55, 0xe8d5b5, 0.5);
+        box(parent, x, 0.92, z, 2.25, 0.05, 0.58, 0xf5e6c8, 0.4);
+        /* Espresso machine */
+        box(parent, x + 0.55, 1.2, z, 0.35, 0.5, 0.28, 0x1f2937, 0.45);
+        box(parent, x + 0.55, 1.42, z + 0.05, 0.2, 0.08, 0.12, 0x374151, 0.5);
+        /* Mugs */
+        cyl(parent, x - 0.35, 1.02, z + 0.05, 0.06, 0.1, 0xffffff, 0.5);
+        cyl(parent, x - 0.55, 1.02, z + 0.05, 0.06, 0.1, 0xffffff, 0.5);
+        addPlant(parent, x - 0.85, z, 0.4);
     }
 
-    function addKitchenIsland(parent, x, z) {
-        box(parent, x, 0.45, z, 2.0, 0.9, 0.7, 0x4a5568, 0.55);
-        box(parent, x, 0.92, z, 2.05, 0.06, 0.75, 0xf1f5f9, 0.4);
-        box(parent, x + 0.5, 1.05, z - 0.1, 0.35, 0.22, 0.28, 0xcbd5e1, 0.5);
-    }
-
-    function addBarStool(parent, x, z) {
+    function addColorStool(parent, x, z, color) {
         var g = new THREE.Group();
         g.position.set(x, 0, z);
-        box(g, 0, 0.55, 0, 0.08, 1.1, 0.08, 0x2d3748, 0.5);
-        box(g, 0, 1.12, 0, 0.36, 0.06, 0.36, 0x38a169, 0.7);
+        box(g, 0, 0.5, 0, 0.06, 1.0, 0.06, 0xf8fafc, 0.4);
+        box(g, 0, 1.05, 0, 0.34, 0.07, 0.34, color, 0.65);
         parent.add(g);
+    }
+
+    function addBeanBag(parent, x, z, color) {
+        var g = new THREE.Group();
+        g.position.set(x, 0, z);
+        var bag = new THREE.Mesh(
+            THREE.SphereGeometry
+                ? new THREE.SphereGeometry(0.42, 14, 10)
+                : new THREE.BoxGeometry(0.7, 0.45, 0.7),
+            mat(color, 0.85, 0.02)
+        );
+        bag.position.y = 0.28;
+        bag.scale.set(1.15, 0.72, 1.05);
+        g.add(bag);
+        parent.add(g);
+    }
+
+    function addRoundLoungeTable(parent, x, z) {
+        cyl(parent, x, 0.38, z, 0.42, 0.06, 0xe8d5b5, 0.5);
+        cyl(parent, x, 0.18, z, 0.08, 0.36, 0xf8fafc, 0.4);
+        cyl(parent, x - 0.12, 0.48, z, 0.05, 0.08, 0xffffff, 0.5);
+        cyl(parent, x + 0.12, 0.48, z, 0.05, 0.08, 0xffffff, 0.5);
+        addPlant(parent, x, z + 0.05, 0.28);
+    }
+
+    function addWallArt(parent, x, y, z) {
+        var colors = [0x67e8f9, 0xfde047, 0xfdba74, 0x86efac];
+        var i;
+        for (i = 0; i < 4; i += 1) {
+            var ox = (i % 2) * 0.55 - 0.25;
+            var oy = Math.floor(i / 2) * 0.55 - 0.2;
+            box(parent, x + ox, y + oy, z, 0.38, 0.38, 0.03, 0xffffff, 0.5);
+            box(parent, x + ox, y + oy, z + 0.02, 0.28, 0.28, 0.01, colors[i], 0.6);
+        }
     }
 
     /* ---------- Characters (stylized realistic — capsule/sphere, not boxes) ---------- */
