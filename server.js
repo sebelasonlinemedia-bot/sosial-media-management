@@ -52,7 +52,10 @@ const {
     resolveCrewPresenceUpdate,
     applyPresenceToStatus,
     normalizeCrewPresence,
-    summarizePresenceAction
+    normalizeSchedules,
+    applyDueCrewPresenceSchedules,
+    summarizePresenceAction,
+    summarizeSchedule
 } = require('./lib/crew-presence');
 const { buildInsights } = require('./lib/ai-insights');
 const { notifyJobAttention } = require('./lib/ai-notify');
@@ -1868,14 +1871,32 @@ app.post('/api/ai/chat', rateLimitChat, async (req, res) => {
         const role = getRoleById(turn.roleId) || getRoleById('manager');
         let job = null;
 
-        // Arahan posisi 3D per peran (merge — "hanya Salsa" tidak menimpa yang lain)
+        // Arahan posisi 3D per peran (+ jadwal jam jika disebut)
         let crewPresence = normalizeCrewPresence(settings.crewPresence);
-        const presenceMerged = resolveCrewPresenceUpdate(message, turn.officeAction, crewPresence);
-        const presenceChanged = !!presenceMerged;
-        if (presenceMerged) {
-            crewPresence = presenceMerged;
-            await db.updateAiSettings({ crewPresence });
-            settings.crewPresence = crewPresence;
+        let crewPresenceSchedules = normalizeSchedules(settings.crewPresenceSchedules);
+        // Terapkan jadwal yang sudah jatuh tempo dulu
+        const dueFirst = applyDueCrewPresenceSchedules(crewPresence, crewPresenceSchedules);
+        if (dueFirst.changed) {
+            crewPresence = dueFirst.presence;
+            crewPresenceSchedules = dueFirst.schedules;
+            await db.updateAiSettings({ crewPresence, crewPresenceSchedules });
+        }
+
+        const presenceResult = resolveCrewPresenceUpdate(message, turn.officeAction, crewPresence);
+        let presenceChanged = false;
+        let scheduledItem = null;
+        if (presenceResult) {
+            if (presenceResult.schedule) {
+                scheduledItem = presenceResult.schedule;
+                crewPresenceSchedules = normalizeSchedules([...crewPresenceSchedules, scheduledItem]);
+                await db.updateAiSettings({ crewPresenceSchedules });
+                settings.crewPresenceSchedules = crewPresenceSchedules;
+            } else if (presenceResult.presence) {
+                crewPresence = presenceResult.presence;
+                presenceChanged = true;
+                await db.updateAiSettings({ crewPresence });
+                settings.crewPresence = crewPresence;
+            }
         }
 
         if (turn.createJob && turn.brief) {
@@ -1922,8 +1943,13 @@ app.post('/api/ai/chat', rateLimitChat, async (req, res) => {
         }
 
         let replyText = turn.reply;
+        const scheduleSummary = scheduledItem ? summarizeSchedule(scheduledItem) : null;
         const presenceSummary = presenceChanged ? summarizePresenceAction(crewPresence) : null;
-        if (presenceSummary) {
+        if (scheduleSummary) {
+            // Ganti klaim "sekarang" jika LLM salah
+            replyText = replyText.replace(/\bsekarang\b/gi, `jam ${scheduleSummary.clock}`);
+            replyText += `\n\n⏰ Dijadwalkan ${scheduleSummary.clock} — ${scheduleSummary.who} → ${scheduleSummary.where}.`;
+        } else if (presenceSummary) {
             replyText += `\n\n📍 ${presenceSummary.who} → ${presenceSummary.where}.`;
         }
 
@@ -1939,7 +1965,8 @@ app.post('/api/ai/chat', rateLimitChat, async (req, res) => {
                 createJob: !!job,
                 provider: turn.provider,
                 model: turn.model || null,
-                crewPresence: presenceChanged ? crewPresence.lastAction : undefined
+                crewPresence: presenceChanged ? crewPresence.lastAction : undefined,
+                schedule: scheduledItem || undefined
             }
         });
 
@@ -1948,6 +1975,8 @@ app.post('/api/ai/chat', rateLimitChat, async (req, res) => {
             reply: replyText,
             job,
             crewPresence,
+            crewPresenceSchedules,
+            schedule: scheduledItem,
             messages: [userMsg, assistantMsg],
             llm: publicAiSettings(settings).llm
         });
@@ -2098,7 +2127,14 @@ app.get('/api/ai/office', async (req, res) => {
         const jobs = await db.getAiJobs();
         const sorted = [...jobs].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-        const crewPresence = normalizeCrewPresence(settings.crewPresence);
+        let crewPresence = normalizeCrewPresence(settings.crewPresence);
+        let crewPresenceSchedules = normalizeSchedules(settings.crewPresenceSchedules);
+        const dueOffice = applyDueCrewPresenceSchedules(crewPresence, crewPresenceSchedules);
+        if (dueOffice.changed) {
+            crewPresence = dueOffice.presence;
+            crewPresenceSchedules = dueOffice.schedules;
+            await db.updateAiSettings({ crewPresence, crewPresenceSchedules });
+        }
         const employees = listRoles().map(role => {
             const roleJobs = sorted.filter(j =>
                 j.roleId === role.id ||
@@ -2184,6 +2220,7 @@ app.get('/api/ai/office', async (req, res) => {
             tokenEncryption: isEncryptionEnabled(),
             employees,
             crewPresence,
+            crewPresenceSchedules,
             board,
             briefTemplates: BRIEF_TEMPLATES.map(t => ({ id: t.id, label: t.label })),
             jobCounts: {

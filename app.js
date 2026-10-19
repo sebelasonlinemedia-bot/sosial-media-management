@@ -132,9 +132,23 @@ const app = {
         await this.loadPostsFromServer();
         await this.loadAiJobsFromServer();
 
-        // Atur jam
+        // Atur jam (24 jam)
         this.updateClock();
         setInterval(() => this.updateClock(), 60000);
+        // Poll Kantor AI tiap 20 dtk agar jadwal "jam HH:mm" terpicu
+        setInterval(async () => {
+            if (appState.currentView !== 'mission') return;
+            try {
+                await this.loadOfficeFromServer();
+                this.renderOfficeEmployees();
+                if (typeof this.renderMissionCrew === 'function') this.renderMissionCrew();
+                if (typeof this.updateMissionPills === 'function') this.updateMissionPills();
+                this.syncOffice3DEmployees();
+                this.updateMissionSynced();
+            } catch {
+                /* ignore */
+            }
+        }, 20000);
 
         // Pasang event listeners
         this.setupNavigation();
@@ -1352,6 +1366,14 @@ app.sendCeoChat = async function (text) {
         this.syncOffice3DEmployees();
         if (data.job) {
             this.showToast(`Job dibuat: ${data.job.status}`, 'emerald');
+        } else if (data.schedule?.at) {
+            const clock = (() => {
+                try {
+                    const d = new Date(data.schedule.at);
+                    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+                } catch { return ''; }
+            })();
+            this.showToast(`Dijadwalkan ${clock || 'nanti'}: perintah kantor.`, 'emerald');
         } else if (data.crewPresence?.lastAction?.mode === 'at_desk') {
             const ids = data.crewPresence.lastAction.roleIds;
             this.showToast(
