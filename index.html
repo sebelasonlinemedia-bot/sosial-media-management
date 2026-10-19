@@ -28,16 +28,17 @@
             </div>
             <form id="app-login-form" autocomplete="on">
                 <label class="form-label" for="app-login-email">Email</label>
-                <input type="email" id="app-login-email" class="form-control" required placeholder="admin@example.com" autocomplete="username">
+                <input type="email" id="app-login-email" class="form-control" required placeholder="sesuai ADMIN_EMAIL di env" autocomplete="username">
                 <label class="form-label" for="app-login-password" style="margin-top:12px;">Password</label>
-                <input type="password" id="app-login-password" class="form-control" required placeholder="••••••••" autocomplete="current-password">
+                <input type="password" id="app-login-password" class="form-control" required placeholder="sesuai ADMIN_PASSWORD di env" autocomplete="current-password">
                 <p id="app-login-error" class="app-login-error hidden" role="alert"></p>
                 <button type="submit" id="app-login-submit" class="btn btn-primary" style="width:100%;margin-top:18px;">
                     <i data-lucide="log-in"></i>
                     <span>Masuk</span>
                 </button>
             </form>
-            <p class="app-login-hint">Bootstrap: set <code>ADMIN_EMAIL</code> + <code>ADMIN_PASSWORD</code> (atau <code>ADMIN_PASSWORD_HASH</code>) di <code>.env</code>, lalu <strong>restart server</strong>. Password lokal boleh pendek (mis. <code>123</code>).</p>
+            <p id="app-login-host" class="app-login-host" hidden></p>
+            <p id="app-login-hint" class="app-login-hint">Lokal: set <code>ADMIN_EMAIL</code> + <code>ADMIN_PASSWORD</code> di <code>.env</code>, lalu restart <code>npm run dev</code>. Production (Vercel): isi env yang sama di dashboard + Redeploy — tidak membaca <code>.env</code> lokal.</p>
         </div>
     </div>
 

@@ -3577,8 +3577,17 @@ button, input, textarea, select {
     color: #b91c1c;
     font-size: 0.8125rem;
 }
+.app-login-host {
+    margin: 14px 0 0;
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+    line-height: 1.35;
+}
+.app-login-host[data-tone="warn"] {
+    color: #b45309;
+}
 .app-login-hint {
-    margin: 16px 0 0;
+    margin: 10px 0 0;
     font-size: 0.7rem;
     color: var(--text-muted);
     line-height: 1.4;
@@ -3588,6 +3597,9 @@ button, input, textarea, select {
     background: var(--surface-muted);
     padding: 1px 4px;
     border-radius: 4px;
+}
+.app-login-hint[data-tone="warn"] {
+    color: #b45309;
 }
 .app-user-badge {
     margin-top: 10px;

@@ -32,6 +32,7 @@ const appState = {
         auditEntries: []
     },
     serverMode: 'sandbox',  // 'sandbox' | 'real'
+    authStatus: null,
     user: null,
     currentView: 'dashboard',
     composerSelectedPlatforms: [],
@@ -56,8 +57,9 @@ const api = {
         } catch {
             data = { success: false, message: 'Respons tidak valid' };
         }
-        if (res.status === 401 || data.authRequired) {
-            if (typeof this._authHandler === 'function') this._authHandler(data);
+        // Hanya route terproteksi yang kirim authRequired. Login 401 (salah password) tidak.
+        if (data.authRequired && typeof this._authHandler === 'function') {
+            this._authHandler(data);
         }
         return data;
     },
@@ -103,13 +105,15 @@ const app = {
         api.onAuthRequired(() => this.showLoginGate('Sesi berakhir. Silakan login lagi.'));
         this.setupLoginGate();
 
-        // Cek mode server (sandbox / real)
+        // Cek mode server (sandbox / real) + status bootstrap login
         const status = await api.get('/api/status').catch(() => ({ mode: 'sandbox' }));
         appState.serverMode = status.mode || 'sandbox';
+        appState.authStatus = status;
 
         const me = await api.get('/api/auth/me').catch(() => ({ authenticated: false }));
         if (!me.authenticated || !me.user) {
             this.showLoginGate();
+            this.updateLoginBootstrapHint(status);
             lucide.createIcons();
             return;
         }
@@ -187,6 +191,52 @@ const app = {
                 err.classList.add('hidden');
             }
         }
+        this.updateLoginBootstrapHint(appState.authStatus);
+    },
+
+    updateLoginBootstrapHint(status) {
+        const hint = document.getElementById('app-login-hint');
+        const hostEl = document.getElementById('app-login-host');
+        if (!hint && !hostEl) return;
+
+        const boot = status && status.bootstrap ? status.bootstrap : null;
+        const host = (status && status.host) || window.location.host || '';
+        const isLocal = !!(status && status.isLocalHost)
+            || /^(localhost|127\.0\.0\.1)(:\d+)?$/i.test(host);
+        const configured = !!(boot && boot.configured);
+        const hasUsers = !!(boot && boot.hasUsers);
+
+        if (hostEl) {
+            hostEl.hidden = false;
+            if (isLocal) {
+                hostEl.textContent = `Anda di lokal: http://${host || 'localhost:3000'} (baca .env + db.json).`;
+                hostEl.removeAttribute('data-tone');
+            } else {
+                hostEl.textContent = `Anda di cloud: ${host} — env diambil dari Vercel, bukan file .env di PC.`;
+                if (configured) hostEl.removeAttribute('data-tone');
+                else hostEl.setAttribute('data-tone', 'warn');
+            }
+        }
+
+        if (!hint) return;
+        if (!configured) {
+            hint.setAttribute('data-tone', 'warn');
+            hint.innerHTML = isLocal
+                ? 'Bootstrap belum sync: isi <code>ADMIN_EMAIL</code> + <code>ADMIN_PASSWORD</code> di <code>.env</code>, simpan, lalu <strong>restart</strong> <code>npm run dev</code> (bukan hanya refresh browser).'
+                : 'Bootstrap belum ada di Vercel: tambah <code>ADMIN_EMAIL</code> + <code>ADMIN_PASSWORD_HASH</code> (dan <code>DATABASE_URL</code>) di Project → Settings → Environment Variables, lalu <strong>Redeploy</strong>.';
+            return;
+        }
+        if (!hasUsers) {
+            hint.setAttribute('data-tone', 'warn');
+            hint.innerHTML = isLocal
+                ? 'Env ADMIN_* sudah ada, tapi belum ada user di DB. Restart server agar bootstrap menulis ke <code>db.json</code>.'
+                : 'Env ADMIN_* terdeteksi, tapi belum ada user. Pastikan <code>DATABASE_URL</code> (Neon) terisi, lalu Redeploy.';
+            return;
+        }
+        hint.removeAttribute('data-tone');
+        hint.innerHTML = isLocal
+            ? 'Login memakai email/password yang sama dengan <code>ADMIN_EMAIL</code> / <code>ADMIN_PASSWORD</code> di <code>.env</code> (setelah restart). Placeholder di atas bukan kredensial default.'
+            : 'Login production memakai kredensial dari Vercel env (<code>ADMIN_EMAIL</code> + password/hash), bukan dari <code>.env</code> di PC.';
     },
 
     hideLoginGate() {

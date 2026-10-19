@@ -205,11 +205,33 @@ const SANDBOX_PROFILES = {
 // ============================================================
 // API Routes: Informasi Mode
 // ============================================================
-app.get('/api/status', (req, res) => {
+app.get('/api/status', async (req, res) => {
+    const adminEmailSet = !!(process.env.ADMIN_EMAIL || '').trim();
+    const adminSecretSet = !!(process.env.ADMIN_PASSWORD_HASH || '').trim()
+        || (process.env.ADMIN_PASSWORD != null && process.env.ADMIN_PASSWORD !== '');
+    let userCount = 0;
+    try {
+        userCount = (await db.getUsers()).length;
+    } catch (_) { /* db belum siap */ }
+
+    const host = String(req.get('x-forwarded-host') || req.get('host') || '');
+    const isLocalHost = /^(localhost|127\.0\.0\.1)(:\d+)?$/i.test(host);
+
     res.json({
         mode: SANDBOX_MODE ? 'sandbox' : 'real',
         authRequired: true,
         authenticated: !!req.user,
+        db: process.env.DATABASE_URL ? 'postgres' : 'file',
+        production: !!IS_PRODUCTION,
+        host,
+        isLocalHost,
+        bootstrap: {
+            configured: adminEmailSet && adminSecretSet,
+            adminEmailSet,
+            adminSecretSet,
+            hasUsers: userCount > 0,
+            userCount
+        },
         platforms: {
             meta: !!process.env.META_CLIENT_ID,
             youtube: !!process.env.GOOGLE_CLIENT_ID,
@@ -242,7 +264,28 @@ app.post('/api/auth/login', async (req, res) => {
 
         const user = await db.getUserByEmail(email);
         if (!user || !(await auth.verifyPassword(password, user.passwordHash))) {
-            return res.status(401).json({ success: false, message: 'Email atau password salah.' });
+            const adminEmailSet = !!(process.env.ADMIN_EMAIL || '').trim();
+            const adminSecretSet = !!(process.env.ADMIN_PASSWORD_HASH || '').trim()
+                || (process.env.ADMIN_PASSWORD != null && process.env.ADMIN_PASSWORD !== '');
+            const users = await db.getUsers().catch(() => []);
+            let message = 'Email atau password salah.';
+            if (!adminEmailSet || !adminSecretSet) {
+                message = IS_PRODUCTION
+                    ? 'Admin belum di-bootstrap di server ini. Set ADMIN_EMAIL + ADMIN_PASSWORD_HASH (atau ADMIN_PASSWORD) di Vercel env, lalu Redeploy.'
+                    : 'Admin belum di-bootstrap. Set ADMIN_EMAIL + ADMIN_PASSWORD di .env lokal, lalu restart `npm run dev`.';
+            } else if (!users.length) {
+                message = process.env.DATABASE_URL
+                    ? 'Bootstrap gagal menulis user. Cek DATABASE_URL / koneksi Postgres, lalu coba lagi.'
+                    : (IS_PRODUCTION
+                        ? 'Production tanpa DATABASE_URL — set Neon DATABASE_URL di Vercel, lalu Redeploy.'
+                        : 'Belum ada user di db.json. Restart server agar bootstrap ADMIN_* berjalan.');
+            }
+            return res.status(401).json({
+                success: false,
+                message,
+                bootstrapConfigured: adminEmailSet && adminSecretSet,
+                hasUsers: users.length > 0
+            });
         }
 
         const token = auth.createSessionToken(user);
