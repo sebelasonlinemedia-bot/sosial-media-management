@@ -208,6 +208,17 @@
                                 </div>
                             </div>
 
+                            <!-- Apa berikutnya (insights) -->
+                            <div class="card office-nextup-card" id="dashboard-nextup-card">
+                                <div class="card-header">
+                                    <h2>Apa berikutnya</h2>
+                                    <button class="btn-text" type="button" id="dashboard-open-office-from-insights">Kantor AI</button>
+                                </div>
+                                <div id="dashboard-nextup-body" class="office-nextup-body">
+                                    <p class="text-secondary font-sm">Memuat insights…</p>
+                                </div>
+                            </div>
+
                             <!-- Job AI terbaru → detail di Kantor AI -->
                             <div class="card">
                                 <div class="card-header">
@@ -755,14 +766,14 @@
                                 </div>
                             </div>
 
-                            <div class="card office-insights-stub" id="office-insights-stub">
+                            <div class="card office-nextup-card" id="office-insights-card">
                                 <div class="card-header">
-                                    <h2>Insights (Fase 2)</h2>
-                                    <span class="badge badge-indigo">Stub</span>
+                                    <h2>Apa berikutnya</h2>
+                                    <span class="badge badge-emerald" id="office-insights-badge">Insights</span>
                                 </div>
-                                <p class="text-secondary font-sm" id="office-insights-placeholder">
-                                    Analitik yang menggerakkan Strategist belum aktif. Endpoint: <code>GET /api/ai/insights</code>
-                                </p>
+                                <div id="office-nextup-body" class="office-nextup-body">
+                                    <p class="text-secondary font-sm">Memuat insights…</p>
+                                </div>
                             </div>
                         </div>
 
@@ -783,6 +794,26 @@
                                     <div class="form-group">
                                         <label for="office-daily-cap">Daily post cap</label>
                                         <input type="number" id="office-daily-cap" class="form-control" min="0" max="100" value="10">
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="office-3d-toggle">
+                                            <input type="checkbox" id="office-notify-enabled">
+                                            <span>Notifikasi aktif</span>
+                                        </label>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="office-notify-email">Email notifikasi</label>
+                                        <input type="email" id="office-notify-email" class="form-control" placeholder="tim@brand.com">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="office-notify-webhook">Webhook WhatsApp (URL)</label>
+                                        <input type="url" id="office-notify-webhook" class="form-control" placeholder="https://…">
+                                        <span class="input-hint">POST JSON saat needs_info / awaiting_approval. Gagal kirim tidak memblokir job.</span>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Izin platform per peran</label>
+                                        <div id="office-role-permissions" class="office-role-permissions"></div>
+                                        <span class="input-hint">Kosongkan semua centang pada suatu peran = tidak dibatasi. Centang sebagian = hanya platform itu.</span>
                                     </div>
                                     <div class="office-settings-actions">
                                         <button type="button" class="btn btn-sm btn-secondary" id="office-settings-save">Simpan</button>
@@ -817,6 +848,11 @@
                                             placeholder="Contoh: Promo launch fitur Jadwal PostSphere untuk UMKM, CTA coba gratis, platform Instagram & Facebook."
                                             required></textarea>
                                         <span class="input-hint">Hormati otonomi akun. High-risk → approval. Tipis → klarifikasi field kosong.</span>
+                                    </div>
+                                    <div class="form-group office-ab-row">
+                                        <label>A/B hook (opsional)</label>
+                                        <input type="text" id="office-variant-a" class="form-control mb-1" placeholder="Variant A — hook">
+                                        <input type="text" id="office-variant-b" class="form-control" placeholder="Variant B — hook">
                                     </div>
                                     <button type="submit" class="btn btn-primary width-full" id="office-brief-submit">
                                         <i data-lucide="send"></i>

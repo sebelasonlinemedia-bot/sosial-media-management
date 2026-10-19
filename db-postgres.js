@@ -3,6 +3,7 @@
  */
 const { neon } = require('@neondatabase/serverless');
 const { normalizeAiSettings, DEFAULT_AI_SETTINGS } = require('./lib/ai-policy');
+const { encryptAccountTokens, decryptAccountTokens } = require('./lib/token-crypto');
 
 function getSql() {
     const url = process.env.DATABASE_URL;
@@ -11,14 +12,14 @@ function getSql() {
 }
 
 function rowToAccount(r) {
-    return {
+    return decryptAccountTokens({
         id: r.id,
         platform: r.platform,
         connected: r.connected,
         ...(typeof r.data === 'object' && r.data ? r.data : {}),
         createdAt: r.created_at,
         updatedAt: r.updated_at
-    };
+    });
 }
 
 function rowToPost(r) {
@@ -159,7 +160,11 @@ class PostgresDatabase {
         const now = new Date().toISOString();
 
         if (existing) {
-            const merged = { ...existing, ...accountData, updatedAt: now };
+            const merged = encryptAccountTokens({
+                ...existing,
+                ...accountData,
+                updatedAt: now
+            });
             const { id, platform, connected, createdAt, updatedAt, ...data } = merged;
             await sql`
                 UPDATE accounts
@@ -171,13 +176,14 @@ class PostgresDatabase {
             return this.getAccountByPlatform(accountData.platform);
         }
 
-        const id = 'acc-' + accountData.platform + '-' + Date.now();
-        const { id: _id, platform: _p, connected: _c, createdAt: _ca, updatedAt: _ua, ...data } = accountData;
+        const sealed = encryptAccountTokens(accountData);
+        const id = 'acc-' + sealed.platform + '-' + Date.now();
+        const { id: _id, platform: _p, connected: _c, createdAt: _ca, updatedAt: _ua, ...data } = sealed;
         await sql`
             INSERT INTO accounts (id, platform, data, connected, created_at, updated_at)
-            VALUES (${id}, ${accountData.platform}, ${data}, ${true}, ${now}, ${now})
+            VALUES (${id}, ${sealed.platform}, ${data}, ${true}, ${now}, ${now})
         `;
-        return this.getAccountByPlatform(accountData.platform);
+        return this.getAccountByPlatform(sealed.platform);
     }
 
     async disconnectAccount(platform) {

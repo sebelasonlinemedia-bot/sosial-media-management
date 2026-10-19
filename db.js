@@ -9,6 +9,7 @@
 const fs = require('fs');
 const path = require('path');
 const { normalizeAiSettings, DEFAULT_AI_SETTINGS } = require('./lib/ai-policy');
+const { encryptAccountTokens, decryptAccountTokens } = require('./lib/token-crypto');
 
 const DB_PATH = path.join(__dirname, 'db.json');
 const DEFAULT_DB = {
@@ -71,29 +72,32 @@ class JsonDatabase {
     }
 
     async getAccounts() {
-        return this._data.accounts || [];
+        return (this._data.accounts || []).map(decryptAccountTokens);
     }
 
     async getAccountByPlatform(platform) {
-        return (this._data.accounts || []).find(a => a.platform === platform) || null;
+        const row = (this._data.accounts || []).find(a => a.platform === platform) || null;
+        return row ? decryptAccountTokens(row) : null;
     }
 
     async upsertAccount(accountData) {
         const idx = this._data.accounts.findIndex(a => a.platform === accountData.platform);
         if (idx !== -1) {
-            this._data.accounts[idx] = {
+            const merged = {
                 ...this._data.accounts[idx],
                 ...accountData,
                 updatedAt: new Date().toISOString()
             };
+            // Re-encrypt tokens (decrypt-on-read → encrypt-on-write)
+            this._data.accounts[idx] = encryptAccountTokens(merged);
         } else {
-            this._data.accounts.push({
+            this._data.accounts.push(encryptAccountTokens({
                 id: 'acc-' + accountData.platform + '-' + Date.now(),
                 ...accountData,
                 connected: true,
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString()
-            });
+            }));
         }
         await this.save();
         return this.getAccountByPlatform(accountData.platform);

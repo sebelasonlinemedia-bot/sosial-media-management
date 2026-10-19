@@ -54,13 +54,13 @@ Setelah pull, pastikan Neon punya tabel tambahan (otomatis di `db-postgres.load(
 
 Lokal (`db.json`) mendapat `aiSettings` + `auditLog` otomatis saat load.
 
-## 5. Fase 2 — stub / TODO
+## 5. Fase 2 — live
 
 | Item | Status | Catatan |
 |------|--------|---------|
-| Analitik penggerak agen | Stub | `GET /api/ai/insights` + placeholder UI Kantor AI |
-| Notifikasi email/WhatsApp | Stub | Field `settings.notifications` di `PUT /api/ai/settings` |
-| Token encryption at rest | Helper minimal | `lib/token-crypto.js` — set `TOKEN_ENCRYPTION_KEY` (≥16 char). Belum di-wire ke upsert OAuth (hindari breaking). TODO: encrypt on write / decrypt on read. |
-| Izin per peran/akun | Stub model | Field `settings.rolePermissions` — enforce belum |
+| Analitik penggerak agen | Live | `GET /api/ai/insights` dari posts/stats; panel **Apa berikutnya** di dasbor & Kantor AI |
+| Notifikasi email/WhatsApp | Live | `settings.notifications` + stub HTTP POST webhook; audit log; gagal tidak memblokir job |
+| Token encryption at rest | Live | `lib/token-crypto.js` di-wire ke upsert/read akun. Set `TOKEN_ENCRYPTION_KEY` (≥16). Kosong = plain + warn sekali |
+| Izin per peran/akun | Live | `settings.rolePermissions` enforced di create job / run / employee publish; checklist UI |
 
 Jangan commit `.env`, `db.json`, atau secrets.

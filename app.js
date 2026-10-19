@@ -25,7 +25,9 @@ const appState = {
         selectedJobId: null,
         focusRoleId: null,
         stageReady: false,
-        briefTemplates: []
+        briefTemplates: [],
+        insights: null,
+        platforms: ['instagram', 'facebook', 'tiktok', 'youtube']
     },
     serverMode: 'sandbox',  // 'sandbox' | 'real'
     currentView: 'dashboard',
@@ -377,6 +379,7 @@ app.renderDashboard = function () {
 
     this.renderChannelShareChart();
     this.renderAiJobs();
+    this.loadAndRenderInsights('dashboard-nextup-body');
     lucide.createIcons();
 };
 
@@ -486,6 +489,10 @@ app.setupOfficeEvents = function () {
     document.querySelectorAll('.office-tpl-btn').forEach(btn => {
         btn.addEventListener('click', () => this.applyOfficeBriefTemplate(btn.dataset.tpl));
     });
+    const dashInsightsOffice = document.getElementById('dashboard-open-office-from-insights');
+    if (dashInsightsOffice) {
+        dashInsightsOffice.addEventListener('click', () => this.switchView('office'));
+    }
     const toggle3d = document.getElementById('office-3d-toggle');
     if (toggle3d) {
         const prefOn = (typeof AiOffice3D !== 'undefined' && AiOffice3D.loadPreference)
@@ -512,6 +519,7 @@ app.loadOfficeFromServer = async function () {
             appState.office.jobCounts = data.jobCounts || {};
             appState.office.settings = data.settings || null;
             appState.office.briefTemplates = data.briefTemplates || [];
+            if (data.platforms) appState.office.platforms = data.platforms;
         }
         await this.loadAiJobsFromServer();
     } catch (e) {
@@ -526,9 +534,117 @@ app.renderOffice = async function () {
     this.renderOfficeBoard();
     this.renderOfficeRoleSelect();
     this.renderOfficeAnswerPanel();
+    await this.loadAndRenderInsights('office-nextup-body');
     this.initOffice3D();
     this.syncOffice3DEmployees();
     lucide.createIcons();
+};
+
+app.loadAndRenderInsights = async function (containerId) {
+    const el = document.getElementById(containerId);
+    if (!el) return;
+    try {
+        const data = await api.get('/api/ai/insights?days=30');
+        if (!data.success) {
+            el.innerHTML = `<p class="text-secondary font-sm">${this._escapeHtml(data.message || 'Gagal memuat insights.')}</p>`;
+            return;
+        }
+        appState.office.insights = data;
+        this.renderNextUpPanel(el, data);
+    } catch (e) {
+        el.innerHTML = '<p class="text-secondary font-sm">Gagal memuat insights.</p>';
+    }
+};
+
+app.renderNextUpPanel = function (el, data) {
+    if (!el) return;
+    const next = data.nextUp || {};
+    const insights = data.insights || [];
+    const recs = (next.recommendations || data.recommendations || []).slice(0, 3);
+    const insightLines = insights.slice(0, 3).map(i =>
+        `<li class="office-nextup-item">
+            <span class="office-nextup-item-title">${this._escapeHtml(i.title)}</span>
+            <span class="office-nextup-item-reason">${this._escapeHtml(i.summary)}</span>
+        </li>`
+    ).join('');
+    const recHtml = recs.map(r =>
+        `<li class="office-nextup-item">
+            <span class="office-nextup-item-title">${this._escapeHtml(r.cta || r.id)}</span>
+            <span class="office-nextup-item-reason">${this._escapeHtml(r.reason || '')}</span>
+            <div class="office-nextup-actions">
+                <button type="button" class="btn btn-sm btn-primary office-nextup-cta"
+                    data-role="${this._escapeHtml(r.roleId || 'strategist')}"
+                    data-platforms="${this._escapeHtml((r.platforms || []).join(','))}"
+                    data-reason="${this._escapeHtml(r.reason || '')}">${this._escapeHtml(r.cta || 'Buat brief')}</button>
+            </div>
+        </li>`
+    ).join('');
+
+    el.innerHTML = `
+        <p class="office-nextup-headline">${this._escapeHtml(next.headline || 'Apa berikutnya')}</p>
+        <p class="office-nextup-summary">${this._escapeHtml(next.summary || '')}</p>
+        ${insightLines ? `<ul class="office-nextup-list">${insightLines}</ul>` : ''}
+        ${recHtml ? `<ul class="office-nextup-list">${recHtml}</ul>` : ''}
+        <p class="input-hint">${data.sampleSize || 0} post · ${data.windowDays || 30} hari${data.bestHour != null ? ` · jam kuat ~${String(data.bestHour).padStart(2, '0')}:00` : ''}</p>
+    `;
+    el.querySelectorAll('.office-nextup-cta').forEach(btn => {
+        btn.addEventListener('click', () => {
+            this.applyInsightCta({
+                roleId: btn.dataset.role,
+                platforms: (btn.dataset.platforms || '').split(',').filter(Boolean),
+                reason: btn.dataset.reason || ''
+            });
+        });
+    });
+};
+
+app.applyInsightCta = function ({ roleId, platforms, reason }) {
+    this.switchView('office');
+    const select = document.getElementById('office-role-select');
+    if (select && roleId) select.value = roleId;
+    const ta = document.getElementById('office-brief-text');
+    if (ta) {
+        const plats = (platforms || []).join(', ') || 'instagram';
+        ta.value = `${reason || 'Konten lanjutan dari insights'}. Platform: ${plats}. CTA jelas. Tone sesuai brand memory.`;
+    }
+    appState.office.focusRoleId = roleId || null;
+    this.showToast('Brief disiapkan dari insights — review lalu kirim.', 'emerald');
+};
+
+app._collectRolePermissionsFromUi = function () {
+    const root = document.getElementById('office-role-permissions');
+    if (!root) return {};
+    const platforms = appState.office.platforms || ['instagram', 'facebook', 'tiktok', 'youtube'];
+    const map = {};
+    root.querySelectorAll('.office-role-perm-row').forEach(row => {
+        const roleId = row.dataset.roleId;
+        if (!roleId) return;
+        const checked = [...row.querySelectorAll('input[type="checkbox"]:checked')].map(c => c.value);
+        // Semua centang atau nol centang → tidak dibatasi (omit)
+        if (checked.length > 0 && checked.length < platforms.length) {
+            map[roleId] = checked;
+        }
+    });
+    return map;
+};
+
+app.renderOfficeRolePermissions = function () {
+    const root = document.getElementById('office-role-permissions');
+    if (!root) return;
+    const platforms = appState.office.platforms || ['instagram', 'facebook', 'tiktok', 'youtube'];
+    const perms = (appState.office.settings && appState.office.settings.rolePermissions) || {};
+    const employees = appState.office.employees || [];
+    root.innerHTML = employees.map(emp => {
+        const allowed = Object.prototype.hasOwnProperty.call(perms, emp.id) ? perms[emp.id] : null;
+        const checks = platforms.map(p => {
+            const on = allowed == null ? true : allowed.includes(p);
+            return `<label><input type="checkbox" value="${p}" ${on ? 'checked' : ''}> ${p}</label>`;
+        }).join('');
+        return `<div class="office-role-perm-row" data-role-id="${emp.id}">
+            <span class="office-role-perm-name">${this._escapeHtml(emp.name)} · ${this._escapeHtml(emp.title || emp.id)}</span>
+            <div class="office-role-perm-checks">${checks}</div>
+        </div>`;
+    }).join('') || '<p class="text-secondary font-sm">Muat Kantor AI dulu.</p>';
 };
 
 app.renderOfficeSettings = function () {
@@ -537,16 +653,25 @@ app.renderOfficeSettings = function () {
     const cap = document.getElementById('office-daily-cap');
     const status = document.getElementById('office-settings-status');
     const pauseBtn = document.getElementById('office-emergency-pause-btn');
+    const notifyEn = document.getElementById('office-notify-enabled');
+    const notifyEmail = document.getElementById('office-notify-email');
+    const notifyWh = document.getElementById('office-notify-webhook');
     if (!s) {
         if (status) status.textContent = 'Settings belum dimuat.';
         return;
     }
     if (autonomy) autonomy.value = s.autonomyLevel || 'limited_autonomous';
     if (cap) cap.value = s.dailyPostCap != null ? s.dailyPostCap : 10;
+    const n = s.notifications || {};
+    if (notifyEn) notifyEn.checked = !!n.enabled;
+    if (notifyEmail) notifyEmail.value = n.email || '';
+    if (notifyWh) notifyWh.value = n.whatsappWebhookUrl || n.whatsapp || '';
+    this.renderOfficeRolePermissions();
     if (status) {
         status.textContent = s.emergencyPause
             ? '⛔ Jeda darurat AKTIF — agen tidak boleh publish.'
-            : `Otonomi: ${s.autonomyLevel} · cap ${s.dailyPostCap}/hari`;
+            : `Otonomi: ${s.autonomyLevel} · cap ${s.dailyPostCap}/hari` +
+                (n.enabled ? ' · notifikasi on' : '');
     }
     if (pauseBtn) {
         pauseBtn.textContent = s.emergencyPause ? 'Lepas jeda' : 'Jeda darurat';
@@ -559,7 +684,18 @@ app.saveOfficeSettings = async function () {
     try {
         const autonomyLevel = document.getElementById('office-autonomy-select')?.value;
         const dailyPostCap = parseInt(document.getElementById('office-daily-cap')?.value, 10);
-        const data = await api.put('/api/ai/settings', { autonomyLevel, dailyPostCap });
+        const notifications = {
+            enabled: !!document.getElementById('office-notify-enabled')?.checked,
+            email: document.getElementById('office-notify-email')?.value?.trim() || null,
+            whatsappWebhookUrl: document.getElementById('office-notify-webhook')?.value?.trim() || null
+        };
+        const rolePermissions = this._collectRolePermissionsFromUi();
+        const data = await api.put('/api/ai/settings', {
+            autonomyLevel,
+            dailyPostCap,
+            notifications,
+            rolePermissions
+        });
         if (!data.success) {
             this.showToast(data.message || 'Gagal simpan settings.', 'red');
             return;
@@ -567,7 +703,10 @@ app.saveOfficeSettings = async function () {
         appState.office.settings = {
             autonomyLevel: data.settings.autonomyLevel,
             emergencyPause: data.settings.emergencyPause,
-            dailyPostCap: data.settings.dailyPostCap
+            dailyPostCap: data.settings.dailyPostCap,
+            notifications: data.settings.notifications,
+            rolePermissions: data.settings.rolePermissions,
+            insightsEnabled: data.settings.insightsEnabled
         };
         this.renderOfficeSettings();
         this.showToast('Settings Tim Konten disimpan.', 'emerald');
@@ -586,9 +725,12 @@ app.toggleEmergencyPause = async function () {
             return;
         }
         appState.office.settings = {
+            ...(appState.office.settings || {}),
             autonomyLevel: data.settings.autonomyLevel,
             emergencyPause: data.settings.emergencyPause,
-            dailyPostCap: data.settings.dailyPostCap
+            dailyPostCap: data.settings.dailyPostCap,
+            notifications: data.settings.notifications,
+            rolePermissions: data.settings.rolePermissions
         };
         this.renderOfficeSettings();
         this.showToast(data.message || (pause ? 'Jeda aktif' : 'Jeda lepas'), pause ? 'yellow' : 'emerald');
@@ -984,12 +1126,17 @@ app.submitOfficeBrief = async function () {
     const submitBtn = document.getElementById('office-brief-submit');
     if (submitBtn) submitBtn.disabled = true;
 
+    const variantA = document.getElementById('office-variant-a')?.value?.trim() || '';
+    const variantB = document.getElementById('office-variant-b')?.value?.trim() || '';
+
     try {
         const data = await api.post('/api/ai/jobs', {
             brief,
             roleId,
             employeeName: emp?.name || undefined,
-            platforms: emp?.defaultPlatforms || []
+            platforms: emp?.defaultPlatforms || [],
+            variantA: variantA || undefined,
+            variantB: variantB || undefined
         });
 
         if (!data.success) {
@@ -998,6 +1145,10 @@ app.submitOfficeBrief = async function () {
         }
 
         document.getElementById('office-brief-text').value = '';
+        const va = document.getElementById('office-variant-a');
+        const vb = document.getElementById('office-variant-b');
+        if (va) va.value = '';
+        if (vb) vb.value = '';
         appState.office.selectedJobId = data.job.id;
 
         if (data.needsInfo) {

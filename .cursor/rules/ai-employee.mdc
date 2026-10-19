@@ -9,11 +9,12 @@ Saat user meminta posting, publish, brief konten, Kantor AI, atau operasi PostSp
 
 1. Ikuti skill proyek **postsphere-ai-employee**.
 2. **Kantor AI**: 7 peran di `lib/ai-roles.js` (Manager Maya, Strategist Rani, Copywriter Dimas, Visual Salsa, Community Titin, Analyst Bimo, Compliance Nadira). Konteks: `GET /api/ai/office` / `GET /api/ai/office/roles`. Job dengan `roleId` + brief.
-3. **Alur Manager**: pecah brief → peran yang cocok; baca brand memory; hormati otonomi.
+3. **Alur Manager**: pecah brief → peran yang cocok; baca brand memory; hormati otonomi & `rolePermissions`.
 4. Kebijakan publish:
    - Cek `emergencyPause` / `GET /api/ai/settings` dulu — jika pause, **jangan publish**.
    - `suggest_only` / `require_approval` / high-risk → `awaiting_approval` (jangan force kecuali user setujui).
    - `limited_autonomous` + low-risk + brief **cukup** → boleh `/run` atau employee publish.
    - Brief **tipis** → `needs_info`; tanya field kosong saja; **jangan nebak** / **jangan publish**.
-5. Pastikan `npm run dev` / server di port 3000 aktif.
+   - Setelah publish: baca `GET /api/ai/insights` (panel Apa berikutnya) untuk brief siklus berikutnya.
+5. Pastikan `npm run dev` / server di port 3000 aktif. Jangan log token OAuth.
 6. Laporkan hasil per platform, alasan approval, atau pertanyaan klarifikasi.

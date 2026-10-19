@@ -36,9 +36,13 @@ const {
     evaluatePublishGate,
     assessStructuredBrief,
     appendDecision,
+    enforceRolePlatforms,
+    ALL_PLATFORMS,
     AUTONOMY_LEVELS
 } = require('./lib/ai-policy');
 const { isEncryptionEnabled } = require('./lib/token-crypto');
+const { buildInsights } = require('./lib/ai-insights');
+const { notifyJobAttention } = require('./lib/ai-notify');
 
 const IS_VERCEL = !!process.env.VERCEL;
 
@@ -979,6 +983,8 @@ app.post('/api/ai/employee/publish', async (req, res) => {
             mediaUrl,
             mediaType,
             employeeName,
+            employeeRole,
+            roleId,
             forcePublish
         } = req.body || {};
 
@@ -1005,6 +1011,20 @@ app.post('/api/ai/employee/publish', async (req, res) => {
                     ? 'Tidak ada platform target yang terhubung. Sesuaikan daftar platforms.'
                     : 'Belum ada akun terhubung. Hubungkan akun dulu di UI PostSphere.'
             });
+        }
+
+        const pubRole = resolveRole({ roleId, employeeRole, employeeName });
+        if (pubRole?.id) {
+            const perm = enforceRolePlatforms(settings, pubRole.id, targetPlatforms);
+            if (!perm.ok) {
+                return res.status(403).json({
+                    success: false,
+                    message: perm.message,
+                    denied: perm.denied,
+                    allowed: perm.allowed
+                });
+            }
+            targetPlatforms = perm.platforms;
         }
 
         const brandMemories = await collectBrandMemories(targetPlatforms);
@@ -1169,15 +1189,21 @@ app.get('/api/ai/brief-templates', (req, res) => {
     res.json({ success: true, templates: BRIEF_TEMPLATES });
 });
 
-/** Fase 2 stub — insights yang menggerakkan agen */
+/** Analitik penggerak agen — best/worst, jam/format, saran frekuensi */
 app.get('/api/ai/insights', async (req, res) => {
-    res.json({
-        success: true,
-        stub: true,
-        message: 'Fase 2: analitik penggerak agen belum aktif.',
-        insights: [],
-        recommendations: []
-    });
+    try {
+        const settings = await db.getAiSettings();
+        const posts = await db.getPosts();
+        const days = parseInt(req.query.days, 10) || 30;
+        const payload = buildInsights(posts, { days });
+        res.json({
+            success: true,
+            insightsEnabled: settings.insightsEnabled !== false,
+            ...payload
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
 });
 
 // ============================================================
@@ -1286,8 +1312,13 @@ app.get('/api/ai/office', async (req, res) => {
             settings: {
                 autonomyLevel: settings.autonomyLevel,
                 emergencyPause: settings.emergencyPause,
-                dailyPostCap: settings.dailyPostCap
+                dailyPostCap: settings.dailyPostCap,
+                notifications: settings.notifications,
+                rolePermissions: settings.rolePermissions,
+                insightsEnabled: settings.insightsEnabled !== false
             },
+            platforms: ALL_PLATFORMS,
+            tokenEncryption: isEncryptionEnabled(),
             employees,
             board,
             briefTemplates: BRIEF_TEMPLATES.map(t => ({ id: t.id, label: t.label })),
@@ -1333,7 +1364,10 @@ app.post('/api/ai/jobs', async (req, res) => {
             employeeRole,
             roleId,
             forceQueued,
-            templateId
+            templateId,
+            variantA,
+            variantB,
+            abWinner
         } = req.body || {};
 
         let briefInput = structuredBrief || brief;
@@ -1366,15 +1400,54 @@ app.post('/api/ai/jobs', async (req, res) => {
         const fromStructured = assessment.structured?.platforms?.length
             ? assessment.structured.platforms
             : null;
-        const resolvedPlatforms = Array.isArray(platforms) && platforms.length
+        let resolvedPlatforms = Array.isArray(platforms) && platforms.length
             ? platforms.map(p => String(p).toLowerCase())
             : (fromStructured || role?.defaultPlatforms || []);
 
-        const decisionLog = appendDecision([], {
+        const settings = await db.getAiSettings();
+        const resolvedRoleId = role?.id || (roleId ? normalizeRoleId(roleId) : null);
+        if (resolvedPlatforms.length && resolvedRoleId) {
+            const perm = enforceRolePlatforms(settings, resolvedRoleId, resolvedPlatforms);
+            if (!perm.ok) {
+                return res.status(403).json({
+                    success: false,
+                    message: perm.message,
+                    denied: perm.denied,
+                    allowed: perm.allowed
+                });
+            }
+            resolvedPlatforms = perm.platforms;
+        }
+
+        let decisionLog = appendDecision([], {
             actor: role?.name || 'system',
             reason: assessment.thin ? 'Brief tipis — needs_info' : 'Brief cukup — queued',
             status
         });
+
+        const abVariants = {
+            A: variantA != null ? String(variantA).trim() : null,
+            B: variantB != null ? String(variantB).trim() : null
+        };
+        if (abVariants.A || abVariants.B) {
+            decisionLog = appendDecision(decisionLog, {
+                actor: role?.name || 'system',
+                reason: 'A/B hook terdaftar',
+                status: 'ab_registered',
+                variants: {
+                    A: abVariants.A ? abVariants.A.slice(0, 120) : null,
+                    B: abVariants.B ? abVariants.B.slice(0, 120) : null
+                }
+            });
+        }
+        if (abWinner && (abWinner === 'A' || abWinner === 'B')) {
+            decisionLog = appendDecision(decisionLog, {
+                actor: 'user',
+                reason: `Pemenang A/B: variant ${abWinner}`,
+                status: 'ab_winner',
+                winner: abWinner
+            });
+        }
 
         const job = await db.addAiJob({
             brief: briefText,
@@ -1394,7 +1467,10 @@ app.post('/api/ai/jobs', async (req, res) => {
             mediaType: mediaType || '',
             employeeName: (employeeName || role?.name || 'Karyawan AI').trim(),
             employeeRole: (employeeRole || role?.id || 'content').trim(),
-            roleId: role?.id || (roleId ? normalizeRoleId(roleId) : null),
+            roleId: resolvedRoleId,
+            variantA: abVariants.A || '',
+            variantB: abVariants.B || '',
+            abWinner: (abWinner === 'A' || abWinner === 'B') ? abWinner : null,
             runId: null,
             version: 1,
             lastError: null,
@@ -1407,6 +1483,15 @@ app.post('/api/ai/jobs', async (req, res) => {
             target: job.id,
             detail: { status, roleId: job.roleId, thin: assessment.thin }
         });
+
+        if (status === 'needs_info') {
+            notifyJobAttention(settings, {
+                status: 'needs_info',
+                job,
+                reason: 'Brief tipis — perlu klarifikasi',
+                actor: job.employeeName
+            }, { appendAuditLog: (e) => db.appendAuditLog(e) }).catch(() => {});
+        }
 
         console.log(`📋 [AI-JOB] ${job.id} status=${status} thin=${assessment.thin} role=${job.roleId || '-'}`);
         res.status(201).json({
@@ -1573,7 +1658,10 @@ app.post('/api/ai/jobs/:id/run', async (req, res) => {
             mediaType,
             employeeName,
             forcePublish,
-            complianceNote
+            complianceNote,
+            variantA,
+            variantB,
+            abWinner
         } = req.body || {};
 
         const finalCaption = captionFromBrief(job.brief, caption || job.caption);
@@ -1601,6 +1689,26 @@ app.post('/api/ai/jobs/:id/run', async (req, res) => {
         }
 
         const settings = await db.getAiSettings();
+        const runRoleId = job.roleId || normalizeRoleId(job.employeeRole);
+        if (runRoleId) {
+            const perm = enforceRolePlatforms(settings, runRoleId, targetPlatforms);
+            if (!perm.ok) {
+                return res.status(403).json({
+                    success: false,
+                    message: perm.message,
+                    denied: perm.denied,
+                    allowed: perm.allowed
+                });
+            }
+            targetPlatforms = perm.platforms;
+            if (!targetPlatforms.length) {
+                return res.status(403).json({
+                    success: false,
+                    message: perm.message || 'Tidak ada platform yang diizinkan untuk peran ini.'
+                });
+            }
+        }
+
         const brandMemories = await collectBrandMemories(targetPlatforms);
         const brandSummary = brandMemoryContextSummary(brandMemories, targetPlatforms);
         const recentPosts = await db.getPosts();
@@ -1627,13 +1735,27 @@ app.post('/api/ai/jobs/:id/run', async (req, res) => {
             complianceNote: complianceNote || null
         });
 
+        const nextVariantA = variantA != null ? String(variantA).trim() : (job.variantA || '');
+        const nextVariantB = variantB != null ? String(variantB).trim() : (job.variantB || '');
+        const nextWinner = (abWinner === 'A' || abWinner === 'B')
+            ? abWinner
+            : (job.abWinner || null);
+
         if (!gate.allowPublish) {
-            const decisionLog = appendDecision(job.decisionLog, {
+            let decisionLog = appendDecision(job.decisionLog, {
                 actor: name,
                 reason: gate.reasons[0] || 'Menunggu approval',
                 status: 'awaiting_approval',
                 policy: gate.policy
             });
+            if (nextWinner) {
+                decisionLog = appendDecision(decisionLog, {
+                    actor: name,
+                    reason: `Pemenang A/B dicatat: ${nextWinner}`,
+                    status: 'ab_winner',
+                    winner: nextWinner
+                });
+            }
             const updated = await db.updateAiJob(job.id, {
                 status: 'awaiting_approval',
                 caption: finalCaption,
@@ -1643,6 +1765,9 @@ app.post('/api/ai/jobs/:id/run', async (req, res) => {
                 employeeName: name,
                 draftHistory: history,
                 decisionLog,
+                variantA: nextVariantA,
+                variantB: nextVariantB,
+                abWinner: nextWinner,
                 version: nextVersion,
                 lastError: null
             });
@@ -1652,6 +1777,12 @@ app.post('/api/ai/jobs/:id/run', async (req, res) => {
                 target: job.id,
                 detail: { reasons: gate.reasons, policy: gate.policy }
             });
+            notifyJobAttention(settings, {
+                status: 'awaiting_approval',
+                job: updated,
+                reason: gate.reasons[0] || 'Menunggu persetujuan',
+                actor: name
+            }, { appendAuditLog: (e) => db.appendAuditLog(e) }).catch(() => {});
             return res.json({
                 success: true,
                 awaitingApproval: true,
@@ -1673,6 +1804,14 @@ app.post('/api/ai/jobs/:id/run', async (req, res) => {
             status: 'publishing',
             policy: gate.policy
         });
+        if (nextWinner) {
+            decisionLog = appendDecision(decisionLog, {
+                actor: name,
+                reason: `Pemenang A/B: variant ${nextWinner}`,
+                status: 'ab_winner',
+                winner: nextWinner
+            });
+        }
 
         await db.updateAiJob(job.id, {
             status: 'publishing',
@@ -1684,6 +1823,9 @@ app.post('/api/ai/jobs/:id/run', async (req, res) => {
             runId,
             draftHistory: history,
             decisionLog,
+            variantA: nextVariantA,
+            variantB: nextVariantB,
+            abWinner: nextWinner,
             version: nextVersion,
             lastError: null,
             approvedAt: null

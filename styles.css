@@ -2885,8 +2885,104 @@ button, input, textarea, select {
     gap: 8px;
 }
 
-.office-insights-stub {
-    border-style: dashed;
+.office-nextup-card .office-nextup-body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.office-nextup-headline {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.office-nextup-summary {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    line-height: 1.45;
+}
+
+.office-nextup-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.office-nextup-item {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px 0;
+    border-top: 1px solid var(--border-color, rgba(15, 23, 42, 0.08));
+}
+
+.office-nextup-item:first-child {
+    border-top: none;
+    padding-top: 0;
+}
+
+.office-nextup-item-title {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.office-nextup-item-reason {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+.office-nextup-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.office-role-permissions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 220px;
+    overflow: auto;
+    padding: 4px 0;
+}
+
+.office-role-perm-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.office-role-perm-name {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.office-role-perm-checks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+}
+
+.office-role-perm-checks label {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+.office-ab-row .mb-1 {
+    margin-bottom: 6px;
 }
 
 .office-stage-card .card-header {
