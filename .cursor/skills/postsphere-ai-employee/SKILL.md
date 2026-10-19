@@ -20,7 +20,7 @@ Kebijakan publish = **langsung publish** jika brief cukup; **tanya dulu** jika b
 - Ambil daftar: `GET /api/ai/office` atau `GET /api/ai/office/roles`.
 - Saat buat job, kirim `roleId` (dan opsional `employeeName`).
 
-Peran bawaan: `social-media`, `content-writer`, `customer-service`, `ads-analyst`, `manager`.
+Peran bawaan (id -> nama display): `social-media` -> Rani, `content-writer` -> Dimas, `customer-service` -> Titin, `ads-analyst` -> Bimo, `manager` -> Maya.
 Pakai `systemBrief` peran sebagai instruksi singkat saat menulis caption / menjawab brief.
 
 ## Kebijakan wajib
