@@ -3034,6 +3034,105 @@ button, input, textarea, select {
     z-index: 2;
 }
 
+.office-3d-speech {
+    display: block;
+    max-width: 160px;
+    padding: 4px 8px;
+    margin-bottom: 4px;
+    border-radius: 8px 8px 8px 2px;
+    background: rgba(15, 23, 42, 0.88);
+    color: #f8fafc;
+    font-size: 0.65rem;
+    line-height: 1.25;
+    text-align: left;
+    white-space: normal;
+    word-break: break-word;
+}
+
+.office-3d-speech.is-idle {
+    background: rgba(71, 85, 105, 0.88);
+    font-style: italic;
+}
+
+.office-3d-speech.hidden {
+    display: none;
+}
+
+.office-3d-label-row {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1px;
+}
+
+.office-activity-panel {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-color, rgba(15, 23, 42, 0.08));
+}
+
+.office-activity-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.office-activity-head h3 {
+    margin: 0;
+    font-size: 0.9rem;
+    font-weight: 650;
+}
+
+.office-activity-live,
+.office-activity-audit {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.office-activity-live {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.office-activity-live li {
+    font-size: 0.72rem;
+    line-height: 1.35;
+    padding: 6px 8px;
+    border-radius: 8px;
+    background: rgba(15, 23, 42, 0.04);
+    color: var(--text-secondary);
+}
+
+.office-activity-live li strong {
+    color: var(--text-primary);
+    font-weight: 650;
+}
+
+.office-activity-audit {
+    max-height: 140px;
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.office-activity-audit li {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    line-height: 1.35;
+    padding: 3px 0;
+    border-bottom: 1px dashed rgba(15, 23, 42, 0.06);
+}
+
+.office-activity-audit li:last-child {
+    border-bottom: none;
+}
+
 .office-3d-label {
     position: absolute;
     left: 0;
@@ -3049,7 +3148,7 @@ button, input, textarea, select {
     background: rgba(255, 255, 255, 0.92);
     color: var(--text-primary);
     cursor: pointer;
-    white-space: nowrap;
+    white-space: normal;
     backdrop-filter: blur(6px);
     box-shadow: var(--shadow-sm);
     transition: border-color 0.15s ease, background 0.15s ease;

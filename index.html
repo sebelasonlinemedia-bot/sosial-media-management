@@ -752,19 +752,27 @@
 
                             <div class="card office-stage-card office-stage-optional" id="office-stage-card">
                                 <div class="card-header">
-                                    <h2>Ruang Tim (3D opsional)</h2>
+                                    <h2>Ruang Kantor AI</h2>
                                     <label class="office-3d-toggle" title="Nonaktifkan di perangkat lemah / hemat baterai">
-                                        <input type="checkbox" id="office-3d-toggle">
-                                        <span>Tampilan 3D</span>
+                                        <input type="checkbox" id="office-3d-toggle" checked>
+                                        <span>Tampilan kantor</span>
                                     </label>
                                 </div>
-                                <div class="office-3d-viewport is-3d-off" id="office-3d-viewport">
-                                    <canvas id="office-3d-canvas" aria-label="Viewport 3D karyawan AI"></canvas>
+                                <div class="office-3d-viewport" id="office-3d-viewport">
+                                    <canvas id="office-3d-canvas" aria-label="Viewport Ruang Kantor AI PiK's Digital Lab"></canvas>
                                     <div class="office-3d-labels" id="office-3d-labels" aria-hidden="true"></div>
-                                    <p class="office-3d-hint">Klik avatar untuk fokus job · work board di atas lebih utama</p>
+                                    <p class="office-3d-hint">Klik avatar untuk fokus job · zona: meja kerja · meeting · lounge · break · koridor</p>
                                     <div class="office-3d-fallback" id="office-3d-fallback">
-                                        <p>3D opsional. Work board dan kartu tim di atas adalah ruang kerja utama.</p>
+                                        <p>Tampilan kantor dimatikan. Work board dan kartu tim di atas tetap ruang kerja utama.</p>
                                     </div>
+                                </div>
+                                <div class="office-activity-panel" id="office-activity-panel">
+                                    <div class="office-activity-head">
+                                        <h3>Activity log</h3>
+                                        <span class="text-secondary font-sm" id="office-activity-meta">Live dari status job</span>
+                                    </div>
+                                    <ul class="office-activity-live" id="office-activity-live" aria-live="polite"></ul>
+                                    <ul class="office-activity-audit" id="office-activity-audit"></ul>
                                 </div>
                             </div>
 

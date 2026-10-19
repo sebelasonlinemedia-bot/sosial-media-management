@@ -27,7 +27,9 @@ const appState = {
         stageReady: false,
         briefTemplates: [],
         insights: null,
-        platforms: ['instagram', 'facebook', 'tiktok', 'youtube']
+        platforms: ['instagram', 'facebook', 'tiktok', 'youtube'],
+        activityLive: [],
+        auditEntries: []
     },
     serverMode: 'sandbox',  // 'sandbox' | 'real'
     currentView: 'dashboard',
@@ -543,6 +545,7 @@ app.renderOffice = async function () {
     await this.loadAndRenderInsights('office-nextup-body');
     this.initOffice3D();
     this.syncOffice3DEmployees();
+    await this.loadOfficeActivityLog();
     lucide.createIcons();
 };
 
@@ -817,12 +820,66 @@ app.initOffice3D = function () {
         canvas,
         labelsRoot: labels,
         enabled,
-        onSelect: (roleId) => this.focusOfficeEmployee(roleId)
+        onSelect: (roleId) => this.focusOfficeEmployee(roleId),
+        onActivity: (rows) => this.renderOfficeActivityLive(rows)
     });
     appState.office.stageReady = !!ok;
     if (!ok) {
         viewport.classList.add('is-3d-off');
         if (toggle) toggle.checked = false;
+    }
+};
+
+app.renderOfficeActivityLive = function (rows) {
+    const list = document.getElementById('office-activity-live');
+    if (!list) return;
+    const items = Array.isArray(rows) ? rows : (typeof AiOffice3D !== 'undefined' && AiOffice3D.getActivitySnapshot
+        ? AiOffice3D.getActivitySnapshot()
+        : []);
+    appState.office.activityLive = items;
+    if (!items.length) {
+        list.innerHTML = '<li class="text-secondary">Belum ada aktivitas ruang.</li>';
+        return;
+    }
+    list.innerHTML = items.map((row) => {
+        const name = this._escapeHtml(row.name || row.roleId || '—');
+        const speech = this._escapeHtml(row.speech || row.label || row.status || '');
+        const status = this._escapeHtml(row.status || 'idle');
+        return `<li><strong>${name}</strong> · ${status}<br>${speech}</li>`;
+    }).join('');
+};
+
+app.loadOfficeActivityLog = async function () {
+    const auditEl = document.getElementById('office-activity-audit');
+    const metaEl = document.getElementById('office-activity-meta');
+    try {
+        const data = await api.get('/api/ai/audit-log?limit=12');
+        const entries = (data && data.success && Array.isArray(data.entries)) ? data.entries : [];
+        appState.office.auditEntries = entries;
+        if (metaEl) {
+            metaEl.textContent = entries.length
+                ? `${entries.length} entri audit terbaru`
+                : 'Live dari status job';
+        }
+        if (!auditEl) return;
+        if (!entries.length) {
+            auditEl.innerHTML = '<li>Belum ada audit trail. Publish / needs_info / approval akan muncul di sini.</li>';
+            return;
+        }
+        auditEl.innerHTML = entries.map((e) => {
+            const when = e.createdAt ? new Date(e.createdAt).toLocaleString('id-ID', {
+                hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short'
+            }) : '';
+            const actor = this._escapeHtml(e.actor || 'system');
+            const action = this._escapeHtml(e.action || '');
+            const target = this._escapeHtml(e.target || '');
+            const detail = e.detail ? this._escapeHtml(String(typeof e.detail === 'string' ? e.detail : JSON.stringify(e.detail)).slice(0, 80)) : '';
+            return `<li><time>${when}</time> · <strong>${actor}</strong> ${action}${target ? ' → ' + target : ''}${detail ? ' — ' + detail : ''}</li>`;
+        }).join('');
+    } catch (err) {
+        if (auditEl) {
+            auditEl.innerHTML = '<li>Audit log tidak tersedia saat ini.</li>';
+        }
     }
 };
 
@@ -836,6 +893,9 @@ app.teardownOffice3D = function () {
 app.syncOffice3DEmployees = function () {
     if (typeof AiOffice3D === 'undefined' || !appState.office.stageReady) return;
     AiOffice3D.updateEmployees(appState.office.employees || []);
+    if (typeof AiOffice3D.getActivitySnapshot === 'function') {
+        this.renderOfficeActivityLive(AiOffice3D.getActivitySnapshot());
+    }
 };
 
 app.focusOfficeEmployee = function (roleId) {
