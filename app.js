@@ -17,7 +17,7 @@ const appState = {
     accounts: [],
     posts: [],
     aiJobs: [],
-    office: { employees: [], board: {}, jobCounts: {}, selectedJobId: null },
+    office: { employees: [], board: {}, jobCounts: {}, selectedJobId: null, focusRoleId: null, stageReady: false },
     serverMode: 'sandbox',  // 'sandbox' | 'real'
     currentView: 'dashboard',
     composerSelectedPlatforms: [],
@@ -223,6 +223,10 @@ const app = {
         if (viewName !== 'composer') {
             appState.editingPostId = null;
             this.showCancelEditButton(false);
+        }
+
+        if (viewName !== 'office') {
+            this.teardownOffice3D();
         }
 
         const titles = {
@@ -446,6 +450,21 @@ app.setupOfficeEvents = function () {
     if (runBtn) {
         runBtn.addEventListener('click', () => this.runOfficeJob());
     }
+    const toggle3d = document.getElementById('office-3d-toggle');
+    if (toggle3d) {
+        const prefOn = (typeof AiOffice3D !== 'undefined' && AiOffice3D.loadPreference)
+            ? AiOffice3D.loadPreference()
+            : true;
+        toggle3d.checked = prefOn;
+        toggle3d.addEventListener('change', () => {
+            if (typeof AiOffice3D === 'undefined') return;
+            AiOffice3D.setEnabled(toggle3d.checked);
+            if (toggle3d.checked && !appState.office.stageReady) {
+                this.initOffice3D();
+            }
+            this.syncOffice3DEmployees();
+        });
+    }
 };
 
 app.loadOfficeFromServer = async function () {
@@ -468,7 +487,71 @@ app.renderOffice = async function () {
     this.renderOfficeBoard();
     this.renderOfficeRoleSelect();
     this.renderOfficeAnswerPanel();
+    this.initOffice3D();
+    this.syncOffice3DEmployees();
     lucide.createIcons();
+};
+
+app.initOffice3D = function () {
+    const viewport = document.getElementById('office-3d-viewport');
+    const canvas = document.getElementById('office-3d-canvas');
+    const labels = document.getElementById('office-3d-labels');
+    const toggle = document.getElementById('office-3d-toggle');
+    if (!viewport || typeof AiOffice3D === 'undefined' || typeof THREE === 'undefined') {
+        if (viewport) viewport.classList.add('is-3d-off');
+        return;
+    }
+    if (appState.office.stageReady) {
+        AiOffice3D.resize();
+        return;
+    }
+    const enabled = toggle ? toggle.checked : AiOffice3D.loadPreference();
+    if (toggle) toggle.checked = enabled;
+    const ok = AiOffice3D.init(viewport, {
+        canvas,
+        labelsRoot: labels,
+        enabled,
+        onSelect: (roleId) => this.focusOfficeEmployee(roleId)
+    });
+    appState.office.stageReady = !!ok;
+};
+
+app.teardownOffice3D = function () {
+    if (typeof AiOffice3D !== 'undefined') {
+        AiOffice3D.dispose();
+    }
+    appState.office.stageReady = false;
+};
+
+app.syncOffice3DEmployees = function () {
+    if (typeof AiOffice3D === 'undefined' || !appState.office.stageReady) return;
+    AiOffice3D.updateEmployees(appState.office.employees || []);
+};
+
+app.focusOfficeEmployee = function (roleId) {
+    if (!roleId) return;
+    appState.office.focusRoleId = roleId;
+    const select = document.getElementById('office-role-select');
+    if (select) select.value = roleId;
+
+    const emp = (appState.office.employees || []).find(e => e.id === roleId);
+    if (emp?.latestJob) {
+        appState.office.selectedJobId = emp.latestJob.id;
+    }
+
+    document.querySelectorAll('.office-employee-card').forEach(card => {
+        card.classList.toggle('is-focused', card.dataset.roleId === roleId);
+    });
+
+    this.renderOfficeBoard();
+    this.renderOfficeAnswerPanel();
+
+    const boardCard = document.querySelector('.office-board-card');
+    if (boardCard) boardCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+    if (emp) {
+        this.showToast(`Fokus: ${emp.name} — ${this._statusLabel(emp.status)}`, 'emerald');
+    }
 };
 
 app._escapeHtml = function (str) {
@@ -539,9 +622,9 @@ app.renderOfficeEmployees = function () {
                 <span class="office-employee-brief">${brief}</span>
             </div>
             <span class="badge ${this._statusBadge(emp.status)}">${this._statusLabel(emp.status)}</span>`;
+        if (appState.office.focusRoleId === emp.id) card.classList.add('is-focused');
         card.addEventListener('click', () => {
-            const select = document.getElementById('office-role-select');
-            if (select) select.value = emp.id;
+            this.focusOfficeEmployee(emp.id);
             if (emp.latestJob && emp.latestJob.status === 'needs_info') {
                 appState.office.selectedJobId = emp.latestJob.id;
                 this.renderOfficeAnswerPanel();
@@ -575,7 +658,19 @@ app.renderOfficeBoard = function () {
             return;
         }
 
-        items.forEach(job => {
+        const focusRole = appState.office.focusRoleId;
+        const filtered = focusRole
+            ? items.filter(j => j.roleId === focusRole || j.employeeRole === focusRole)
+            : items;
+
+        if (filtered.length === 0) {
+            col.innerHTML = focusRole
+                ? '<p class="office-column-empty">Tidak ada job peran ini</p>'
+                : '<p class="office-column-empty">Kosong</p>';
+            return;
+        }
+
+        filtered.forEach(job => {
             const item = document.createElement('button');
             item.type = 'button';
             item.className = 'office-job-card';
@@ -591,6 +686,22 @@ app.renderOfficeBoard = function () {
             col.appendChild(item);
         });
     });
+
+    const countsElFocus = document.getElementById('office-board-counts');
+    if (countsElFocus && appState.office.focusRoleId) {
+        const emp = (appState.office.employees || []).find(e => e.id === appState.office.focusRoleId);
+        const clearHint = document.createElement('button');
+        clearHint.type = 'button';
+        clearHint.className = 'btn-text office-clear-focus';
+        clearHint.textContent = emp ? `Filter: ${emp.name} · Hapus` : 'Hapus filter';
+        clearHint.addEventListener('click', () => {
+            appState.office.focusRoleId = null;
+            document.querySelectorAll('.office-employee-card.is-focused').forEach(c => c.classList.remove('is-focused'));
+            this.renderOfficeBoard();
+        });
+        countsElFocus.appendChild(document.createTextNode(' · '));
+        countsElFocus.appendChild(clearHint);
+    }
 };
 
 app.renderOfficeRoleSelect = function () {

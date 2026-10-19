@@ -670,6 +670,24 @@
                 <section id="view-office" class="view-panel">
                     <div class="office-layout">
                         <div class="office-main">
+                            <div class="card office-stage-card" id="office-stage-card">
+                                <div class="card-header">
+                                    <h2>Ruang Tim</h2>
+                                    <label class="office-3d-toggle" title="Nonaktifkan di perangkat lemah / hemat baterai">
+                                        <input type="checkbox" id="office-3d-toggle" checked>
+                                        <span>Tampilan 3D</span>
+                                    </label>
+                                </div>
+                                <div class="office-3d-viewport" id="office-3d-viewport">
+                                    <canvas id="office-3d-canvas" aria-label="Viewport 3D karyawan AI"></canvas>
+                                    <div class="office-3d-labels" id="office-3d-labels" aria-hidden="true"></div>
+                                    <p class="office-3d-hint">Klik avatar untuk fokus job karyawan · status: aura + label</p>
+                                    <div class="office-3d-fallback" id="office-3d-fallback">
+                                        <p>Tampilan 3D dimatikan. Nyalakan toggle di atas, atau gunakan kartu karyawan di bawah.</p>
+                                    </div>
+                                </div>
+                            </div>
+
                             <div class="card office-employees-card">
                                 <div class="card-header">
                                     <h2>Tim Karyawan AI</h2>
@@ -967,7 +985,9 @@
         </div>
     </div>
 
-    <!-- App Scripts -->
+    <!-- Three.js (Kantor AI viewport) + App -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+    <script src="ai-office-3d.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

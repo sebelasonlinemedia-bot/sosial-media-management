@@ -2819,6 +2819,159 @@ button, input, textarea, select {
     align-items: start;
 }
 
+.office-stage-card .card-header {
+    align-items: center;
+}
+
+.office-3d-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    cursor: pointer;
+    user-select: none;
+}
+
+.office-3d-toggle input {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--emerald);
+    cursor: pointer;
+}
+
+.office-3d-viewport {
+    position: relative;
+    height: min(320px, 42vh);
+    min-height: 220px;
+    border-radius: var(--border-radius-md);
+    overflow: hidden;
+    background:
+        radial-gradient(ellipse 70% 50% at 50% 100%, rgba(13, 148, 136, 0.12), transparent 55%),
+        linear-gradient(180deg, #0e1420 0%, #0b0f19 100%);
+    border: 1px solid var(--border-color);
+}
+
+.office-3d-viewport canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+.office-3d-labels {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 2;
+}
+
+.office-3d-label {
+    position: absolute;
+    left: 0;
+    top: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 4px 8px;
+    pointer-events: auto;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    background: rgba(7, 10, 16, 0.82);
+    color: var(--text-primary);
+    cursor: pointer;
+    white-space: nowrap;
+    backdrop-filter: blur(6px);
+    transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.office-3d-label:hover {
+    border-color: rgba(16, 185, 129, 0.45);
+    background: rgba(12, 18, 28, 0.92);
+}
+
+.office-3d-label-name {
+    font-family: var(--font-heading);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+}
+
+.office-3d-label-status {
+    font-size: 0.6rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.office-3d-label-status[data-status="working"] { color: #2dd4bf; }
+.office-3d-label-status[data-status="needs_info"] { color: var(--yellow); }
+.office-3d-label-status[data-status="done"] { color: var(--emerald); }
+.office-3d-label-status[data-status="failed"] { color: var(--red); }
+.office-3d-label-status[data-status="idle"] { color: #94a3b8; }
+
+.office-3d-hint {
+    position: absolute;
+    left: 12px;
+    bottom: 10px;
+    z-index: 3;
+    margin: 0;
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    pointer-events: none;
+}
+
+.office-3d-fallback {
+    display: none;
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    text-align: center;
+    background: rgba(11, 15, 25, 0.92);
+}
+
+.office-3d-fallback p {
+    max-width: 280px;
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+}
+
+.office-3d-viewport.is-3d-off canvas,
+.office-3d-viewport.is-3d-off .office-3d-labels,
+.office-3d-viewport.is-3d-off .office-3d-hint {
+    display: none;
+}
+
+.office-3d-viewport.is-3d-off .office-3d-fallback {
+    display: flex;
+}
+
+.office-employee-card.is-focused {
+    border-color: rgba(16, 185, 129, 0.5);
+    background: rgba(16, 185, 129, 0.08);
+}
+
+.office-clear-focus {
+    font-size: 0.75rem;
+    vertical-align: baseline;
+}
+
+@media (max-width: 640px) {
+    .office-3d-viewport {
+        height: 200px;
+        min-height: 180px;
+    }
+
+    .office-3d-hint {
+        display: none;
+    }
+}
+
 .office-main {
     display: flex;
     flex-direction: column;
