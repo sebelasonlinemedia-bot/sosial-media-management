@@ -21,6 +21,7 @@
         needs_info: 0xf59e0b,
         awaiting_approval: 0xea580c,
         working: 0x0d9488,
+        standby: 0x38bdf8,
         done: 0x10b981,
         failed: 0xef4444
     };
@@ -30,6 +31,7 @@
         needs_info: 'Reviewing',
         awaiting_approval: 'Reviewing',
         working: 'Working',
+        standby: 'At desk',
         done: 'Done',
         failed: 'Failed'
     };
@@ -222,9 +224,13 @@
     function statusSpeech(emp) {
         var st = emp.status || 'idle';
         var brief = (emp.latestJob && emp.latestJob.brief) ? String(emp.latestJob.brief).slice(0, 42) : '';
+        if (st === 'standby') return emp.presenceNote || 'At desk — awaiting orders';
         if (st === 'working') return brief ? ('Building: ' + brief) : 'Working on brief…';
         if (st === 'needs_info') return 'Needs info from human';
-        if (st === 'awaiting_approval') return 'Awaiting approval';
+        if (st === 'awaiting_approval') {
+            if (emp.fromPresence) return emp.presenceNote || 'Team meeting';
+            return 'Awaiting approval';
+        }
         if (st === 'failed') return emp.latestJob && emp.latestJob.lastError
             ? String(emp.latestJob.lastError).slice(0, 40)
             : 'Job failed';
@@ -279,15 +285,15 @@
                 label: STATUS_LABEL[st]
             };
         }
-        if (st === 'working' || st === 'needs_info' || st === 'failed' || st === 'done') {
+        if (st === 'working' || st === 'standby' || st === 'needs_info' || st === 'failed' || st === 'done') {
             var desk = LAYOUT.desks[seatIndex % LAYOUT.desks.length];
             return {
                 x: desk[0], z: desk[1] - 0.78, facing: 0,
-                seated: st === 'working' || st === 'needs_info',
+                seated: st === 'working' || st === 'standby' || st === 'needs_info',
                 pose: st === 'failed' ? 'slump' : (st === 'done' ? 'cheer' : 'sit'),
-                activity: st === 'working' ? 'work' : (st === 'needs_info' ? 'review' : st),
+                activity: st === 'working' || st === 'standby' ? 'work' : (st === 'needs_info' ? 'review' : st),
                 speech: statusSpeech(emp),
-                label: STATUS_LABEL[st]
+                label: STATUS_LABEL[st] || STATUS_LABEL.working
             };
         }
         if (idleAssignment) {

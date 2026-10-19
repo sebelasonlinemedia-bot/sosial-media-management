@@ -48,6 +48,11 @@ const {
 const { isEncryptionEnabled, warnIfNoEncryptionKey, encryptSecret } = require('./lib/token-crypto');
 const { listProviders } = require('./lib/llm');
 const { runCeoChatTurn } = require('./lib/ceo-chat');
+const {
+    resolveCrewPresenceUpdate,
+    applyPresenceToStatus,
+    normalizeCrewPresence
+} = require('./lib/crew-presence');
 const { buildInsights } = require('./lib/ai-insights');
 const { notifyJobAttention } = require('./lib/ai-notify');
 const auth = require('./lib/auth');
@@ -1823,6 +1828,15 @@ app.post('/api/ai/chat', rateLimitChat, async (req, res) => {
         const role = getRoleById(turn.roleId) || getRoleById('manager');
         let job = null;
 
+        // Arahan posisi 3D (duduk di meja / idle / meeting) — heuristik + LLM
+        let crewPresence = normalizeCrewPresence(settings.crewPresence);
+        const presenceUpdate = resolveCrewPresenceUpdate(message, turn.officeAction);
+        if (presenceUpdate) {
+            crewPresence = normalizeCrewPresence(presenceUpdate);
+            await db.updateAiSettings({ crewPresence });
+            settings.crewPresence = crewPresence;
+        }
+
         if (turn.createJob && turn.brief) {
             const assessment = assessStructuredBrief(turn.brief);
             const briefText = assessment.text || turn.brief;
@@ -1866,9 +1880,25 @@ app.post('/api/ai/chat', rateLimitChat, async (req, res) => {
             });
         }
 
+        let replyText = turn.reply;
+        if (presenceUpdate) {
+            const where =
+                crewPresence.mode === 'at_desk'
+                    ? 'di meja komputer'
+                    : crewPresence.mode === 'meeting'
+                      ? 'di area rapat'
+                      : 'mode istirahat';
+            const who = crewPresence.roleIds?.length
+                ? crewPresence.roleIds.join(', ')
+                : 'seluruh tim';
+            if (!/meja|duduk|rapat|istirahat|siaga/i.test(replyText)) {
+                replyText += `\n\n📍 ${who} → ${where}.`;
+            }
+        }
+
         const assistantMsg = await db.appendAiChatMessage({
             role: 'assistant',
-            content: turn.reply + (job
+            content: replyText + (job
                 ? `\n\n📋 Job ${job.id} → ${job.status}${job.needsInfo ? ' (perlu info)' : ''}.`
                 : ''),
             roleId: role?.id || turn.roleId,
@@ -1877,14 +1907,16 @@ app.post('/api/ai/chat', rateLimitChat, async (req, res) => {
             meta: {
                 createJob: !!job,
                 provider: turn.provider,
-                model: turn.model || null
+                model: turn.model || null,
+                crewPresence: presenceUpdate ? crewPresence : undefined
             }
         });
 
         res.json({
             success: true,
-            reply: turn.reply,
+            reply: replyText,
             job,
+            crewPresence,
             messages: [userMsg, assistantMsg],
             llm: publicAiSettings(settings).llm
         });
@@ -2035,6 +2067,7 @@ app.get('/api/ai/office', async (req, res) => {
         const jobs = await db.getAiJobs();
         const sorted = [...jobs].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
+        const crewPresence = normalizeCrewPresence(settings.crewPresence);
         const employees = listRoles().map(role => {
             const roleJobs = sorted.filter(j =>
                 j.roleId === role.id ||
@@ -2044,6 +2077,8 @@ app.get('/api/ai/office', async (req, res) => {
             );
             const workload = summarizeWorkload(roleJobs);
             const latestJob = roleJobs[0] || null;
+            const jobStatus = deriveEmployeeStatus(roleJobs);
+            const applied = applyPresenceToStatus(jobStatus, crewPresence, role.id);
             return {
                 id: role.id,
                 name: role.name,
@@ -2053,9 +2088,13 @@ app.get('/api/ai/office', async (req, res) => {
                 outputs: role.outputs,
                 defaultPlatforms: role.defaultPlatforms || [],
                 systemBrief: role.systemBrief,
-                status: deriveEmployeeStatus(roleJobs),
+                status: applied.status,
+                fromPresence: !!applied.fromPresence,
+                presenceNote: applied.note || crewPresence.note || '',
                 activeCount: workload.activeCount,
-                workload: workload.label,
+                workload: applied.fromPresence && applied.status === 'standby'
+                    ? (applied.note || 'Siaga di meja')
+                    : workload.label,
                 latestJob: latestJob
                     ? {
                         id: latestJob.id,
@@ -2113,6 +2152,7 @@ app.get('/api/ai/office', async (req, res) => {
             platforms: ALL_PLATFORMS,
             tokenEncryption: isEncryptionEnabled(),
             employees,
+            crewPresence,
             board,
             briefTemplates: BRIEF_TEMPLATES.map(t => ({ id: t.id, label: t.label })),
             jobCounts: {

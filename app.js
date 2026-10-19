@@ -894,7 +894,7 @@ app.updateMissionPills = function () {
     const totalCrew = employees.length || 7;
     const activeCrew = employees.filter(e => {
         const s = e.status || 'idle';
-        return s === 'working' || s === 'needs_info' || s === 'awaiting_approval';
+        return s === 'working' || s === 'standby' || s === 'needs_info' || s === 'awaiting_approval';
     }).length;
     const idleCrew = employees.filter(e => (e.status || 'idle') === 'idle').length;
     const counts = appState.office.jobCounts || {};
@@ -993,6 +993,7 @@ app.loadOfficeFromServer = async function () {
             appState.office.jobCounts = data.jobCounts || {};
             appState.office.settings = data.settings || null;
             appState.office.briefTemplates = data.briefTemplates || [];
+            appState.office.crewPresence = data.crewPresence || null;
             if (data.platforms) appState.office.platforms = data.platforms;
         } else if (data.authRequired) {
             console.warn('[APP] Kantor AI butuh sesi login:', data.message);
@@ -1318,9 +1319,19 @@ app.sendCeoChat = async function (text) {
             ].slice(-200);
         }
         this.renderCeoChatMessages(appState.office.chatMessages);
+        if (data.crewPresence) {
+            appState.office.crewPresence = data.crewPresence;
+        }
+        // Refresh office + 3D agar karyawan benar-benar pindah posisi
+        await this.loadOfficeFromServer();
+        this.renderOfficeEmployees();
+        if (typeof this.renderMissionCrew === 'function') this.renderMissionCrew();
+        if (typeof this.updateMissionPills === 'function') this.updateMissionPills();
+        this.syncOffice3DEmployees();
         if (data.job) {
             this.showToast(`Job dibuat: ${data.job.status}`, 'emerald');
-            await this.loadOfficeFromServer();
+        } else if (data.crewPresence?.mode === 'at_desk') {
+            this.showToast('Tim pindah ke meja kerja.', 'emerald');
         }
         if (!data.success && data.message) {
             this.showToast(data.message, 'red');
@@ -1559,6 +1570,7 @@ app._statusLabel = function (status) {
         needs_info: 'Perlu info',
         awaiting_approval: 'Approval',
         working: 'Kerja',
+        standby: 'Di meja',
         publishing: 'Publish…',
         done: 'Selesai',
         failed: 'Gagal'
@@ -1573,6 +1585,7 @@ app._statusBadge = function (status) {
         needs_info: 'badge-yellow',
         awaiting_approval: 'badge-orange',
         working: 'badge-violet',
+        standby: 'badge-violet',
         publishing: 'badge-violet',
         done: 'badge-emerald',
         failed: 'badge-red'
