@@ -1,4 +1,4 @@
-# Panduan Menghubungkan Akun Asli — PostSphere
+# Panduan Menghubungkan Akun Asli — PiK's Digital Lab
 
 ## Cara Mendapatkan API Key untuk Setiap Platform
 
@@ -86,7 +86,7 @@ TIKTOK_REDIRECT_URI=http://localhost:3000/api/auth/tiktok/callback
 ## Menjalankan Server
 
 ```bash
-# Di folder POST SOSMED
+# Di folder proyek PiK's Digital Lab
 node server.js
 ```
 

@@ -1,5 +1,5 @@
 /**
- * PostSphere — Neon Postgres adapter (semua method async)
+ * PiK's Digital Lab — Neon Postgres adapter (semua method async)
  */
 const { neon } = require('@neondatabase/serverless');
 const { normalizeAiSettings, DEFAULT_AI_SETTINGS } = require('./lib/ai-policy');

@@ -1,5 +1,5 @@
 /**
- * PostSphere — Database facade
+ * PiK's Digital Lab — Database facade
  * - Lokal tanpa DATABASE_URL → db.json (file)
  * - Vercel / Neon → Postgres via DATABASE_URL
  *

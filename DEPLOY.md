@@ -1,4 +1,4 @@
-# Deploy PostSphere → GitHub + Neon + Vercel
+# Deploy PiK's Digital Lab → GitHub + Neon + Vercel
 
 Akun: `sebelasonlinemedia@gmail.com`
 

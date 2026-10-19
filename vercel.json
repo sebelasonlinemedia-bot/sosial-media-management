@@ -11,6 +11,7 @@
           "schema.sql",
           "index.html",
           "app.js",
+          "ai-office-3d.js",
           "styles.css",
           "db.js",
           "db-postgres.js",

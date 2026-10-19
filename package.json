@@ -1,7 +1,7 @@
 {
-  "name": "postsphere",
+  "name": "piks-digital-lab",
   "version": "1.0.0",
-  "description": "Pengelola Media Sosial Multi-Akun Profesional",
+  "description": "PiK's Digital Lab — Pengelola Media Sosial Multi-Akun Profesional",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

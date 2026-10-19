@@ -1,4 +1,4 @@
--- PostSphere — Neon Postgres schema
+-- PiK's Digital Lab — Neon Postgres schema
 -- Jalankan sekali di Neon SQL Editor (atau otomatis saat server start).
 
 CREATE TABLE IF NOT EXISTS users (

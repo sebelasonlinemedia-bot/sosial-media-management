@@ -1,11 +1,11 @@
 /**
- * PostSphere — lightweight Kantor AI 3D viewport (Three.js CDN).
+ * PiK's Digital Lab — lightweight Kantor AI 3D viewport (Three.js CDN).
  * One scene, simple floor, up to 7 low-poly humanoids (Tim Konten). No life-sim.
  */
 (function (global) {
     'use strict';
 
-    const STORAGE_KEY = 'postsphere-office-3d';
+    const STORAGE_KEY = 'piks-digital-lab-office-3d';
     const STATUS_AURA = {
         idle: 0x64748b,
         needs_info: 0xf59e0b,
@@ -51,12 +51,12 @@
             if (raw === '0') return false;
             if (raw === '1') return true;
         } catch (_) { /* ignore */ }
-        // Default OFF — work board lebih menonjol; 3D opsional.
+        // Default ON (light theme); OFF hanya jika user reduced-motion.
         if (typeof matchMedia === 'function' &&
             matchMedia('(prefers-reduced-motion: reduce)').matches) {
             return false;
         }
-        return false;
+        return true;
     }
 
     function savePreference(on) {

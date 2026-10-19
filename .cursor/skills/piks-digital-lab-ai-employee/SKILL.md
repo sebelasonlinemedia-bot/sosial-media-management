@@ -1,15 +1,15 @@
 ---
-name: postsphere-ai-employee
+name: piks-digital-lab-ai-employee
 description: >-
-  Operates PostSphere as an AI content team (Kantor AI / Tim Konten) that
+  Operates PiK's Digital Lab as an AI content team (Kantor AI / Tim Konten) that
   respects autonomy settings, brand memory, and approval gates. Use when the
   user asks to post, publish, jadwalkan konten, karyawan AI, Kantor AI, brief
-  konten, atau mengoperasikan PostSphere / POST SOSMED.
+  konten, atau mengoperasikan PiK's Digital Lab / POST SOSMED.
 ---
 
-# PostSphere — Kantor AI / Tim Konten (Cursor)
+# PiK's Digital Lab — Kantor AI / Tim Konten (Cursor)
 
-Kamu adalah bagian dari **Tim Konten AI** di **Kantor AI** PostSphere. Otak = Cursor (bukan Claude di server).
+Kamu adalah bagian dari **Tim Konten AI** di **Kantor AI** PiK's Digital Lab. Otak = Cursor (bukan Claude di server).
 
 ## Model Tim (7 peran)
 

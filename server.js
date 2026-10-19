@@ -1,5 +1,5 @@
 /**
- * PostSphere - Express Backend Server
+ * PiK's Digital Lab - Express Backend Server
  * Menangani OAuth 2.0 untuk Meta (FB/IG), Google/YouTube, TikTok
  * serta REST API untuk akun, postingan, dan penjadwalan otomatis.
  *
@@ -124,8 +124,8 @@ app.use('/uploads', express.static(uploadDir));
 // Helper Sandbox / Dummy Data
 // ============================================================
 const SANDBOX_PROFILES = {
-    meta: { name: 'Akun Facebook/IG Demo', handle: '@demo_postsphere', avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?q=80&w=256&auto=format&fit=crop', pageId: 'sandbox_page_001' },
-    youtube: { name: 'Demo Channel YT', handle: '@DemoPostSphereYT', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=256&auto=format&fit=crop', channelId: 'sandbox_channel_001' },
+    meta: { name: 'Akun Facebook/IG Demo', handle: '@demo_pikslab', avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?q=80&w=256&auto=format&fit=crop', pageId: 'sandbox_page_001' },
+    youtube: { name: 'Demo Channel YT', handle: '@DemoPiksDigitalLabYT', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=256&auto=format&fit=crop', channelId: 'sandbox_channel_001' },
     tiktok: { name: 'Demo TikTok', handle: '@demo_tiktok', avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=256&auto=format&fit=crop', openId: 'sandbox_tiktok_001' }
 };
 
@@ -437,7 +437,7 @@ app.get('/api/auth/tiktok', (req, res) => {
         return res.redirect('/api/auth/tiktok/callback?sandbox=1');
     }
     const scopes = ['user.info.basic', 'video.upload', 'video.publish'].join(',');
-    const authUrl = `https://www.tiktok.com/v2/auth/authorize/?client_key=${process.env.TIKTOK_CLIENT_KEY}&scope=${scopes}&response_type=code&redirect_uri=${encodeURIComponent(process.env.TIKTOK_REDIRECT_URI)}&state=postsphere`;
+    const authUrl = `https://www.tiktok.com/v2/auth/authorize/?client_key=${process.env.TIKTOK_CLIENT_KEY}&scope=${scopes}&response_type=code&redirect_uri=${encodeURIComponent(process.env.TIKTOK_REDIRECT_URI)}&state=piks-digital-lab`;
     res.redirect(authUrl);
 });
 
@@ -786,7 +786,7 @@ async function callPlatformAPI(platform, acc, post) {
             const FormData = require('form-data');
             const form = new FormData();
             form.append('snippet', JSON.stringify({
-                title: post.caption ? post.caption.substring(0, 100) : 'PostSphere Upload',
+                title: post.caption ? post.caption.substring(0, 100) : 'PiK\'s Digital Lab Upload',
                 description: post.caption || '',
                 categoryId: '22'
             }), { contentType: 'application/json' });
@@ -805,7 +805,7 @@ async function callPlatformAPI(platform, acc, post) {
             if (!mediaUrl || post.mediaType !== 'video') throw new Error('TikTok memerlukan file video.');
             const initRes = await axios.post('https://open.tiktokapis.com/v2/post/publish/video/init/', {
                 post_info: {
-                    title: post.caption ? post.caption.substring(0, 150) : 'PostSphere Video',
+                    title: post.caption ? post.caption.substring(0, 150) : 'PiK\'s Digital Lab Video',
                     privacy_level: 'PUBLIC_TO_EVERYONE',
                     disable_duet: false, disable_comment: false, disable_stitch: false,
                     video_cover_timestamp_ms: 1000
@@ -1009,7 +1009,7 @@ app.post('/api/ai/employee/publish', async (req, res) => {
                 success: false,
                 message: connected.length
                     ? 'Tidak ada platform target yang terhubung. Sesuaikan daftar platforms.'
-                    : 'Belum ada akun terhubung. Hubungkan akun dulu di UI PostSphere.'
+                    : 'Belum ada akun terhubung. Hubungkan akun dulu di UI PiK\'s Digital Lab.'
             });
         }
 
@@ -1684,7 +1684,7 @@ app.post('/api/ai/jobs/:id/run', async (req, res) => {
                 success: false,
                 message: connected.length
                     ? 'Tidak ada platform target yang terhubung.'
-                    : 'Belum ada akun terhubung. Hubungkan akun dulu di UI PostSphere.'
+                    : 'Belum ada akun terhubung. Hubungkan akun dulu di UI PiK\'s Digital Lab.'
             });
         }
 
@@ -1944,6 +1944,10 @@ app.get('/api/cron/publish', async (req, res) => {
 // Serve Frontend (Fallback ke index.html)
 // ============================================================
 app.get('*', (req, res) => {
+    // Jangan balas HTML untuk aset statis yang hilang (cegah script 404 → parse error)
+    if (/\.(js|css|map|json|ico|png|jpe?g|webp|svg|woff2?)$/i.test(req.path)) {
+        return res.status(404).type('text/plain').send('Not found');
+    }
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
@@ -1955,12 +1959,12 @@ module.exports = app;
 if (require.main === module) {
     app.listen(PORT, () => {
         console.log('');
-        console.log('╔════════════════════════════════════════════╗');
-        console.log(`║  PostSphere Server berjalan di port ${PORT}    ║`);
-        console.log(`║  Buka: http://localhost:${PORT}               ║`);
-        console.log(`║  Mode: ${SANDBOX_MODE ? 'SANDBOX (simulasi)       ' : 'REAL (API terhubung)    '} ║`);
-        console.log(`║  DB: ${process.env.DATABASE_URL ? 'Neon Postgres          ' : 'db.json (lokal)        '} ║`);
-        console.log('╚════════════════════════════════════════════╝');
+        console.log('╔══════════════════════════════════════════════════╗');
+        console.log(`║  PiK's Digital Lab Server — port ${PORT}            ║`);
+        console.log(`║  Buka: http://localhost:${PORT}                     ║`);
+        console.log(`║  Mode: ${SANDBOX_MODE ? 'SANDBOX (simulasi)             ' : 'REAL (API terhubung)          '} ║`);
+        console.log(`║  DB: ${process.env.DATABASE_URL ? 'Neon Postgres                ' : 'db.json (lokal)              '} ║`);
+        console.log('╚══════════════════════════════════════════════════╝');
         console.log('');
     });
 }

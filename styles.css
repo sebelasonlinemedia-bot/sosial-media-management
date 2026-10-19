@@ -1,5 +1,5 @@
 /* ==========================================================================
-   PostSphere - Main Stylesheet
+   PiK's Digital Lab - Main Stylesheet
    Theme: Clean Light UI with Soft Surfaces and Brand Accents
    ========================================================================== */
 
@@ -243,8 +243,10 @@ button, input, textarea, select {
 
 .logo-text {
     font-family: var(--font-heading);
-    font-size: 1.25rem;
+    font-size: 1.05rem;
     font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
     background: linear-gradient(135deg, #0f172a, #334155);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;

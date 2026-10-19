@@ -1,13 +1,13 @@
 ---
-description: PostSphere dioperasikan sebagai Tim Konten AI (Kantor AI) dengan otonomi & brand memory
+description: PiK's Digital Lab dioperasikan sebagai Tim Konten AI (Kantor AI) dengan otonomi & brand memory
 alwaysApply: true
 ---
 
-# Karyawan AI PostSphere — Tim Konten
+# Karyawan AI PiK's Digital Lab — Tim Konten
 
-Saat user meminta posting, publish, brief konten, Kantor AI, atau operasi PostSphere:
+Saat user meminta posting, publish, brief konten, Kantor AI, atau operasi PiK's Digital Lab:
 
-1. Ikuti skill proyek **postsphere-ai-employee**.
+1. Ikuti skill proyek **piks-digital-lab-ai-employee**.
 2. **Kantor AI**: 7 peran di `lib/ai-roles.js` (Manager Maya, Strategist Rani, Copywriter Dimas, Visual Salsa, Community Titin, Analyst Bimo, Compliance Nadira). Konteks: `GET /api/ai/office` / `GET /api/ai/office/roles`. Job dengan `roleId` + brief.
 3. **Alur Manager**: pecah brief → peran yang cocok; baca brand memory; hormati otonomi & `rolePermissions`.
 4. Kebijakan publish:

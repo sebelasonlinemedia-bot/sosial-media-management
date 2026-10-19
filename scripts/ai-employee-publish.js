@@ -13,7 +13,7 @@ const path = require('path');
 const axios = require('axios');
 const FormData = require('form-data');
 
-const BASE = process.env.POSTSPHERE_URL || 'http://localhost:3000';
+const BASE = process.env.PIKS_DIGITAL_LAB_URL || process.env.POSTSPHERE_URL || 'http://localhost:3000';
 
 function parseArgs(argv) {
     const out = { platforms: null, media: null, caption: null, brief: null, name: 'Karyawan AI', context: false };
@@ -67,7 +67,7 @@ async function main() {
 
     const up = await ensureServer();
     if (!up) {
-        console.error(`Server PostSphere tidak merespons di ${BASE}`);
+        console.error(`Server PiK's Digital Lab tidak merespons di ${BASE}`);
         console.error('Jalankan dulu: npm run dev');
         process.exit(1);
     }

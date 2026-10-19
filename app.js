@@ -1,5 +1,5 @@
 /**
- * PostSphere - Logika Frontend (Bahasa Indonesia)
+ * PiK's Digital Lab - Logika Frontend (Bahasa Indonesia)
  * Versi Full-Stack: Semua data accounts & posts disimpan di backend server
  * melalui fetch HTTP API. OAuth dialihkan ke endpoint backend.
  */
@@ -500,7 +500,13 @@ app.setupOfficeEvents = function () {
             : false;
         toggle3d.checked = !!prefOn;
         toggle3d.addEventListener('change', () => {
-            if (typeof AiOffice3D === 'undefined') return;
+            const viewport = document.getElementById('office-3d-viewport');
+            if (typeof AiOffice3D === 'undefined' || typeof THREE === 'undefined') {
+                toggle3d.checked = false;
+                if (viewport) viewport.classList.add('is-3d-off');
+                this.showToast('Modul 3D gagal dimuat. Muat ulang halaman.', 'red');
+                return;
+            }
             AiOffice3D.setEnabled(toggle3d.checked);
             if (toggle3d.checked && !appState.office.stageReady) {
                 this.initOffice3D();
@@ -798,6 +804,7 @@ app.initOffice3D = function () {
     const toggle = document.getElementById('office-3d-toggle');
     if (!viewport || typeof AiOffice3D === 'undefined' || typeof THREE === 'undefined') {
         if (viewport) viewport.classList.add('is-3d-off');
+        if (toggle) toggle.checked = false;
         return;
     }
     if (appState.office.stageReady) {
@@ -813,6 +820,10 @@ app.initOffice3D = function () {
         onSelect: (roleId) => this.focusOfficeEmployee(roleId)
     });
     appState.office.stageReady = !!ok;
+    if (!ok) {
+        viewport.classList.add('is-3d-off');
+        if (toggle) toggle.checked = false;
+    }
 };
 
 app.teardownOffice3D = function () {
@@ -1546,8 +1557,8 @@ app.updatePreviewAccounts = function () {
         if (igHandleBodyEl) igHandleBodyEl.innerText = igAcc.handle || `@${igAcc.name}`;
         if (igAvatarEl) igAvatarEl.src = igAcc.avatar || defaultAvatar;
     } else {
-        if (igHandleEl) igHandleEl.innerText = '@user_postsphere';
-        if (igHandleBodyEl) igHandleBodyEl.innerText = '@user_postsphere';
+        if (igHandleEl) igHandleEl.innerText = '@user_pikslab';
+        if (igHandleBodyEl) igHandleBodyEl.innerText = '@user_pikslab';
         if (igAvatarEl) igAvatarEl.src = defaultAvatar;
     }
 
@@ -1559,7 +1570,7 @@ app.updatePreviewAccounts = function () {
         if (fbNameEl) fbNameEl.innerText = fbAcc.name;
         if (fbAvatarEl) fbAvatarEl.src = fbAcc.avatar || defaultAvatar;
     } else {
-        if (fbNameEl) fbNameEl.innerText = 'Akun PostSphere';
+        if (fbNameEl) fbNameEl.innerText = 'Akun PiK\'s Digital Lab';
         if (fbAvatarEl) fbAvatarEl.src = defaultAvatar;
     }
 
@@ -1571,7 +1582,7 @@ app.updatePreviewAccounts = function () {
         if (ttHandleEl) ttHandleEl.innerText = ttAcc.handle || `@${ttAcc.name}`;
         if (ttAvatarEl) ttAvatarEl.src = ttAcc.avatar || defaultAvatar;
     } else {
-        if (ttHandleEl) ttHandleEl.innerText = '@kreator_postsphere';
+        if (ttHandleEl) ttHandleEl.innerText = '@kreator_pikslab';
         if (ttAvatarEl) ttAvatarEl.src = defaultAvatar;
     }
 
@@ -1585,7 +1596,7 @@ app.updatePreviewAccounts = function () {
         if (ytAvatarEl) ytAvatarEl.src = ytAcc.avatar || defaultAvatar;
         if (ytSoundtrackEl) ytSoundtrackEl.src = ytAcc.avatar || defaultAvatar;
     } else {
-        if (ytHandleEl) ytHandleEl.innerText = '@PostSphereYT';
+        if (ytHandleEl) ytHandleEl.innerText = '@PiksDigitalLabYT';
         if (ytAvatarEl) ytAvatarEl.src = defaultAvatar;
         if (ytSoundtrackEl) ytSoundtrackEl.src = defaultAvatar;
     }
