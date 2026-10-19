@@ -17,6 +17,7 @@ const appState = {
     accounts: [],
     posts: [],
     aiJobs: [],
+    office: { employees: [], board: {}, jobCounts: {}, selectedJobId: null },
     serverMode: 'sandbox',  // 'sandbox' | 'real'
     currentView: 'dashboard',
     composerSelectedPlatforms: [],
@@ -94,6 +95,11 @@ const app = {
                 lucide.createIcons();
             });
         }
+        const openOfficeBtn = document.getElementById('dashboard-open-office-btn');
+        if (openOfficeBtn) {
+            openOfficeBtn.addEventListener('click', () => this.switchView('office'));
+        }
+        this.setupOfficeEvents();
 
         // Periksa jika ada callback OAuth dari server di URL
         this.handleOAuthCallback();
@@ -223,6 +229,7 @@ const app = {
             dashboard: { title: 'Dasbor Utama', subtitle: 'Ikhtisar saluran terhubung dan antrean postingan terjadwal Anda.' },
             composer: { title: 'Buat Postingan Baru', subtitle: 'Tulis, unggah media, dan kirim postingan secara bersamaan ke berbagai sosmed.' },
             queue: { title: 'Jadwal & Kalender', subtitle: 'Atur kalender konten Anda di masa mendatang secara presisi.' },
+            office: { title: 'Kantor AI', subtitle: 'Ruang kerja karyawan AI — brief, work board, dan publish otomatis.' },
             accounts: { title: 'Akun Terhubung', subtitle: 'Tautkan profil, halaman, dan channel sosial media Anda.' },
             analytics: { title: 'Analisis Konten', subtitle: 'Analisis jangkauan, impresi, interaksi, dan rasio keberhasilan postingan.' }
         };
@@ -245,6 +252,7 @@ const app = {
             }
         }
         else if (viewName === 'queue') this.renderQueue();
+        else if (viewName === 'office') this.renderOffice();
         else if (viewName === 'accounts') this.renderAccounts();
         else if (viewName === 'analytics') this.renderAnalytics();
 
@@ -397,16 +405,352 @@ app.renderAiJobs = function () {
 
     jobs.forEach(job => {
         const row = document.createElement('div');
-        row.className = 'ai-job-row';
+        row.className = 'ai-job-row ai-job-row-clickable';
+        row.title = 'Buka di Kantor AI';
+        row.addEventListener('click', () => {
+            appState.office.selectedJobId = job.id;
+            this.switchView('office');
+        });
         const brief = (job.brief || '(tanpa brief)').replace(/</g, '&lt;');
+        const who = (job.employeeName || job.roleId || 'AI').replace(/</g, '&lt;');
         row.innerHTML = `
             <div class="ai-job-meta">
                 <span class="ai-job-brief" title="${brief}">${brief}</span>
-                <span class="ai-job-id">${job.id}</span>
+                <span class="ai-job-id">${who} · ${job.id}</span>
             </div>
             <span class="badge ${badgeFor(job.status)}">${labelFor(job.status)}</span>`;
         list.appendChild(row);
     });
+};
+
+// ============================================================
+// Kantor AI
+// ============================================================
+app.setupOfficeEvents = function () {
+    const form = document.getElementById('office-brief-form');
+    if (form) {
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await this.submitOfficeBrief();
+        });
+    }
+    const refreshBtn = document.getElementById('office-refresh-btn');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', () => this.renderOffice());
+    }
+    const answerBtn = document.getElementById('office-answer-submit');
+    if (answerBtn) {
+        answerBtn.addEventListener('click', () => this.submitOfficeAnswers());
+    }
+    const runBtn = document.getElementById('office-run-job-btn');
+    if (runBtn) {
+        runBtn.addEventListener('click', () => this.runOfficeJob());
+    }
+};
+
+app.loadOfficeFromServer = async function () {
+    try {
+        const data = await api.get('/api/ai/office');
+        if (data.success) {
+            appState.office.employees = data.employees || [];
+            appState.office.board = data.board || {};
+            appState.office.jobCounts = data.jobCounts || {};
+        }
+        await this.loadAiJobsFromServer();
+    } catch (e) {
+        console.error('[APP] Gagal memuat Kantor AI:', e);
+    }
+};
+
+app.renderOffice = async function () {
+    await this.loadOfficeFromServer();
+    this.renderOfficeEmployees();
+    this.renderOfficeBoard();
+    this.renderOfficeRoleSelect();
+    this.renderOfficeAnswerPanel();
+    lucide.createIcons();
+};
+
+app._escapeHtml = function (str) {
+    return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+};
+
+app._statusLabel = function (status) {
+    const map = {
+        idle: 'Siaga',
+        queued: 'Antri',
+        needs_info: 'Perlu info',
+        working: 'Kerja',
+        publishing: 'Publish…',
+        done: 'Selesai',
+        failed: 'Gagal'
+    };
+    return map[status] || status;
+};
+
+app._statusBadge = function (status) {
+    const map = {
+        idle: 'badge-indigo',
+        queued: 'badge-indigo',
+        needs_info: 'badge-yellow',
+        working: 'badge-violet',
+        publishing: 'badge-violet',
+        done: 'badge-emerald',
+        failed: 'badge-red'
+    };
+    return map[status] || 'badge-indigo';
+};
+
+app.renderOfficeEmployees = function () {
+    const grid = document.getElementById('office-employees-grid');
+    const empty = document.getElementById('office-employees-empty');
+    if (!grid) return;
+
+    grid.querySelectorAll('.office-employee-card').forEach(el => el.remove());
+    const employees = appState.office.employees || [];
+    if (employees.length === 0) {
+        if (empty) {
+            empty.classList.remove('hidden');
+            empty.querySelector('p').textContent = 'Belum ada peran terdaftar.';
+        }
+        return;
+    }
+    if (empty) empty.classList.add('hidden');
+
+    employees.forEach(emp => {
+        const card = document.createElement('button');
+        card.type = 'button';
+        card.className = 'office-employee-card';
+        card.dataset.roleId = emp.id;
+        const brief = emp.latestJob
+            ? this._escapeHtml((emp.latestJob.brief || '').slice(0, 80))
+            : 'Belum ada job';
+        card.innerHTML = `
+            <div class="office-employee-avatar" style="background:${emp.avatarColor || 'var(--indigo)'}">
+                <span>${emp.emoji || '🤖'}</span>
+            </div>
+            <div class="office-employee-info">
+                <span class="office-employee-name">${this._escapeHtml(emp.name)}</span>
+                <span class="office-employee-title">${this._escapeHtml(emp.title)}</span>
+                <span class="office-employee-brief">${brief}</span>
+            </div>
+            <span class="badge ${this._statusBadge(emp.status)}">${this._statusLabel(emp.status)}</span>`;
+        card.addEventListener('click', () => {
+            const select = document.getElementById('office-role-select');
+            if (select) select.value = emp.id;
+            if (emp.latestJob && emp.latestJob.status === 'needs_info') {
+                appState.office.selectedJobId = emp.latestJob.id;
+                this.renderOfficeAnswerPanel();
+            }
+        });
+        grid.appendChild(card);
+    });
+};
+
+app.renderOfficeBoard = function () {
+    const statuses = ['queued', 'needs_info', 'publishing', 'done', 'failed'];
+    const board = appState.office.board || {};
+    const counts = appState.office.jobCounts || {};
+    const countsEl = document.getElementById('office-board-counts');
+    if (countsEl) {
+        countsEl.textContent = counts.total
+            ? `${counts.total} job · ${counts.needs_info || 0} perlu info · ${counts.queued || 0} antri`
+            : 'Belum ada job';
+    }
+
+    statuses.forEach(status => {
+        const col = document.getElementById(`office-col-${status}`);
+        const countEl = document.getElementById(`office-count-${status}`);
+        if (!col) return;
+        col.innerHTML = '';
+        const items = board[status] || [];
+        if (countEl) countEl.textContent = String(counts[status] != null ? counts[status] : items.length);
+
+        if (items.length === 0) {
+            col.innerHTML = '<p class="office-column-empty">Kosong</p>';
+            return;
+        }
+
+        items.forEach(job => {
+            const item = document.createElement('button');
+            item.type = 'button';
+            item.className = 'office-job-card';
+            if (appState.office.selectedJobId === job.id) item.classList.add('active');
+            item.innerHTML = `
+                <span class="office-job-brief">${this._escapeHtml(job.brief || '(tanpa brief)')}</span>
+                <span class="office-job-meta">${this._escapeHtml(job.employeeName || job.roleId || 'AI')} · ${this._escapeHtml(job.id)}</span>`;
+            item.addEventListener('click', () => {
+                appState.office.selectedJobId = job.id;
+                this.renderOfficeBoard();
+                this.renderOfficeAnswerPanel();
+            });
+            col.appendChild(item);
+        });
+    });
+};
+
+app.renderOfficeRoleSelect = function () {
+    const select = document.getElementById('office-role-select');
+    if (!select) return;
+    const current = select.value;
+    const employees = appState.office.employees || [];
+    select.innerHTML = '<option value="">Pilih karyawan…</option>';
+    employees.forEach(emp => {
+        const opt = document.createElement('option');
+        opt.value = emp.id;
+        opt.textContent = `${emp.emoji || ''} ${emp.name} — ${emp.title}`;
+        select.appendChild(opt);
+    });
+    if (current && employees.some(e => e.id === current)) {
+        select.value = current;
+    } else if (employees[0]) {
+        select.value = employees[0].id;
+    }
+};
+
+app.renderOfficeAnswerPanel = function () {
+    const card = document.getElementById('office-answer-card');
+    if (!card) return;
+
+    const jobId = appState.office.selectedJobId;
+    const job = (appState.aiJobs || []).find(j => j.id === jobId)
+        || Object.values(appState.office.board || {}).flat().find(j => j.id === jobId);
+
+    if (!job || job.status !== 'needs_info') {
+        // Show run option for queued jobs
+        if (job && (job.status === 'queued' || job.status === 'failed')) {
+            card.classList.remove('hidden');
+            document.getElementById('office-answer-job-id').textContent = job.id;
+            document.getElementById('office-answer-brief').textContent = job.brief || '';
+            document.getElementById('office-answer-questions').innerHTML =
+                '<p class="text-secondary font-sm">Job siap dijalankan. Cursor/agen bisa /run, atau tekan tombol di bawah (caption dari brief).</p>';
+            document.getElementById('office-answer-submit').classList.add('hidden');
+            document.getElementById('office-run-job-btn').classList.remove('hidden');
+            return;
+        }
+        card.classList.add('hidden');
+        return;
+    }
+
+    card.classList.remove('hidden');
+    document.getElementById('office-answer-job-id').textContent = job.id;
+    document.getElementById('office-answer-brief').textContent = job.brief || '';
+    document.getElementById('office-answer-submit').classList.remove('hidden');
+    document.getElementById('office-run-job-btn').classList.add('hidden');
+
+    const qWrap = document.getElementById('office-answer-questions');
+    const questions = job.questions || [];
+    qWrap.innerHTML = questions.length
+        ? questions.map((q, i) => `
+            <div class="form-group">
+                <label for="office-answer-${i}">${this._escapeHtml(q)}</label>
+                <textarea id="office-answer-${i}" class="form-control office-answer-input" rows="2" data-index="${i}" required></textarea>
+            </div>`).join('')
+        : '<p class="text-secondary font-sm">Lengkapi brief lalu kirim jawaban.</p>';
+};
+
+app.submitOfficeBrief = async function () {
+    const roleId = document.getElementById('office-role-select')?.value;
+    const brief = document.getElementById('office-brief-text')?.value?.trim();
+    if (!roleId) {
+        this.showToast('Pilih peran karyawan dulu.', 'yellow');
+        return;
+    }
+    if (!brief) {
+        this.showToast('Isi brief terlebih dahulu.', 'yellow');
+        return;
+    }
+
+    const emp = (appState.office.employees || []).find(e => e.id === roleId);
+    const submitBtn = document.getElementById('office-brief-submit');
+    if (submitBtn) submitBtn.disabled = true;
+
+    try {
+        const data = await api.post('/api/ai/jobs', {
+            brief,
+            roleId,
+            employeeName: emp?.name || undefined,
+            platforms: emp?.defaultPlatforms || []
+        });
+
+        if (!data.success) {
+            this.showToast(data.message || 'Gagal membuat job.', 'red');
+            return;
+        }
+
+        document.getElementById('office-brief-text').value = '';
+        appState.office.selectedJobId = data.job.id;
+
+        if (data.needsInfo) {
+            this.showToast('Brief tipis — isi pertanyaan di panel kanan.', 'yellow');
+        } else {
+            this.showToast(`Job ${data.job.id} masuk antrean (${emp?.name || 'AI'}).`, 'emerald');
+        }
+        await this.renderOffice();
+        this.renderAiJobs();
+    } catch (e) {
+        this.showToast('Gagal mengirim brief.', 'red');
+    } finally {
+        if (submitBtn) submitBtn.disabled = false;
+    }
+};
+
+app.submitOfficeAnswers = async function () {
+    const jobId = appState.office.selectedJobId;
+    if (!jobId) return;
+
+    const inputs = document.querySelectorAll('.office-answer-input');
+    const answers = [...inputs].map(el => el.value.trim());
+    if (answers.some(a => !a)) {
+        this.showToast('Jawab semua pertanyaan dulu.', 'yellow');
+        return;
+    }
+
+    try {
+        const data = await api.post(`/api/ai/jobs/${jobId}/answer`, { answers });
+        if (!data.success) {
+            this.showToast(data.message || 'Gagal mengirim jawaban.', 'red');
+            return;
+        }
+        this.showToast('Jawaban tersimpan — job kembali antri.', 'emerald');
+        appState.office.selectedJobId = data.job.id;
+        await this.renderOffice();
+    } catch (e) {
+        this.showToast('Gagal mengirim jawaban.', 'red');
+    }
+};
+
+app.runOfficeJob = async function () {
+    const jobId = appState.office.selectedJobId;
+    if (!jobId) return;
+
+    const job = (appState.aiJobs || []).find(j => j.id === jobId);
+    if (!job) {
+        this.showToast('Job tidak ditemukan.', 'red');
+        return;
+    }
+
+    try {
+        const data = await api.post(`/api/ai/jobs/${jobId}/run`, {
+            caption: job.brief,
+            platforms: job.platforms || [],
+            employeeName: job.employeeName
+        });
+        if (!data.success) {
+            this.showToast(data.message || 'Publish gagal.', 'red');
+        } else {
+            this.showToast(`Publish selesai (${job.employeeName || 'AI'}).`, 'emerald');
+        }
+        await this.loadPostsFromServer();
+        await this.renderOffice();
+        this.renderAiJobs();
+    } catch (e) {
+        this.showToast('Gagal menjalankan job.', 'red');
+    }
 };
 
 app.renderChannelShareChart = function () {

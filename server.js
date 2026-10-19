@@ -20,6 +20,12 @@ const multer = require('multer');
 const fs = require('fs');
 
 const db = require('./db');
+const {
+    listRoles,
+    getRoleById,
+    resolveRole,
+    deriveEmployeeStatus
+} = require('./lib/ai-roles');
 
 const IS_VERCEL = !!process.env.VERCEL;
 
@@ -821,7 +827,7 @@ app.get('/api/ai/employee/context', async (req, res) => {
             publishResults: p.publishResults || {}
         }));
 
-    const recentAiJobs = (await db.getAiJobs())
+        const recentAiJobs = (await db.getAiJobs())
         .slice()
         .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
         .slice(0, 10)
@@ -831,6 +837,7 @@ app.get('/api/ai/employee/context', async (req, res) => {
             status: j.status,
             questions: j.questions || [],
             employeeName: j.employeeName,
+            roleId: j.roleId || null,
             createdAt: j.createdAt,
             updatedAt: j.updatedAt
         }));
@@ -839,6 +846,8 @@ app.get('/api/ai/employee/context', async (req, res) => {
         success: true,
         mode: SANDBOX_MODE ? 'sandbox' : 'real',
         policy: 'auto_publish',
+        office: 'Kantor AI',
+        roles: listRoles().map(r => ({ id: r.id, name: r.name, title: r.title })),
         baseUrl: `http://localhost:${PORT}`,
         connectedPlatforms: accounts.map(a => a.platform),
         accounts,
@@ -984,8 +993,103 @@ function captionFromBrief(brief, caption) {
 app.get('/api/ai/jobs', async (req, res) => {
     try {
         const jobs = await db.getAiJobs();
-        const sorted = [...jobs].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        let sorted = [...jobs].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        const roleFilter = (req.query.roleId || req.query.role || '').trim();
+        if (roleFilter) {
+            sorted = sorted.filter(j =>
+                j.roleId === roleFilter ||
+                j.employeeRole === roleFilter
+            );
+        }
         res.json({ success: true, jobs: sorted });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+/**
+ * Kantor AI — daftar peran + ringkasan job aktif per peran + work board.
+ */
+app.get('/api/ai/office/roles', (req, res) => {
+    res.json({ success: true, roles: listRoles() });
+});
+
+app.get('/api/ai/office', async (req, res) => {
+    try {
+        const jobs = await db.getAiJobs();
+        const sorted = [...jobs].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+        const employees = listRoles().map(role => {
+            const roleJobs = sorted.filter(j =>
+                j.roleId === role.id ||
+                j.employeeRole === role.id ||
+                (j.employeeName && j.employeeName.toLowerCase() === role.name.toLowerCase())
+            );
+            const activeJobs = roleJobs.filter(j =>
+                ['queued', 'needs_info', 'publishing'].includes(j.status)
+            );
+            const latestJob = roleJobs[0] || null;
+            return {
+                id: role.id,
+                name: role.name,
+                title: role.title,
+                emoji: role.emoji,
+                avatarColor: role.avatarColor,
+                defaultPlatforms: role.defaultPlatforms || [],
+                systemBrief: role.systemBrief,
+                status: deriveEmployeeStatus(roleJobs),
+                activeCount: activeJobs.length,
+                latestJob: latestJob
+                    ? {
+                        id: latestJob.id,
+                        brief: (latestJob.brief || '').slice(0, 160),
+                        status: latestJob.status,
+                        questions: latestJob.questions || [],
+                        updatedAt: latestJob.updatedAt,
+                        createdAt: latestJob.createdAt
+                    }
+                    : null
+            };
+        });
+
+        const board = {
+            queued: [],
+            needs_info: [],
+            publishing: [],
+            done: [],
+            failed: []
+        };
+        for (const j of sorted) {
+            const bucket = board[j.status];
+            if (!bucket) continue;
+            if (bucket.length >= 20) continue;
+            bucket.push({
+                id: j.id,
+                brief: (j.brief || '').slice(0, 160),
+                status: j.status,
+                roleId: j.roleId || null,
+                employeeName: j.employeeName,
+                questions: j.questions || [],
+                createdAt: j.createdAt,
+                updatedAt: j.updatedAt
+            });
+        }
+
+        res.json({
+            success: true,
+            office: 'Kantor AI',
+            policy: 'auto_publish',
+            employees,
+            board,
+            jobCounts: {
+                total: sorted.length,
+                queued: sorted.filter(j => j.status === 'queued').length,
+                needs_info: sorted.filter(j => j.status === 'needs_info').length,
+                publishing: sorted.filter(j => j.status === 'publishing').length,
+                done: sorted.filter(j => j.status === 'done').length,
+                failed: sorted.filter(j => j.status === 'failed').length
+            }
+        });
     } catch (err) {
         res.status(500).json({ success: false, message: err.message });
     }
@@ -1010,6 +1114,7 @@ app.post('/api/ai/jobs', async (req, res) => {
             mediaType,
             employeeName,
             employeeRole,
+            roleId,
             forceQueued
         } = req.body || {};
 
@@ -1021,30 +1126,46 @@ app.post('/api/ai/jobs', async (req, res) => {
             });
         }
 
+        const role = resolveRole({ roleId, employeeRole, employeeName });
+        if (roleId && !getRoleById(roleId) && !role) {
+            return res.status(400).json({
+                success: false,
+                message: `roleId tidak dikenal: ${roleId}. Lihat GET /api/ai/office/roles.`
+            });
+        }
+
         const assessment = forceQueued
             ? { thin: false, questions: [] }
             : assessBrief(briefText);
 
         const status = assessment.thin ? 'needs_info' : 'queued';
+        const resolvedPlatforms = Array.isArray(platforms) && platforms.length
+            ? platforms.map(p => String(p).toLowerCase())
+            : (role?.defaultPlatforms || []);
+
         const job = await db.addAiJob({
             brief: briefText,
             status,
             questions: assessment.questions,
             draftHistory: [{ at: new Date().toISOString(), type: 'created', brief: briefText }],
-            platforms: Array.isArray(platforms) ? platforms.map(p => String(p).toLowerCase()) : [],
+            platforms: resolvedPlatforms,
             mediaUrl: mediaUrl || '',
             mediaType: mediaType || '',
-            employeeName: (employeeName || 'Karyawan AI').trim(),
-            employeeRole: (employeeRole || 'content').trim(),
+            employeeName: (employeeName || role?.name || 'Karyawan AI').trim(),
+            employeeRole: (employeeRole || role?.id || 'content').trim(),
+            roleId: role?.id || (roleId ? String(roleId).trim() : null),
             runId: null,
             version: 1,
             publishResults: {}
         });
 
-        console.log(`📋 [AI-JOB] ${job.id} status=${status} thin=${assessment.thin}`);
+        console.log(`📋 [AI-JOB] ${job.id} status=${status} thin=${assessment.thin} role=${job.roleId || '-'}`);
         res.status(201).json({
             success: true,
             needsInfo: assessment.thin,
+            role: role
+                ? { id: role.id, name: role.name, title: role.title, systemBrief: role.systemBrief }
+                : null,
             job
         });
     } catch (err) {

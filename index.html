@@ -52,6 +52,12 @@
                             <span>Jadwal & Kalender</span>
                         </a>
                     </li>
+                    <li data-view="office">
+                        <a href="#office">
+                            <i data-lucide="building-2"></i>
+                            <span>Kantor AI</span>
+                        </a>
+                    </li>
                     <li data-view="accounts">
                         <a href="#accounts">
                             <i data-lucide="users"></i>
@@ -202,16 +208,19 @@
                                 </div>
                             </div>
 
-                            <!-- Job AI terbaru -->
+                            <!-- Job AI terbaru → detail di Kantor AI -->
                             <div class="card">
                                 <div class="card-header">
-                                    <h2>Job AI</h2>
-                                    <button class="btn-text" type="button" id="dashboard-refresh-jobs-btn">Segarkan</button>
+                                    <h2>Kantor AI</h2>
+                                    <div class="card-header-actions">
+                                        <button class="btn-text" type="button" id="dashboard-refresh-jobs-btn">Segarkan</button>
+                                        <button class="btn-text" type="button" id="dashboard-open-office-btn">Buka Kantor AI</button>
+                                    </div>
                                 </div>
                                 <div class="ai-jobs-list" id="dashboard-ai-jobs-list">
                                     <div class="empty-state-small" id="dashboard-empty-jobs">
-                                        <i data-lucide="bot"></i>
-                                        <p>Belum ada job AI.</p>
+                                        <i data-lucide="building-2"></i>
+                                        <p>Belum ada job. Kirim brief di Kantor AI.</p>
                                     </div>
                                 </div>
                             </div>
@@ -654,6 +663,117 @@
 
                     <div class="accounts-grid" id="accounts-status-grid">
                         <!-- Akun-akun terhubung diisi secara dinamis -->
+                    </div>
+                </section>
+
+                <!-- VIEW: KANTOR AI -->
+                <section id="view-office" class="view-panel">
+                    <div class="office-layout">
+                        <div class="office-main">
+                            <div class="card office-employees-card">
+                                <div class="card-header">
+                                    <h2>Tim Karyawan AI</h2>
+                                    <button class="btn btn-sm btn-secondary" type="button" id="office-refresh-btn">
+                                        <i data-lucide="refresh-cw"></i>
+                                        <span>Segarkan</span>
+                                    </button>
+                                </div>
+                                <div class="office-employees-grid" id="office-employees-grid">
+                                    <div class="empty-state-small" id="office-employees-empty">
+                                        <i data-lucide="users"></i>
+                                        <p>Memuat tim…</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="card office-board-card">
+                                <div class="card-header">
+                                    <h2>Work Board</h2>
+                                    <span class="text-secondary font-sm" id="office-board-counts"></span>
+                                </div>
+                                <div class="office-board" id="office-board">
+                                    <div class="office-column" data-status="queued">
+                                        <div class="office-column-head">
+                                            <span class="badge badge-indigo">Antri</span>
+                                            <span class="office-column-count" id="office-count-queued">0</span>
+                                        </div>
+                                        <div class="office-column-list" id="office-col-queued"></div>
+                                    </div>
+                                    <div class="office-column" data-status="needs_info">
+                                        <div class="office-column-head">
+                                            <span class="badge badge-yellow">Perlu info</span>
+                                            <span class="office-column-count" id="office-count-needs_info">0</span>
+                                        </div>
+                                        <div class="office-column-list" id="office-col-needs_info"></div>
+                                    </div>
+                                    <div class="office-column" data-status="publishing">
+                                        <div class="office-column-head">
+                                            <span class="badge badge-violet">Publish…</span>
+                                            <span class="office-column-count" id="office-count-publishing">0</span>
+                                        </div>
+                                        <div class="office-column-list" id="office-col-publishing"></div>
+                                    </div>
+                                    <div class="office-column" data-status="done">
+                                        <div class="office-column-head">
+                                            <span class="badge badge-emerald">Selesai</span>
+                                            <span class="office-column-count" id="office-count-done">0</span>
+                                        </div>
+                                        <div class="office-column-list" id="office-col-done"></div>
+                                    </div>
+                                    <div class="office-column" data-status="failed">
+                                        <div class="office-column-head">
+                                            <span class="badge badge-red">Gagal</span>
+                                            <span class="office-column-count" id="office-count-failed">0</span>
+                                        </div>
+                                        <div class="office-column-list" id="office-col-failed"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <aside class="office-side">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h2>Brief Cepat</h2>
+                                </div>
+                                <form id="office-brief-form" class="office-brief-form">
+                                    <div class="form-group">
+                                        <label for="office-role-select">Peran</label>
+                                        <select id="office-role-select" class="form-control" required>
+                                            <option value="">Pilih karyawan…</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="office-brief-text">Brief</label>
+                                        <textarea id="office-brief-text" class="form-control" rows="6"
+                                            placeholder="Contoh: Promo launch fitur Jadwal PostSphere untuk UMKM, CTA coba gratis, platform Instagram & Facebook."
+                                            required></textarea>
+                                        <span class="input-hint">Brief cukup → antri publish. Tipis → pertanyaan klarifikasi.</span>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary width-full" id="office-brief-submit">
+                                        <i data-lucide="send"></i>
+                                        <span>Kirim Brief</span>
+                                    </button>
+                                </form>
+                            </div>
+
+                            <div class="card office-answer-card hidden" id="office-answer-card">
+                                <div class="card-header">
+                                    <h2>Perlu Jawaban</h2>
+                                    <span class="badge badge-yellow" id="office-answer-job-id"></span>
+                                </div>
+                                <p class="text-secondary font-sm mb-3" id="office-answer-brief"></p>
+                                <div id="office-answer-questions" class="office-questions"></div>
+                                <button type="button" class="btn btn-primary width-full mt-3" id="office-answer-submit">
+                                    <i data-lucide="check"></i>
+                                    <span>Kirim Jawaban → Antri</span>
+                                </button>
+                                <button type="button" class="btn btn-secondary width-full mt-2" id="office-run-job-btn">
+                                    <i data-lucide="play"></i>
+                                    <span>Jalankan Publish</span>
+                                </button>
+                            </div>
+                        </aside>
                     </div>
                 </section>
 

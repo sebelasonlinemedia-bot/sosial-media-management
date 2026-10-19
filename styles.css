@@ -172,7 +172,9 @@ button, input, textarea, select {
 .gap-6 { gap: 24px; }
 
 .mt-2 { margin-top: 8px; }
+.mt-3 { margin-top: 12px; }
 .mt-4 { margin-top: 16px; }
+.mb-3 { margin-bottom: 12px; }
 .mt-6 { margin-top: 24px; }
 
 .width-full {
@@ -2789,4 +2791,227 @@ button, input, textarea, select {
 .badge-violet {
     background: rgba(139, 92, 246, 0.15);
     color: #a78bfa;
+}
+
+.card-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ai-job-row-clickable {
+    cursor: pointer;
+    border-radius: var(--border-radius-sm);
+    transition: background 0.15s ease;
+}
+
+.ai-job-row-clickable:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+/* ==========================================================================
+   Kantor AI
+   ========================================================================== */
+.office-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: 24px;
+    align-items: start;
+}
+
+.office-main {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    min-width: 0;
+}
+
+.office-side {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    position: sticky;
+    top: 0;
+}
+
+.office-employees-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 12px;
+}
+
+.office-employee-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px;
+    text-align: left;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-md);
+    color: inherit;
+    cursor: pointer;
+    transition: border-color 0.2s ease, background 0.2s ease, transform 0.15s ease;
+}
+
+.office-employee-card:hover {
+    border-color: var(--border-color-hover);
+    background: var(--bg-card-hover);
+    transform: translateY(-1px);
+}
+
+.office-employee-avatar {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.15rem;
+    flex-shrink: 0;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+}
+
+.office-employee-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.office-employee-name {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 0.9375rem;
+    color: var(--text-primary);
+}
+
+.office-employee-title {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.office-employee-brief {
+    margin-top: 4px;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.office-board {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(140px, 1fr));
+    gap: 12px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+}
+
+.office-column {
+    min-width: 0;
+    background: rgba(7, 10, 16, 0.45);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-md);
+    padding: 10px;
+    min-height: 180px;
+}
+
+.office-column-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.office-column-count {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-muted);
+}
+
+.office-column-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 360px;
+    overflow-y: auto;
+}
+
+.office-column-empty {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    padding: 8px 4px;
+}
+
+.office-job-card {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px;
+    text-align: left;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-sm);
+    color: inherit;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.office-job-card:hover,
+.office-job-card.active {
+    border-color: rgba(99, 102, 241, 0.45);
+    background: rgba(99, 102, 241, 0.08);
+}
+
+.office-job-brief {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.office-job-meta {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+}
+
+.office-brief-form .form-group {
+    margin-bottom: 14px;
+}
+
+.office-questions .form-group {
+    margin-bottom: 12px;
+}
+
+.office-questions label {
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+    display: block;
+}
+
+@media (max-width: 1100px) {
+    .office-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .office-side {
+        position: static;
+    }
+
+    .office-board {
+        grid-template-columns: repeat(2, minmax(160px, 1fr));
+    }
+}
+
+@media (max-width: 640px) {
+    .office-board {
+        grid-template-columns: 1fr;
+    }
 }

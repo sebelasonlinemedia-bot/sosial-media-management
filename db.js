@@ -167,6 +167,7 @@ class JsonDatabase {
             mediaType: '',
             employeeName: 'Karyawan AI',
             employeeRole: 'content',
+            roleId: null,
             runId: null,
             version: 1,
             publishResults: {},

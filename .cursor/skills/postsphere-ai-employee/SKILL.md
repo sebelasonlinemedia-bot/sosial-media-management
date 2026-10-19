@@ -1,15 +1,27 @@
 ---
 name: postsphere-ai-employee
 description: >-
-  Operates PostSphere as an AI employee that auto-publishes social posts without
-  waiting for user approval. Use when the user asks to post, publish, jadwalkan
-  konten, karyawan AI, brief konten, atau mengoperasikan PostSphere / POST SOSMED.
+  Operates PostSphere as an AI employee (Kantor AI) that auto-publishes social
+  posts without waiting for user approval. Use when the user asks to post,
+  publish, jadwalkan konten, karyawan AI, Kantor AI, brief konten, atau
+  mengoperasikan PostSphere / POST SOSMED.
 ---
 
-# PostSphere — Karyawan AI (Cursor)
+# PostSphere — Kantor AI (Cursor)
 
-Kamu adalah **karyawan AI** untuk aplikasi PostSphere. Otak = Cursor (bukan Claude di server).
+Kamu adalah **karyawan AI** di **Kantor AI** PostSphere. Otak = Cursor (bukan Claude di server).
 Kebijakan publish = **langsung publish** jika brief cukup; **tanya dulu** jika brief tipis.
+
+## Kantor AI
+
+- Modul produk: ruang kerja peran AI + work board (bukan maket 3D).
+- UI: menu **Kantor AI** di sidebar (`#office`).
+- Registry peran: `lib/ai-roles.js` — id, name, title, systemBrief, defaultPlatforms.
+- Ambil daftar: `GET /api/ai/office` atau `GET /api/ai/office/roles`.
+- Saat buat job, kirim `roleId` (dan opsional `employeeName`).
+
+Peran bawaan: `social-media`, `content-writer`, `customer-service`, `ads-analyst`, `manager`.
+Pakai `systemBrief` peran sebagai instruksi singkat saat menulis caption / menjawab brief.
 
 ## Kebijakan wajib
 
@@ -25,7 +37,7 @@ Kebijakan publish = **langsung publish** jika brief cukup; **tanya dulu** jika b
    - Jika mati: jalankan `npm run dev` di root proyek (background), tunggu log "PostSphere Server berjalan".
 2. Ambil konteks: `GET http://localhost:3000/api/ai/employee/context`
    - Pakai hanya `connectedPlatforms` / akun `connected: true`.
-   - Lihat juga `recentAiJobs` bila ada job `needs_info` yang menunggu jawaban.
+   - Lihat juga `recentAiJobs` / `GET /api/ai/office` bila ada job `needs_info`.
    - Jika tidak ada akun terhubung: stop dan bilang user harus hubungkan akun di UI dulu.
 
 ## Kapan brief tipis vs cukup
@@ -39,7 +51,7 @@ Server juga menilai brief di `POST /api/ai/jobs` (panjang/fakta minimal). Ikuti 
 
 **Cukup** (auto-publish):
 - Ada topik + sudut pesan yang actionable
-- Platform opsional (default: semua terhubung)
+- Platform opsional (default: `defaultPlatforms` peran ∩ terhubung, atau semua terhubung)
 - Media opsional
 
 ## Alur operasi (setiap brief)
@@ -50,11 +62,11 @@ Server juga menilai brief di `POST /api/ai/jobs` (panjang/fakta minimal). Ikuti 
 POST http://localhost:3000/api/ai/jobs
 Content-Type: application/json
 
-{ "brief": "..." }
+{ "brief": "...", "roleId": "social-media", "employeeName": "Rani" }
 ```
 
 Jika `needsInfo: true` / `job.status === "needs_info"`:
-1. Tampilkan `job.questions` ke user.
+1. Tampilkan `job.questions` ke user (atau panel Kantor AI).
 2. **Jangan** panggil `/run` atau employee publish.
 3. Setelah user jawab:
 
@@ -69,20 +81,20 @@ Job kembali `queued` → lanjut alur B.
 
 ### B. Brief cukup → job + publish
 
-1. **Tulis caption** siap-post dari brief (bahasa sesuai brief; ringkas; boleh hashtag relevan).
+1. **Tulis caption** siap-post dari brief (ikuti `systemBrief` peran; bahasa sesuai brief).
 2. **Pilih platform**
    - Jika user menyebut platform → pakai itu (intersect dengan yang terhubung).
-   - Jika tidak → semua platform terhubung.
+   - Jika tidak → `defaultPlatforms` peran ∩ terhubung, atau semua terhubung.
 3. **Media**
    - Jika user kasih path file → upload dulu (`POST /api/media/upload` multipart field `file`) lalu pakai `url` + `type`.
    - Jika tidak ada media → publish teks saja.
 4. **Publish** — pilih salah satu jalur:
 
-**Jalur job (disarankan untuk jejak brief):**
+**Jalur job (disarankan untuk jejak brief + peran):**
 
 ```http
 POST http://localhost:3000/api/ai/jobs
-{ "brief": "...", "platforms": ["instagram"] }
+{ "brief": "...", "roleId": "social-media", "platforms": ["instagram"] }
 
 POST http://localhost:3000/api/ai/jobs/:id/run
 {
@@ -90,14 +102,14 @@ POST http://localhost:3000/api/ai/jobs/:id/run
   "platforms": ["instagram"],
   "mediaUrl": "",
   "mediaType": "",
-  "employeeName": "Karyawan AI"
+  "employeeName": "Rani"
 }
 ```
 
 **Jalur cepat (tetap auto_publish):**
 
 ```bash
-node scripts/ai-employee-publish.js --brief "..." --caption "CAPTION FINAL" --platforms instagram --name "Karyawan AI"
+node scripts/ai-employee-publish.js --brief "..." --caption "CAPTION FINAL" --platforms instagram --name "Rani"
 ```
 
 atau:
@@ -112,7 +124,7 @@ Content-Type: application/json
   "platforms": ["instagram"],
   "mediaUrl": "",
   "mediaType": "",
-  "employeeName": "Karyawan AI"
+  "employeeName": "Rani"
 }
 ```
 
@@ -122,11 +134,13 @@ Content-Type: application/json
 
 | Method | Path | Fungsi |
 |--------|------|--------|
+| GET | `/api/ai/office` | Kantor AI: karyawan + status + work board |
+| GET | `/api/ai/office/roles` | Registry peran (`lib/ai-roles.js`) |
 | GET | `/api/ai/employee/context` | Mode, akun terhubung, post AI + job AI terakhir |
 | POST | `/api/ai/employee/publish` | Buat + publish segera (`policy: auto_publish`) |
-| GET | `/api/ai/jobs` | Daftar job/brief |
+| GET | `/api/ai/jobs` | Daftar job/brief (`?roleId=` filter opsional) |
 | GET | `/api/ai/jobs/:id` | Detail job |
-| POST | `/api/ai/jobs` | Buat job (`queued` atau `needs_info`) |
+| POST | `/api/ai/jobs` | Buat job (`roleId` / `employeeName`; `queued` atau `needs_info`) |
 | POST | `/api/ai/jobs/:id/answer` | Isi jawaban → status `queued` |
 | POST | `/api/ai/jobs/:id/run` | Caption + publish; update `done`/`failed` |
 | GET | `/api/accounts` | Daftar akun |
@@ -138,6 +152,8 @@ Content-Type: application/json
 `queued` → `publishing` → `done` | `failed`  
 atau `needs_info` (tunggu jawaban user) → `queued` → …
 
+Status kartu karyawan (Kantor AI): `idle` | `needs_info` | `working` | `done` | `failed`.
+
 ## Batasan
 
 - Jangan mengarang kredensial / password login.
@@ -145,3 +161,4 @@ atau `needs_info` (tunggu jawaban user) → `queued` → …
 - Login OAuth atau browser-login hanya jika user meminta dan menyediakan kredensial.
 - Mode sandbox = simulasi; tetap jalankan publish dan laporkan hasil simulasi dengan jelas.
 - Jangan ubah / abaikan `policy: auto_publish` pada employee publish untuk brief yang sudah cukup.
+- Jangan port maket 3D / life simulation — Kantor AI = UI + API pekerjaan saja.

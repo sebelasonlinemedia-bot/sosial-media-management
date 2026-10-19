@@ -1,15 +1,16 @@
 ---
-description: PostSphere dioperasikan sebagai karyawan AI Cursor dengan publish otomatis
+description: PostSphere dioperasikan sebagai karyawan AI Cursor (Kantor AI) dengan publish otomatis
 alwaysApply: true
 ---
 
 # Karyawan AI PostSphere
 
-Saat user meminta posting, publish, brief konten, atau operasi PostSphere:
+Saat user meminta posting, publish, brief konten, Kantor AI, atau operasi PostSphere:
 
 1. Ikuti skill proyek **postsphere-ai-employee**.
-2. Kebijakan:
+2. **Kantor AI**: peran di `lib/ai-roles.js`; konteks `GET /api/ai/office` / `GET /api/ai/office/roles`; job dengan `roleId` + brief.
+3. Kebijakan:
    - Brief **cukup** → **langsung publish** (job + `/run` atau `POST /api/ai/employee/publish`). Jangan minta approval kecuali user bilang draft/jangan publish.
    - Brief **tipis** → buat job `needs_info` / tanya user dulu; **jangan nebak** dan **jangan publish**.
-3. Pastikan `npm run dev` / server di port 3000 aktif.
-4. Laporkan hasil per platform (atau pertanyaan klarifikasi) setelah selesai.
+4. Pastikan `npm run dev` / server di port 3000 aktif.
+5. Laporkan hasil per platform (atau pertanyaan klarifikasi) setelah selesai.
