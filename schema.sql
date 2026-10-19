@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS users (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Multi-tenant scaffolding (P2): workspace default; UNIQUE(platform) masih global (P3: per-workspace)
+-- Multi-tenant (P2 scaffolding + P3 UNIQUE per workspace)
 CREATE TABLE IF NOT EXISTS workspaces (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
@@ -19,17 +19,26 @@ INSERT INTO workspaces (id, name)
 VALUES ('default', 'Default')
 ON CONFLICT (id) DO NOTHING;
 
+-- P3: UNIQUE (workspace_id, platform) — BUKAN UNIQUE(platform) global.
+-- Breaking change vs skema lama: drop constraint accounts_platform_key jika masih ada
+-- (dilakukan otomatis di db-postgres.js migrateAccountsTenantSchema).
 CREATE TABLE IF NOT EXISTS accounts (
   id TEXT PRIMARY KEY,
-  platform TEXT NOT NULL UNIQUE,
+  platform TEXT NOT NULL,
+  workspace_id TEXT NOT NULL DEFAULT 'default',
   data JSONB NOT NULL DEFAULT '{}'::jsonb,
   connected BOOLEAN NOT NULL DEFAULT FALSE,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
--- brandMemory, autonomy overrides, workspaceId: disimpan di accounts.data JSONB
--- contoh: data->>'brandMemory', data->>'workspaceId' (default "default")
--- P3: UNIQUE (workspace_id, platform) setelah kolom tenant dinormalisasi
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_accounts_workspace_platform
+  ON accounts (workspace_id, platform);
+CREATE INDEX IF NOT EXISTS idx_accounts_workspace_id ON accounts (workspace_id);
+CREATE INDEX IF NOT EXISTS idx_accounts_connected ON accounts (connected);
+
+-- brandMemory, autonomy overrides: di accounts.data JSONB
+-- workspaceId juga di-mirror ke data->>'workspaceId' untuk kompatibilitas JSON path
 
 CREATE TABLE IF NOT EXISTS posts (
   id TEXT PRIMARY KEY,
@@ -42,7 +51,6 @@ CREATE TABLE IF NOT EXISTS posts (
 );
 
 CREATE INDEX IF NOT EXISTS idx_posts_status_publish ON posts (status, publish_date);
-CREATE INDEX IF NOT EXISTS idx_accounts_connected ON accounts (connected);
 
 -- Job/brief AI (Tim Konten) — otak tetap Cursor di luar server
 -- Status: queued | needs_info | publishing | awaiting_approval | done | failed

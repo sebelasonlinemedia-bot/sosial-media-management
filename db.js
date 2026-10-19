@@ -17,6 +17,7 @@ const {
     withWorkspaceId,
     filterByWorkspace
 } = require('./lib/workspace');
+const { findAccountIndex } = require('./lib/accounts-tenant');
 
 const DB_PATH = path.join(__dirname, 'db.json');
 const DEFAULT_DB = {
@@ -126,7 +127,7 @@ class JsonDatabase {
     async upsertAccount(accountData) {
         const workspaceId = normalizeWorkspaceId(accountData.workspaceId || DEFAULT_WORKSPACE_ID);
         const payload = withWorkspaceId({ ...accountData, workspaceId }, workspaceId);
-        const idx = this._data.accounts.findIndex(a => a.platform === payload.platform);
+        const idx = findAccountIndex(this._data.accounts, payload.platform, workspaceId);
         if (idx !== -1) {
             const merged = {
                 ...this._data.accounts[idx],
@@ -138,7 +139,7 @@ class JsonDatabase {
             this._data.accounts[idx] = encryptAccountTokens(merged);
         } else {
             this._data.accounts.push(encryptAccountTokens({
-                id: 'acc-' + payload.platform + '-' + Date.now(),
+                id: 'acc-' + payload.platform + '-' + workspaceId + '-' + Date.now(),
                 ...payload,
                 workspaceId,
                 connected: true,
@@ -150,8 +151,9 @@ class JsonDatabase {
         return this.getAccountByPlatform(payload.platform, { workspaceId });
     }
 
-    async disconnectAccount(platform) {
-        const idx = this._data.accounts.findIndex(a => a.platform === platform);
+    async disconnectAccount(platform, opts = {}) {
+        const workspaceId = normalizeWorkspaceId(opts.workspaceId || DEFAULT_WORKSPACE_ID);
+        const idx = findAccountIndex(this._data.accounts, platform, workspaceId);
         if (idx === -1) return false;
         const row = this._data.accounts[idx];
         row.connected = false;

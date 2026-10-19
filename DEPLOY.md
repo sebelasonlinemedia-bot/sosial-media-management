@@ -70,7 +70,7 @@ Lokal (`db.json`) mendapat `aiSettings` + `auditLog` otomatis saat load.
 
 | Item | Status | Catatan |
 |------|--------|---------|
-| Analitik penggerak agen | Partial | Agregasi live dari posts lokal; `statsSource: mock\|live` — sering mock sampai Insights API platform di-wire |
+| Analitik penggerak agen | Partial | Agregasi lokal + konektor `/api/analytics/live` (Meta/YT/TikTok jika token); `statsSource: mock\|live\|unavailable` — jangan klaim live jika API gagal |
 | Notifikasi email/WhatsApp | Live | `settings.notifications` + stub HTTP POST webhook; audit log; gagal tidak memblokir job |
 | Token encryption at rest | Live | `accessToken` / `refreshToken` / `pageToken` (+ session file jika key set). `TOKEN_ENCRYPTION_KEY` ≥16 |
 | App AuthN/AuthZ | Live | Session cookie `piks_sid`; `POST /api/auth/login`; mutasi `/api/*` butuh login; `forcePublish` = admin/approver |
@@ -80,14 +80,20 @@ Lokal (`db.json`) mendapat `aiSettings` + `auditLog` otomatis saat load.
 | Rate limit | Live | In-memory pada login + publish endpoints |
 | Approve atomik | Live | `POST .../approve` default `autoRun=true` → lanjut `/run` (pakai `approvedAt`) |
 
-## 6. Audit remediasi P0–P2 (ringkas)
+## 6. Audit remediasi P0–P3 (ringkas)
 
 | Prioritas | Status | Isi utama |
 |-----------|--------|-----------|
 | **P0** | Done | Auth session, `forcePublish` bound role, browser-login locked ke session app, media URL cloud guard |
 | **P1** | Done | OAuth `state`, MIME upload, rate limit, token/pageToken encrypt, YT refresh, cron fail-closed, approve atomik |
-| **P2** | Done (sebagian deferred) | `workspaceId` scaffolding + workspace `default`; analytics mock vs live di UI + stub `/api/analytics/live-stub`; reconcile `posted\|partial\|failed`; manual publish hormati pause/cap; `GET /api/health`; safe-log redaksi; `npm run test:p2` / `npm run check:db` |
-| **P3** | Next | UNIQUE per-workspace platform, live Insights API, TikTok poll status, modularize frontend, deps cleanup |
+| **P2** | Done | `workspaceId` scaffolding + workspace `default`; analytics mock vs live di UI; reconcile `posted\|partial\|failed`; manual publish hormati pause/cap; `GET /api/health`; safe-log; `npm run test:p2` / `npm run check:db` |
+| **P3** | Done (sebagian deferred) | `UNIQUE (workspace_id, platform)` + isolasi query; live metrics Meta/YT/TikTok (`/api/analytics/live`, gagal ≠ klaim live); TikTok publish poll (~45s timeout); Blob opsional (`BLOB_READ_WRITE_TOKEN`); `js/auth-ui.js` + `js/office-api.js`; multer 2; hapus `express-session` unused; `npm run test:p3`. Deferred: cleanup transitive `request` (instagram-private-api) |
+
+### P3 — catatan ops
+
+- **DB breaking (non-destruktif data):** boot Postgres drop `UNIQUE(platform)` lama → `UNIQUE (workspace_id, platform)`. Backfill `workspace_id` dari JSONB / `default`.
+- **Blob:** tanpa `BLOB_READ_WRITE_TOKEN` upload tetap local + `PUBLIC_BASE_URL`.
+- **TikTok poll:** setelah init, server poll status sampai terminal atau timeout 45s (`lib/tiktok-publish.js`); timeout → `pending: true`, bukan sukses penuh.
 
 ### DATABASE_URL (Neon)
 

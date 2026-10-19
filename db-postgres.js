@@ -11,6 +11,7 @@ const {
     withWorkspaceId,
     filterByWorkspace
 } = require('./lib/workspace');
+const { migrateAccountsTenantSchema } = require('./lib/accounts-tenant');
 
 function getSql() {
     const url = process.env.DATABASE_URL;
@@ -19,11 +20,16 @@ function getSql() {
 }
 
 function rowToAccount(r) {
+    const data = typeof r.data === 'object' && r.data ? r.data : {};
+    const workspaceId = normalizeWorkspaceId(
+        r.workspace_id || data.workspaceId || DEFAULT_WORKSPACE_ID
+    );
     return decryptAccountTokens({
         id: r.id,
         platform: r.platform,
         connected: r.connected,
-        ...(typeof r.data === 'object' && r.data ? r.data : {}),
+        ...data,
+        workspaceId,
         createdAt: r.created_at,
         updatedAt: r.updated_at
     });
@@ -67,7 +73,8 @@ class PostgresDatabase {
         await sql`
             CREATE TABLE IF NOT EXISTS accounts (
                 id TEXT PRIMARY KEY,
-                platform TEXT NOT NULL UNIQUE,
+                platform TEXT NOT NULL,
+                workspace_id TEXT NOT NULL DEFAULT 'default',
                 data JSONB NOT NULL DEFAULT '{}'::jsonb,
                 connected BOOLEAN NOT NULL DEFAULT FALSE,
                 updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -87,6 +94,8 @@ class PostgresDatabase {
         `;
         await sql`CREATE INDEX IF NOT EXISTS idx_posts_status_publish ON posts (status, publish_date)`;
         await sql`CREATE INDEX IF NOT EXISTS idx_accounts_connected ON accounts (connected)`;
+        // P3: UNIQUE (workspace_id, platform); drop UNIQUE(platform) lama jika ada
+        await migrateAccountsTenantSchema(sql);
         await sql`
             CREATE TABLE IF NOT EXISTS ai_jobs (
                 id TEXT PRIMARY KEY,
@@ -117,7 +126,7 @@ class PostgresDatabase {
             )
         `;
         await sql`CREATE INDEX IF NOT EXISTS idx_audit_log_created ON audit_log (created_at DESC)`;
-        // Multi-tenant scaffolding (non-breaking): workspaces + workspaceId di JSONB data
+        // Multi-tenant: workspaces + workspace_id di accounts
         await sql`
             CREATE TABLE IF NOT EXISTS workspaces (
                 id TEXT PRIMARY KEY,
@@ -131,7 +140,7 @@ class PostgresDatabase {
             VALUES (${DEFAULT_WORKSPACE_ID}, ${'Default'}, ${{}})
             ON CONFLICT (id) DO NOTHING
         `;
-        console.log('✅ [DB] Terhubung ke Neon Postgres');
+        console.log('✅ [DB] Terhubung ke Neon Postgres (tenant UNIQUE workspace+platform)');
         return this;
     }
 
@@ -193,10 +202,34 @@ class PostgresDatabase {
 
     async getAccounts(opts = {}) {
         const sql = getSql();
-        const rows = await sql`
-            SELECT id, platform, data, connected, created_at, updated_at
-            FROM accounts ORDER BY created_at
-        `;
+        let rows;
+        if (opts.workspaceId) {
+            const wid = normalizeWorkspaceId(opts.workspaceId);
+            if (wid === DEFAULT_WORKSPACE_ID) {
+                // default: include legacy rows tanpa workspace_id / missing di JSON
+                rows = await sql`
+                    SELECT id, platform, workspace_id, data, connected, created_at, updated_at
+                    FROM accounts
+                    WHERE workspace_id = ${wid}
+                       OR workspace_id IS NULL
+                       OR COALESCE(TRIM(data->>'workspaceId'), '') = ''
+                       OR data->>'workspaceId' = ${DEFAULT_WORKSPACE_ID}
+                    ORDER BY created_at
+                `;
+            } else {
+                rows = await sql`
+                    SELECT id, platform, workspace_id, data, connected, created_at, updated_at
+                    FROM accounts
+                    WHERE workspace_id = ${wid}
+                    ORDER BY created_at
+                `;
+            }
+        } else {
+            rows = await sql`
+                SELECT id, platform, workspace_id, data, connected, created_at, updated_at
+                FROM accounts ORDER BY created_at
+            `;
+        }
         let list = rows.map(rowToAccount);
         if (opts.workspaceId) {
             list = filterByWorkspace(list, opts.workspaceId, {
@@ -207,7 +240,7 @@ class PostgresDatabase {
     }
 
     async getAccountByPlatform(platform, opts = {}) {
-        const list = await this.getAccounts(opts);
+        const list = await this.getAccounts(opts.workspaceId ? opts : { workspaceId: DEFAULT_WORKSPACE_ID });
         return list.find(a => a.platform === platform) || null;
     }
 
@@ -215,7 +248,7 @@ class PostgresDatabase {
         const sql = getSql();
         const workspaceId = normalizeWorkspaceId(accountData.workspaceId || DEFAULT_WORKSPACE_ID);
         const payload = withWorkspaceId({ ...accountData, workspaceId }, workspaceId);
-        const existing = await this.getAccountByPlatform(payload.platform);
+        const existing = await this.getAccountByPlatform(payload.platform, { workspaceId });
         const now = new Date().toISOString();
 
         if (existing) {
@@ -225,42 +258,55 @@ class PostgresDatabase {
                 workspaceId,
                 updatedAt: now
             });
-            const { id, platform, connected, createdAt, updatedAt, ...data } = merged;
+            const { id, platform, connected, createdAt, updatedAt, workspaceId: _w, ...data } = merged;
+            data.workspaceId = workspaceId;
             await sql`
                 UPDATE accounts
                 SET data = ${data},
+                    workspace_id = ${workspaceId},
                     connected = ${merged.connected !== false},
                     updated_at = ${now}
-                WHERE platform = ${payload.platform}
+                WHERE id = ${existing.id}
             `;
             return this.getAccountByPlatform(payload.platform, { workspaceId });
         }
 
         const sealed = encryptAccountTokens(payload);
-        const id = 'acc-' + sealed.platform + '-' + Date.now();
-        const { id: _id, platform: _p, connected: _c, createdAt: _ca, updatedAt: _ua, ...data } = sealed;
+        const id = 'acc-' + sealed.platform + '-' + workspaceId + '-' + Date.now();
+        const {
+            id: _id,
+            platform: _p,
+            connected: _c,
+            createdAt: _ca,
+            updatedAt: _ua,
+            workspaceId: _w,
+            ...data
+        } = sealed;
+        data.workspaceId = workspaceId;
         await sql`
-            INSERT INTO accounts (id, platform, data, connected, created_at, updated_at)
-            VALUES (${id}, ${sealed.platform}, ${data}, ${true}, ${now}, ${now})
+            INSERT INTO accounts (id, platform, workspace_id, data, connected, created_at, updated_at)
+            VALUES (${id}, ${sealed.platform}, ${workspaceId}, ${data}, ${true}, ${now}, ${now})
         `;
         return this.getAccountByPlatform(sealed.platform, { workspaceId });
     }
 
-    async disconnectAccount(platform) {
-        const existing = await this.getAccountByPlatform(platform);
+    async disconnectAccount(platform, opts = {}) {
+        const workspaceId = normalizeWorkspaceId(opts.workspaceId || DEFAULT_WORKSPACE_ID);
+        const existing = await this.getAccountByPlatform(platform, { workspaceId });
         if (!existing) return false;
         const sql = getSql();
         const now = new Date().toISOString();
-        const { id, platform: p, connected, createdAt, updatedAt, ...data } = existing;
+        const { id, platform: p, connected, createdAt, updatedAt, workspaceId: _w, ...data } = existing;
         data.accessToken = null;
         data.refreshToken = null;
         data.pageToken = null;
         data.sessionState = null;
         data.password = null;
+        data.workspaceId = workspaceId;
         await sql`
             UPDATE accounts
-            SET connected = false, data = ${data}, updated_at = ${now}
-            WHERE platform = ${platform}
+            SET connected = false, data = ${data}, workspace_id = ${workspaceId}, updated_at = ${now}
+            WHERE id = ${existing.id}
         `;
         return true;
     }

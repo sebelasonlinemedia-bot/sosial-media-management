@@ -158,131 +158,24 @@ const app = {
         lucide.createIcons();
     },
 
+    // Auth UI → js/auth-ui.js (P3 modularize)
     setupLoginGate() {
-        const form = document.getElementById('app-login-form');
-        const logoutBtn = document.getElementById('app-logout-btn');
-        if (form) {
-            form.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                await this.submitLogin();
-            });
-        }
-        if (logoutBtn) {
-            logoutBtn.addEventListener('click', async () => {
-                await api.post('/api/auth/logout', {});
-                appState.user = null;
-                this.showLoginGate('Anda telah keluar.');
-            });
-        }
+        if (typeof PiksAuthUI !== 'undefined') return PiksAuthUI.setupLoginGate(this);
     },
-
     showLoginGate(message) {
-        const gate = document.getElementById('app-login-gate');
-        const appRoot = document.querySelector('.app-container');
-        const err = document.getElementById('app-login-error');
-        if (appRoot) appRoot.classList.add('hidden');
-        if (gate) gate.classList.remove('hidden');
-        if (err) {
-            if (message) {
-                err.textContent = message;
-                err.classList.remove('hidden');
-            } else {
-                err.textContent = '';
-                err.classList.add('hidden');
-            }
-        }
-        this.updateLoginBootstrapHint(appState.authStatus);
+        if (typeof PiksAuthUI !== 'undefined') return PiksAuthUI.showLoginGate(this, message);
     },
-
     updateLoginBootstrapHint(status) {
-        const hint = document.getElementById('app-login-hint');
-        const hostEl = document.getElementById('app-login-host');
-        if (!hint && !hostEl) return;
-
-        const boot = status && status.bootstrap ? status.bootstrap : null;
-        const host = (status && status.host) || window.location.host || '';
-        const isLocal = !!(status && status.isLocalHost)
-            || /^(localhost|127\.0\.0\.1)(:\d+)?$/i.test(host);
-        const configured = !!(boot && boot.configured);
-        const hasUsers = !!(boot && boot.hasUsers);
-
-        if (hostEl) {
-            hostEl.hidden = false;
-            if (isLocal) {
-                hostEl.textContent = `Anda di lokal: http://${host || 'localhost:3000'} (baca .env + db.json).`;
-                hostEl.removeAttribute('data-tone');
-            } else {
-                hostEl.textContent = `Anda di cloud: ${host} — env diambil dari Vercel, bukan file .env di PC.`;
-                if (configured) hostEl.removeAttribute('data-tone');
-                else hostEl.setAttribute('data-tone', 'warn');
-            }
-        }
-
-        if (!hint) return;
-        if (!configured) {
-            hint.setAttribute('data-tone', 'warn');
-            hint.innerHTML = isLocal
-                ? 'Bootstrap belum sync: isi <code>ADMIN_EMAIL</code> + <code>ADMIN_PASSWORD</code> di <code>.env</code>, simpan, lalu <strong>restart</strong> <code>npm run dev</code> (bukan hanya refresh browser).'
-                : 'Bootstrap belum ada di Vercel: tambah <code>ADMIN_EMAIL</code> + <code>ADMIN_PASSWORD_HASH</code> (dan <code>DATABASE_URL</code>) di Project → Settings → Environment Variables, lalu <strong>Redeploy</strong>.';
-            return;
-        }
-        if (!hasUsers) {
-            hint.setAttribute('data-tone', 'warn');
-            hint.innerHTML = isLocal
-                ? 'Env ADMIN_* sudah ada, tapi belum ada user di DB. Restart server agar bootstrap menulis ke <code>db.json</code>.'
-                : 'Env ADMIN_* terdeteksi, tapi belum ada user. Pastikan <code>DATABASE_URL</code> (Neon) terisi, lalu Redeploy.';
-            return;
-        }
-        hint.removeAttribute('data-tone');
-        hint.innerHTML = isLocal
-            ? 'Login memakai email/password yang sama dengan <code>ADMIN_EMAIL</code> / <code>ADMIN_PASSWORD</code> di <code>.env</code> (setelah restart). Placeholder di atas bukan kredensial default.'
-            : 'Login production memakai kredensial dari Vercel env (<code>ADMIN_EMAIL</code> + password/hash), bukan dari <code>.env</code> di PC.';
+        if (typeof PiksAuthUI !== 'undefined') return PiksAuthUI.updateLoginBootstrapHint(status);
     },
-
     hideLoginGate() {
-        const gate = document.getElementById('app-login-gate');
-        const appRoot = document.querySelector('.app-container');
-        if (gate) gate.classList.add('hidden');
-        if (appRoot) appRoot.classList.remove('hidden');
+        if (typeof PiksAuthUI !== 'undefined') return PiksAuthUI.hideLoginGate();
     },
-
     updateUserBadge() {
-        const el = document.getElementById('app-user-badge');
-        if (!el || !appState.user) return;
-        el.textContent = `${appState.user.email} · ${appState.user.role || 'editor'}`;
-        el.classList.remove('hidden');
+        if (typeof PiksAuthUI !== 'undefined') return PiksAuthUI.updateUserBadge();
     },
-
     async submitLogin() {
-        const email = (document.getElementById('app-login-email')?.value || '').trim();
-        const password = document.getElementById('app-login-password')?.value || '';
-        const err = document.getElementById('app-login-error');
-        const btn = document.getElementById('app-login-submit');
-        if (err) {
-            err.classList.add('hidden');
-            err.textContent = '';
-        }
-        if (btn) btn.disabled = true;
-        try {
-            const data = await api.post('/api/auth/login', { email, password });
-            if (!data.success || !data.user) {
-                if (err) {
-                    err.textContent = data.message || 'Login gagal.';
-                    err.classList.remove('hidden');
-                }
-                return;
-            }
-            appState.user = data.user;
-            window.location.reload();
-            return;
-        } catch (e) {
-            if (err) {
-                err.textContent = e.message || 'Login gagal.';
-                err.classList.remove('hidden');
-            }
-        } finally {
-            if (btn) btn.disabled = false;
-        }
+        if (typeof PiksAuthUI !== 'undefined') return PiksAuthUI.submitLogin(this);
     },
 
     // --- Deteksi & Tampilkan Notifikasi Hasil OAuth ---
@@ -681,21 +574,9 @@ app.setupOfficeEvents = function () {
     }
 };
 
+// Office API → js/office-api.js (P3 modularize)
 app.loadOfficeFromServer = async function () {
-    try {
-        const data = await api.get('/api/ai/office');
-        if (data.success) {
-            appState.office.employees = data.employees || [];
-            appState.office.board = data.board || {};
-            appState.office.jobCounts = data.jobCounts || {};
-            appState.office.settings = data.settings || null;
-            appState.office.briefTemplates = data.briefTemplates || [];
-            if (data.platforms) appState.office.platforms = data.platforms;
-        }
-        await this.loadAiJobsFromServer();
-    } catch (e) {
-        console.error('[APP] Gagal memuat Kantor AI:', e);
-    }
+    if (typeof PiksOfficeApi !== 'undefined') return PiksOfficeApi.loadOfficeFromServer(this);
 };
 
 app.renderOffice = async function () {
@@ -713,19 +594,7 @@ app.renderOffice = async function () {
 };
 
 app.loadAndRenderInsights = async function (containerId) {
-    const el = document.getElementById(containerId);
-    if (!el) return;
-    try {
-        const data = await api.get('/api/ai/insights?days=30');
-        if (!data.success) {
-            el.innerHTML = `<p class="text-secondary font-sm">${this._escapeHtml(data.message || 'Gagal memuat insights.')}</p>`;
-            return;
-        }
-        appState.office.insights = data;
-        this.renderNextUpPanel(el, data);
-    } catch (e) {
-        el.innerHTML = '<p class="text-secondary font-sm">Gagal memuat insights.</p>';
-    }
+    if (typeof PiksOfficeApi !== 'undefined') return PiksOfficeApi.loadAndRenderInsights(this, containerId);
 };
 
 app.renderNextUpPanel = function (el, data) {
@@ -2556,7 +2425,7 @@ app.renderAnalytics = function () {
     }
     if (sourceNote) {
         sourceNote.textContent = liveCount === 0
-            ? 'Angka di tabel berasal dari generateMockStats setelah publish. Hook live: GET /api/analytics/live-stub (belum fetch API platform).'
+            ? 'Angka di tabel berasal dari generateMockStats setelah publish. Live path: GET /api/analytics/live (API jika token ada; gagal = unavailable, bukan klaim live).'
             : 'Sebagian post memakai stats live; mock tetap ditandai di kolom Sumber.';
     }
 

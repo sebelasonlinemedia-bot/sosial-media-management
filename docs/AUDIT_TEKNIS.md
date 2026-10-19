@@ -9,7 +9,7 @@
 | **Repo remote** | `https://github.com/sebelasonlinemedia-bot/sosial-media-management.git` (`main`) |
 | **Versi paket** | `piks-digital-lab@1.0.0` (`package.json`) |
 | **Commit HEAD (saat audit)** | `c40634e` — Raise Kantor AI 3D fidelity… |
-| **Remediasi** | P0 + P1 closed di `main` (lihat git log `31178ca`…`fb936f2`). P2: lihat **Lampiran D** di bawah. |
+| **Remediasi** | P0–P2 closed di `main`. P3: lihat **Lampiran E** di bawah. |
 
 **Legenda status temuan**
 
@@ -542,7 +542,27 @@ vercel.json            # Routes + daily cron
 | QA smoke | P2 | **Done** | `npm run test:p2`, `npm run check:db` |
 | FE-01 modularize | P2 | **Deferred P3** | Monolit `app.js` tetap |
 
-**P3 preview:** tenant UNIQUE `(workspace_id, platform)`; live metrics Meta/YT/TikTok; TikTok publish poll; object storage upload; multer 2 + hapus deps mati; pecah frontend modules.
+**P3 preview → closed di Lampiran E.**
+
+---
+
+## Lampiran E — Status remediasi P3 (2026-10-19+)
+
+| ID / tema | P | Status | Catatan fix |
+|-----------|---|--------|-------------|
+| DB-01 UNIQUE per workspace | P3 | **Done** | Kolom `workspace_id` + `UNIQUE (workspace_id, platform)`; migrasi drop `UNIQUE(platform)` lama (breaking, terdokumentasi); JSON path `findAccountIndex` |
+| AN-01 / AI-02 live insights | P3 | **Done** | Konektor Meta/YT/TikTok di `lib/metrics.js`; `/api/analytics/live` (+ alias stub); gagal → `statsSource: unavailable` (bukan klaim live) |
+| INT-06 TikTok poll | P3 | **Done** | `lib/tiktok-publish.js` poll sampai terminal atau timeout **45s** |
+| DEP-02 object storage | P3 | **Done** | Vercel Blob jika `BLOB_READ_WRITE_TOKEN` set; else local/`PUBLIC_BASE_URL` |
+| FE-01 modularize | P3 | **Done** (ringan) | `js/auth-ui.js` + `js/office-api.js`; `app.js` tetap orkestrator |
+| SEC-13 multer 2 | P3 | **Done** | `multer` ^2.x |
+| express-session unused | P3 | **Done** | Dihapus dari dependencies langsung (auth pakai cookie signed custom) |
+| `request` deprecated | P3 | **Deferred** | Transitif via `instagram-private-api` — hapus hanya jika private API di-drop |
+| QA smoke | P3 | **Done** | `npm run test:p3` |
+
+**Breaking change DB:** instance Postgres yang sudah punya `accounts.platform UNIQUE` akan di-migrate saat boot (`migrateAccountsTenantSchema`): constraint lama di-drop, diganti index unik `(workspace_id, platform)`. Data di-backfill `workspace_id = data->>'workspaceId' || 'default'`. Tidak drop baris.
+
+**Residual backlog (di luar P3):** multi-workspace UI penuh; notifikasi email SMTP nyata; scheduler lease anti double-publish; normalisasi `post_platform_results`; worker VPS automation.
 
 ---
 

@@ -53,8 +53,15 @@ const { createRateLimiter } = require('./lib/rate-limit');
 const { sanitizeFilename, multerFileFilter } = require('./lib/upload-safe');
 const { resolveWorkspaceId, DEFAULT_WORKSPACE_ID } = require('./lib/workspace');
 const { publishOutcomeFields } = require('./lib/publish-status');
-const { generateMockStats, fetchLiveMetricsStub, summarizeStatsSources } = require('./lib/metrics');
+const {
+    generateMockStats,
+    fetchLiveMetrics,
+    fetchLiveMetricsForAccounts,
+    summarizeStatsSources
+} = require('./lib/metrics');
 const { safeLog } = require('./lib/safe-log');
+const { pollTikTokPublishStatus } = require('./lib/tiktok-publish');
+const { isBlobConfigured, persistUploadedFile } = require('./lib/object-storage');
 
 const IS_VERCEL = !!process.env.VERCEL;
 const IS_PRODUCTION = auth.isProduction();
@@ -441,7 +448,7 @@ app.get('/api/workspaces', async (req, res) => {
             success: true,
             defaultWorkspaceId: DEFAULT_WORKSPACE_ID,
             workspaces,
-            note: 'workspaceId opsional di accounts/posts/jobs; UNIQUE(platform) masih global (P3).'
+            note: 'workspaceId opsional; UNIQUE (workspace_id, platform) aktif (P3). Default workspace tetap kompatibel.'
         });
     } catch (err) {
         res.status(500).json({ success: false, message: err.message });
@@ -461,7 +468,8 @@ app.get('/api/accounts', async (req, res) => {
 // Brand memory per akun (tone, banned words, pillars, …)
 app.get('/api/accounts/:platform/brand-memory', async (req, res) => {
     try {
-        const account = await db.getAccountByPlatform(req.params.platform);
+        const workspaceId = resolveWorkspaceId(req);
+        const account = await db.getAccountByPlatform(req.params.platform, { workspaceId });
         if (!account) {
             return res.status(404).json({ success: false, message: 'Akun tidak ditemukan.' });
         }
@@ -480,11 +488,13 @@ app.get('/api/accounts/:platform/brand-memory', async (req, res) => {
 app.put('/api/accounts/:platform/brand-memory', async (req, res) => {
     try {
         const platform = String(req.params.platform || '').toLowerCase();
-        let account = await db.getAccountByPlatform(platform);
+        const workspaceId = resolveWorkspaceId(req);
+        let account = await db.getAccountByPlatform(platform, { workspaceId });
         const brandMemory = normalizeBrandMemory(req.body?.brandMemory || req.body || {});
         if (!account) {
             account = await db.upsertAccount({
                 platform,
+                workspaceId,
                 connected: false,
                 brandMemory,
                 name: platform,
@@ -494,6 +504,7 @@ app.put('/api/accounts/:platform/brand-memory', async (req, res) => {
             account = await db.upsertAccount({
                 ...account,
                 platform,
+                workspaceId,
                 brandMemory
             });
         }
@@ -517,9 +528,10 @@ app.put('/api/accounts/:platform/brand-memory', async (req, res) => {
 // DELETE: Putuskan akun dari platform tertentu
 app.delete('/api/accounts/:platform', async (req, res) => {
     const { platform } = req.params;
-    const ok = await db.disconnectAccount(platform);
+    const workspaceId = resolveWorkspaceId(req);
+    const ok = await db.disconnectAccount(platform, { workspaceId });
     if (ok) {
-        res.json({ success: true, message: `Akun ${platform} berhasil diputuskan.` });
+        res.json({ success: true, workspaceId, message: `Akun ${platform} berhasil diputuskan.` });
     } else {
         res.status(404).json({ success: false, message: 'Akun tidak ditemukan.' });
     }
@@ -895,9 +907,9 @@ app.delete('/api/auth/browser-logout/:platform', async (req, res) => {
 // API Routes: Unggah Media
 // ============================================================
 
-// Upload file media (gambar/video) ke server — MIME allowlist + sanitize nama
+// Upload file media (gambar/video) — MIME allowlist; opsional Vercel Blob jika token set
 app.post('/api/media/upload', (req, res) => {
-    upload.single('file')(req, res, (err) => {
+    upload.single('file')(req, res, async (err) => {
         if (err) {
             const msg = err.code === 'LIMIT_FILE_SIZE'
                 ? 'File terlalu besar (maks 50MB).'
@@ -907,16 +919,37 @@ app.post('/api/media/upload', (req, res) => {
         if (!req.file) {
             return res.status(400).json({ success: false, message: 'Tidak ada file yang diunggah.' });
         }
-        const fileUrl = `/uploads/${req.file.filename}`;
         const fileType = req.file.mimetype.startsWith('video/') ? 'video' : 'image';
-        const publicUrl = absoluteMediaUrl(fileUrl, req);
-        res.json({
-            success: true,
-            url: fileUrl,
-            publicUrl,
-            type: fileType,
-            filename: req.file.filename
-        });
+        try {
+            const persisted = await persistUploadedFile({
+                localPath: req.file.path,
+                filename: req.file.filename,
+                contentType: req.file.mimetype
+            });
+            const fileUrl = persisted.url;
+            const publicUrl = persisted.publicUrl || absoluteMediaUrl(fileUrl, req);
+            res.json({
+                success: true,
+                url: fileUrl,
+                publicUrl,
+                type: fileType,
+                filename: req.file.filename,
+                storage: persisted.storage,
+                blobConfigured: isBlobConfigured(),
+                note: persisted.note || undefined
+            });
+        } catch (persistErr) {
+            const fileUrl = `/uploads/${req.file.filename}`;
+            res.json({
+                success: true,
+                url: fileUrl,
+                publicUrl: absoluteMediaUrl(fileUrl, req),
+                type: fileType,
+                filename: req.file.filename,
+                storage: 'local',
+                note: `Persist fallback: ${persistErr.message}`
+            });
+        }
     });
 });
 
@@ -1255,13 +1288,44 @@ async function callPlatformAPI(platform, acc, post) {
             }, {
                 headers: { Authorization: `Bearer ${acc.accessToken}`, 'Content-Type': 'application/json; charset=UTF-8' }
             });
-            // INT-06: init ≠ live; poll status belum di-wire (P3)
+            const publishId = initRes.data.data ? initRes.data.data.publish_id : null;
+            // INT-06 / P3: poll sampai terminal atau timeout (~45s, lihat lib/tiktok-publish.js)
+            const polled = await pollTikTokPublishStatus({
+                accessToken: acc.accessToken,
+                publishId
+            });
+            if (polled.pollStatus === 'complete') {
+                return {
+                    status: 'success',
+                    publishId,
+                    pending: false,
+                    pollStatus: polled.pollStatus,
+                    tiktokStatus: polled.status,
+                    attempts: polled.attempts,
+                    message: polled.message
+                };
+            }
+            if (polled.pollStatus === 'failed') {
+                return {
+                    status: 'error',
+                    publishId,
+                    pending: false,
+                    pollStatus: polled.pollStatus,
+                    tiktokStatus: polled.status,
+                    attempts: polled.attempts,
+                    message: polled.message
+                };
+            }
+            // timeout / skipped — init mungkin masih diproses; jangan klaim fully live
             return {
                 status: 'success',
-                publishId: initRes.data.data ? initRes.data.data.publish_id : null,
+                publishId,
                 pending: true,
-                pollStatus: 'not_implemented',
-                message: 'Init OK — status live belum di-poll (stub P2).'
+                pollStatus: polled.pollStatus,
+                tiktokStatus: polled.status,
+                attempts: polled.attempts,
+                timeoutMs: polled.timeoutMs,
+                message: polled.message
             };
         }
 
@@ -1687,36 +1751,76 @@ app.get('/api/ai/brief-templates', (req, res) => {
 /** Analitik penggerak agen — best/worst, jam/format, saran frekuensi */
 app.get('/api/ai/insights', async (req, res) => {
     try {
+        const workspaceId = resolveWorkspaceId(req);
         const settings = await db.getAiSettings();
-        const posts = await db.getPosts();
+        const posts = await db.getPosts({ workspaceId });
         const days = parseInt(req.query.days, 10) || 30;
         const payload = buildInsights(posts, { days });
         const sources = summarizeStatsSources(posts.filter(p => p.status === 'posted' || p.status === 'partial'));
-        const liveHook = await fetchLiveMetricsStub({ reason: 'insights' });
+        const accounts = (await db.getAccounts({ workspaceId })).filter(a => a.connected);
+        const liveBatch = await fetchLiveMetricsForAccounts(accounts, { reason: 'insights' });
         res.json({
             success: true,
+            workspaceId,
             insightsEnabled: settings.insightsEnabled !== false,
             ...payload,
             statsSourceSummary: sources,
-            liveMetrics: liveHook
+            liveMetrics: {
+                statsSource: liveBatch.statsSource,
+                liveCount: liveBatch.liveCount,
+                unavailableCount: liveBatch.unavailableCount,
+                note: liveBatch.note,
+                results: liveBatch.results.map(r => ({
+                    platform: r.platform,
+                    available: r.available,
+                    statsSource: r.statsSource,
+                    note: r.note
+                }))
+            }
         });
     } catch (err) {
         res.status(500).json({ success: false, message: err.message });
     }
 });
 
-/** Stub hook metrics live — belum fetch API platform (jangan klaim sebagai real). */
-app.get('/api/analytics/live-stub', async (req, res) => {
+/**
+ * Live metrics path (P3) — panggil API jika token ada; gagal → unavailable (bukan live).
+ * Alias /api/analytics/live-stub tetap ada untuk kompatibilitas.
+ */
+async function handleLiveAnalytics(req, res) {
     try {
-        const stub = await fetchLiveMetricsStub({
-            platform: req.query.platform,
+        const workspaceId = resolveWorkspaceId(req);
+        const platform = String(req.query.platform || '').toLowerCase();
+        const externalPostId = req.query.externalPostId || req.query.postId || null;
+        if (!platform) {
+            return res.json({
+                success: true,
+                available: false,
+                statsSource: 'unavailable',
+                stats: null,
+                note: 'Query ?platform= facebook|instagram|youtube|tiktok diperlukan.'
+            });
+        }
+        const account = await db.getAccountByPlatform(platform, { workspaceId });
+        const result = await fetchLiveMetrics({
+            platform,
+            account,
+            externalPostId,
             postId: req.query.postId
         });
-        res.json({ success: true, ...stub });
+        res.json({ success: true, workspaceId, ...result });
     } catch (err) {
-        res.status(500).json({ success: false, message: err.message });
+        res.status(500).json({
+            success: false,
+            available: false,
+            statsSource: 'unavailable',
+            message: err.message
+        });
     }
-});
+}
+
+app.get('/api/analytics/live', handleLiveAnalytics);
+app.get('/api/analytics/live-stub', handleLiveAnalytics);
 
 // ============================================================
 // AI Jobs (brief → needs_info | queued → run → publish | awaiting_approval)
