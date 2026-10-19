@@ -15,6 +15,8 @@ CREATE TABLE IF NOT EXISTS accounts (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+-- brandMemory, autonomy overrides: disimpan di accounts.data JSONB
+-- contoh: data->>'brandMemory', data->'aiAutonomy'
 
 CREATE TABLE IF NOT EXISTS posts (
   id TEXT PRIMARY KEY,
@@ -29,7 +31,9 @@ CREATE TABLE IF NOT EXISTS posts (
 CREATE INDEX IF NOT EXISTS idx_posts_status_publish ON posts (status, publish_date);
 CREATE INDEX IF NOT EXISTS idx_accounts_connected ON accounts (connected);
 
--- Job/brief AI (gaya kantor-ai) — otak tetap Cursor di luar server
+-- Job/brief AI (Tim Konten) — otak tetap Cursor di luar server
+-- Status: queued | needs_info | publishing | awaiting_approval | done | failed
+-- Extra fields di data JSONB: structuredBrief, draftHistory, decisionLog, lastError, roleId, …
 CREATE TABLE IF NOT EXISTS ai_jobs (
   id TEXT PRIMARY KEY,
   brief TEXT,
@@ -41,3 +45,21 @@ CREATE TABLE IF NOT EXISTS ai_jobs (
 
 CREATE INDEX IF NOT EXISTS idx_ai_jobs_status ON ai_jobs (status);
 CREATE INDEX IF NOT EXISTS idx_ai_jobs_created ON ai_jobs (created_at DESC);
+
+-- Settings global Tim Konten (otonomi, emergencyPause, dailyPostCap, stubs Fase 2)
+CREATE TABLE IF NOT EXISTS app_meta (
+  key TEXT PRIMARY KEY,
+  data JSONB NOT NULL DEFAULT '{}'::jsonb,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS audit_log (
+  id TEXT PRIMARY KEY,
+  actor TEXT,
+  action TEXT,
+  target TEXT,
+  detail JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_log_created ON audit_log (created_at DESC);

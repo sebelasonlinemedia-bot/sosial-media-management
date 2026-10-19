@@ -1,6 +1,6 @@
 /**
  * PostSphere — lightweight Kantor AI 3D viewport (Three.js CDN).
- * One scene, simple floor, 5 low-poly humanoids. No life-sim / multi-floor.
+ * One scene, simple floor, up to 7 low-poly humanoids (Tim Konten). No life-sim.
  */
 (function (global) {
     'use strict';
@@ -9,6 +9,7 @@
     const STATUS_AURA = {
         idle: 0x64748b,
         needs_info: 0xf59e0b,
+        awaiting_approval: 0xea580c,
         working: 0x0d9488,
         done: 0x10b981,
         failed: 0xef4444
@@ -16,6 +17,7 @@
     const STATUS_LABEL = {
         idle: 'Siaga',
         needs_info: 'Perlu info',
+        awaiting_approval: 'Approval',
         working: 'Kerja',
         done: 'Selesai',
         failed: 'Gagal'
@@ -49,13 +51,12 @@
             if (raw === '0') return false;
             if (raw === '1') return true;
         } catch (_) { /* ignore */ }
-        // Default ON everywhere (incl. mobile) so karyawan animasi langsung terlihat.
-        // Only honor OS reduced-motion; explicit user toggle still persists via localStorage.
+        // Default OFF — work board lebih menonjol; 3D opsional.
         if (typeof matchMedia === 'function' &&
             matchMedia('(prefers-reduced-motion: reduce)').matches) {
             return false;
         }
-        return true;
+        return false;
     }
 
     function savePreference(on) {

@@ -24,8 +24,21 @@ const {
     listRoles,
     getRoleById,
     resolveRole,
-    deriveEmployeeStatus
+    deriveEmployeeStatus,
+    summarizeWorkload,
+    normalizeRoleId
 } = require('./lib/ai-roles');
+const {
+    BRIEF_TEMPLATES,
+    normalizeBrandMemory,
+    summarizeBrandMemory,
+    normalizeAiSettings,
+    evaluatePublishGate,
+    assessStructuredBrief,
+    appendDecision,
+    AUTONOMY_LEVELS
+} = require('./lib/ai-policy');
+const { isEncryptionEnabled } = require('./lib/token-crypto');
 
 const IS_VERCEL = !!process.env.VERCEL;
 
@@ -137,6 +150,62 @@ app.get('/api/accounts', async (req, res) => {
         return safe;
     });
     res.json({ success: true, accounts });
+});
+
+// Brand memory per akun (tone, banned words, pillars, …)
+app.get('/api/accounts/:platform/brand-memory', async (req, res) => {
+    try {
+        const account = await db.getAccountByPlatform(req.params.platform);
+        if (!account) {
+            return res.status(404).json({ success: false, message: 'Akun tidak ditemukan.' });
+        }
+        const brandMemory = normalizeBrandMemory(account.brandMemory);
+        res.json({
+            success: true,
+            platform: account.platform,
+            brandMemory,
+            summary: summarizeBrandMemory(brandMemory)
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+app.put('/api/accounts/:platform/brand-memory', async (req, res) => {
+    try {
+        const platform = String(req.params.platform || '').toLowerCase();
+        let account = await db.getAccountByPlatform(platform);
+        const brandMemory = normalizeBrandMemory(req.body?.brandMemory || req.body || {});
+        if (!account) {
+            account = await db.upsertAccount({
+                platform,
+                connected: false,
+                brandMemory,
+                name: platform,
+                handle: ''
+            });
+        } else {
+            account = await db.upsertAccount({
+                ...account,
+                platform,
+                brandMemory
+            });
+        }
+        await db.appendAuditLog({
+            actor: 'user',
+            action: 'brand_memory_update',
+            target: platform,
+            detail: { summary: summarizeBrandMemory(brandMemory) }
+        });
+        res.json({
+            success: true,
+            platform,
+            brandMemory: normalizeBrandMemory(account.brandMemory),
+            summary: summarizeBrandMemory(account.brandMemory)
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
 });
 
 // DELETE: Putuskan akun dari platform tertentu
@@ -796,11 +865,47 @@ if (!IS_VERCEL) {
 // API: Karyawan AI (dioperasikan agen Cursor — publish langsung)
 // ============================================================
 
+/** Kumpulkan brand memory per platform untuk gate + konteks agen. */
+async function collectBrandMemories(platforms = []) {
+    const accounts = await db.getAccounts();
+    const map = { _default: normalizeBrandMemory({}) };
+    for (const a of accounts) {
+        map[a.platform] = normalizeBrandMemory(a.brandMemory);
+    }
+    if (!platforms.length) return map;
+    const scoped = { _default: map._default };
+    for (const p of platforms) {
+        scoped[p] = map[p] || map._default;
+    }
+    return scoped;
+}
+
+function brandMemoryContextSummary(brandMemories, platforms = []) {
+    const plats = platforms.length ? platforms : Object.keys(brandMemories).filter(k => k !== '_default');
+    if (!plats.length) return summarizeBrandMemory(brandMemories._default);
+    return plats.map(p => `${p}: ${summarizeBrandMemory(brandMemories[p] || brandMemories._default)}`).join(' | ');
+}
+
+function captionFromBrief(brief, caption) {
+    const fromBody = String(caption || '').trim();
+    if (fromBody) return fromBody;
+    const text = String(brief || '').trim();
+    if (!text) return '';
+    return text.length > 500 ? text.slice(0, 497) + '...' : text;
+}
+
+function draftVersionLabel(version) {
+    const v = Math.max(1, parseInt(version, 10) || 1);
+    return 'v' + Math.min(v, 99);
+}
+
 /**
- * Konteks cepat untuk agen: mode server + akun siap pakai
+ * Konteks cepat untuk agen: mode + otonomi + brand memory + job
  */
 app.get('/api/ai/employee/context', async (req, res) => {
-    const accounts = (await db.getAccounts())
+    const settings = await db.getAiSettings();
+    const allAccounts = await db.getAccounts();
+    const accounts = allAccounts
         .filter(a => a.connected)
         .map(a => {
             const { accessToken, refreshToken, sessionState, password, ...safe } = a;
@@ -809,7 +914,8 @@ app.get('/api/ai/employee/context', async (req, res) => {
                 handle: safe.handle,
                 name: safe.name,
                 sandbox: !!safe.sandbox,
-                automationType: safe.automationType || (safe.sandbox ? 'sandbox' : 'oauth')
+                automationType: safe.automationType || (safe.sandbox ? 'sandbox' : 'oauth'),
+                brandMemorySummary: summarizeBrandMemory(safe.brandMemory)
             };
         });
 
@@ -827,7 +933,7 @@ app.get('/api/ai/employee/context', async (req, res) => {
             publishResults: p.publishResults || {}
         }));
 
-        const recentAiJobs = (await db.getAiJobs())
+    const recentAiJobs = (await db.getAiJobs())
         .slice()
         .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
         .slice(0, 10)
@@ -838,6 +944,7 @@ app.get('/api/ai/employee/context', async (req, res) => {
             questions: j.questions || [],
             employeeName: j.employeeName,
             roleId: j.roleId || null,
+            lastError: j.lastError || null,
             createdAt: j.createdAt,
             updatedAt: j.updatedAt
         }));
@@ -845,9 +952,13 @@ app.get('/api/ai/employee/context', async (req, res) => {
     res.json({
         success: true,
         mode: SANDBOX_MODE ? 'sandbox' : 'real',
-        policy: 'auto_publish',
-        office: 'Kantor AI',
-        roles: listRoles().map(r => ({ id: r.id, name: r.name, title: r.title })),
+        policy: settings.autonomyLevel,
+        emergencyPause: !!settings.emergencyPause,
+        dailyPostCap: settings.dailyPostCap,
+        office: 'Kantor AI — Tim Konten',
+        roles: listRoles().map(r => ({ id: r.id, name: r.name, title: r.title, outputs: r.outputs })),
+        briefTemplates: BRIEF_TEMPLATES.map(t => ({ id: t.id, label: t.label })),
+        tokenEncryption: isEncryptionEnabled(),
         baseUrl: `http://localhost:${PORT}`,
         connectedPlatforms: accounts.map(a => a.platform),
         accounts,
@@ -857,8 +968,7 @@ app.get('/api/ai/employee/context', async (req, res) => {
 });
 
 /**
- * Karyawan AI: buat caption dari brief (jika perlu) lalu LANGSUNG publish.
- * Tidak ada tahap approval — sesuai kebijakan user (mode 2B).
+ * Karyawan AI publish — di-gate oleh otonomi / pause / high-risk / daily cap.
  */
 app.post('/api/ai/employee/publish', async (req, res) => {
     try {
@@ -868,7 +978,8 @@ app.post('/api/ai/employee/publish', async (req, res) => {
             platforms,
             mediaUrl,
             mediaType,
-            employeeName
+            employeeName,
+            forcePublish
         } = req.body || {};
 
         const finalCaption = (caption || brief || '').trim();
@@ -879,6 +990,7 @@ app.post('/api/ai/employee/publish', async (req, res) => {
             });
         }
 
+        const settings = await db.getAiSettings();
         const connected = (await db.getAccounts()).filter(a => a.connected).map(a => a.platform);
         let targetPlatforms = Array.isArray(platforms) && platforms.length
             ? platforms.map(p => String(p).toLowerCase())
@@ -895,8 +1007,40 @@ app.post('/api/ai/employee/publish', async (req, res) => {
             });
         }
 
+        const brandMemories = await collectBrandMemories(targetPlatforms);
+        const recentPosts = await db.getPosts();
+        const gate = evaluatePublishGate({
+            settings,
+            platforms: targetPlatforms,
+            caption: finalCaption,
+            brief: brief || '',
+            brandMemories,
+            recentPosts,
+            forcePublish: !!forcePublish
+        });
+
         const name = (employeeName || 'Karyawan AI').trim();
-        console.log(`🤖 [AI-EMPLOYEE] ${name} publish → ${targetPlatforms.join(', ')}`);
+        const brandSummary = brandMemoryContextSummary(brandMemories, targetPlatforms);
+
+        if (!gate.allowPublish) {
+            await db.appendAuditLog({
+                actor: name,
+                action: 'publish_blocked',
+                target: 'employee/publish',
+                detail: { reasons: gate.reasons, policy: gate.policy, platforms: targetPlatforms }
+            });
+            return res.status(403).json({
+                success: false,
+                blocked: true,
+                policy: gate.policy,
+                reasons: gate.reasons,
+                duplicateWarning: gate.duplicateWarning,
+                brandMemorySummary: brandSummary,
+                message: gate.reasons[0] || 'Publish diblokir oleh kebijakan otonomi.'
+            });
+        }
+
+        console.log(`🤖 [AI-EMPLOYEE] ${name} publish → ${targetPlatforms.join(', ')} (${gate.policy})`);
 
         const newPost = await db.addPost({
             caption: finalCaption,
@@ -926,13 +1070,22 @@ app.post('/api/ai/employee/publish', async (req, res) => {
                 : undefined
         });
 
+        await db.appendAuditLog({
+            actor: name,
+            action: failed ? 'publish_failed' : 'publish_ok',
+            target: newPost.id,
+            detail: { platforms: targetPlatforms, policy: gate.policy }
+        });
+
         const post = await db.getPostById(newPost.id);
         console.log(`🤖 [AI-EMPLOYEE] Selesai ${post.id} — ${failed ? 'ADA GAGAL' : 'OK'}`);
 
         res.json({
             success: !failed,
-            policy: 'auto_publish',
+            policy: gate.policy,
             employeeName: name,
+            brandMemorySummary: brandSummary,
+            duplicateWarning: gate.duplicateWarning,
             post,
             results
         });
@@ -943,61 +1096,104 @@ app.post('/api/ai/employee/publish', async (req, res) => {
 });
 
 // ============================================================
-// AI Jobs (brief → needs_info | queued → run → publish)
-// Otak tetap Cursor; server hanya simpan status + eksekusi publish.
+// AI Settings, Audit, Insights stub, Brief templates
 // ============================================================
 
-/**
- * Deteksi brief tipis: panjang minimal + sedikit fakta actionable.
- * Tidak menebak — hanya flag needs_info + pertanyaan klarifikasi.
- */
-function assessBrief(brief) {
-    const text = String(brief || '').trim();
-    const words = text.split(/\s+/).filter(Boolean);
-    const questions = [];
-
-    if (!text) {
-        questions.push('Brief kosong. Apa topik, produk, atau acara yang ingin diposting?');
-        questions.push('Platform mana yang dituju (instagram/facebook/tiktok/youtube)?');
-        return { thin: true, questions };
+app.get('/api/ai/settings', async (req, res) => {
+    try {
+        const settings = await db.getAiSettings();
+        res.json({
+            success: true,
+            settings,
+            autonomyLevels: AUTONOMY_LEVELS,
+            tokenEncryption: isEncryptionEnabled()
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
     }
+});
 
-    if (text.length < 40 || words.length < 6) {
-        questions.push('Brief terlalu pendek. Jelaskan topik/produk, sudut pesan, dan CTA yang diinginkan.');
+app.put('/api/ai/settings', async (req, res) => {
+    try {
+        const body = req.body || {};
+        const patch = {};
+        if (body.autonomyLevel != null) patch.autonomyLevel = body.autonomyLevel;
+        if (body.emergencyPause != null) patch.emergencyPause = !!body.emergencyPause;
+        if (body.dailyPostCap != null) patch.dailyPostCap = body.dailyPostCap;
+        if (body.accountOverrides != null) patch.accountOverrides = body.accountOverrides;
+        if (body.notifications != null) patch.notifications = body.notifications;
+        if (body.rolePermissions != null) patch.rolePermissions = body.rolePermissions;
+        if (body.insightsEnabled != null) patch.insightsEnabled = !!body.insightsEnabled;
+
+        const settings = await db.updateAiSettings(patch);
+        await db.appendAuditLog({
+            actor: 'user',
+            action: 'ai_settings_update',
+            target: 'ai_settings',
+            detail: patch
+        });
+        res.json({ success: true, settings });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
     }
+});
 
-    const hasFactCue = /\b(produk|promo|diskon|event|launch|rilis|brand|aplikasi|fitur|tips|cara|tutorial|harga|lokasi|tanggal|jam|link|hashtag|instagram|facebook|tiktok|youtube|caption)\b/i.test(text)
-        || /\d/.test(text)
-        || words.length >= 12;
-
-    if (!hasFactCue) {
-        questions.push('Tambahkan minimal satu fakta konkret (nama produk/event, tanggal, harga, CTA, atau audience).');
+app.post('/api/ai/settings/emergency-pause', async (req, res) => {
+    try {
+        const pause = req.body?.pause !== false;
+        const settings = await db.updateAiSettings({ emergencyPause: pause });
+        await db.appendAuditLog({
+            actor: 'user',
+            action: pause ? 'emergency_pause_on' : 'emergency_pause_off',
+            target: 'ai_settings',
+            detail: {}
+        });
+        res.json({ success: true, settings, message: pause ? 'Jeda darurat AKTIF' : 'Jeda darurat dimatikan' });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
     }
+});
 
-    if (!/\b(instagram|facebook|tiktok|youtube|semua|all)\b/i.test(text) && words.length < 10) {
-        questions.push('Platform mana yang dituju? (opsional — default: semua akun terhubung)');
+app.get('/api/ai/audit-log', async (req, res) => {
+    try {
+        const limit = parseInt(req.query.limit, 10) || 50;
+        const offset = parseInt(req.query.offset, 10) || 0;
+        const entries = await db.getAuditLog({ limit, offset });
+        res.json({ success: true, entries });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
     }
+});
 
-    return { thin: questions.length > 0, questions };
-}
+app.get('/api/ai/brief-templates', (req, res) => {
+    res.json({ success: true, templates: BRIEF_TEMPLATES });
+});
 
-function captionFromBrief(brief, caption) {
-    const fromBody = String(caption || '').trim();
-    if (fromBody) return fromBody;
-    const text = String(brief || '').trim();
-    if (!text) return '';
-    // Server tidak pakai LLM — caption dari Cursor lewat body, fallback ringkas dari brief
-    return text.length > 500 ? text.slice(0, 497) + '...' : text;
-}
+/** Fase 2 stub — insights yang menggerakkan agen */
+app.get('/api/ai/insights', async (req, res) => {
+    res.json({
+        success: true,
+        stub: true,
+        message: 'Fase 2: analitik penggerak agen belum aktif.',
+        insights: [],
+        recommendations: []
+    });
+});
+
+// ============================================================
+// AI Jobs (brief → needs_info | queued → run → publish | awaiting_approval)
+// ============================================================
+
 
 app.get('/api/ai/jobs', async (req, res) => {
     try {
         const jobs = await db.getAiJobs();
         let sorted = [...jobs].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-        const roleFilter = (req.query.roleId || req.query.role || '').trim();
+        const roleFilter = normalizeRoleId(req.query.roleId || req.query.role || '') || '';
         if (roleFilter) {
             sorted = sorted.filter(j =>
                 j.roleId === roleFilter ||
+                normalizeRoleId(j.employeeRole) === roleFilter ||
                 j.employeeRole === roleFilter
             );
         }
@@ -1016,18 +1212,18 @@ app.get('/api/ai/office/roles', (req, res) => {
 
 app.get('/api/ai/office', async (req, res) => {
     try {
+        const settings = await db.getAiSettings();
         const jobs = await db.getAiJobs();
         const sorted = [...jobs].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
         const employees = listRoles().map(role => {
             const roleJobs = sorted.filter(j =>
                 j.roleId === role.id ||
+                normalizeRoleId(j.employeeRole) === role.id ||
                 j.employeeRole === role.id ||
                 (j.employeeName && j.employeeName.toLowerCase() === role.name.toLowerCase())
             );
-            const activeJobs = roleJobs.filter(j =>
-                ['queued', 'needs_info', 'publishing'].includes(j.status)
-            );
+            const workload = summarizeWorkload(roleJobs);
             const latestJob = roleJobs[0] || null;
             return {
                 id: role.id,
@@ -1035,16 +1231,19 @@ app.get('/api/ai/office', async (req, res) => {
                 title: role.title,
                 emoji: role.emoji,
                 avatarColor: role.avatarColor,
+                outputs: role.outputs,
                 defaultPlatforms: role.defaultPlatforms || [],
                 systemBrief: role.systemBrief,
                 status: deriveEmployeeStatus(roleJobs),
-                activeCount: activeJobs.length,
+                activeCount: workload.activeCount,
+                workload: workload.label,
                 latestJob: latestJob
                     ? {
                         id: latestJob.id,
                         brief: (latestJob.brief || '').slice(0, 160),
                         status: latestJob.status,
                         questions: latestJob.questions || [],
+                        lastError: latestJob.lastError || null,
                         updatedAt: latestJob.updatedAt,
                         createdAt: latestJob.createdAt
                     }
@@ -1055,6 +1254,7 @@ app.get('/api/ai/office', async (req, res) => {
         const board = {
             queued: [],
             needs_info: [],
+            awaiting_approval: [],
             publishing: [],
             done: [],
             failed: []
@@ -1070,6 +1270,8 @@ app.get('/api/ai/office', async (req, res) => {
                 roleId: j.roleId || null,
                 employeeName: j.employeeName,
                 questions: j.questions || [],
+                lastError: j.lastError || null,
+                version: j.version || 1,
                 createdAt: j.createdAt,
                 updatedAt: j.updatedAt
             });
@@ -1077,14 +1279,23 @@ app.get('/api/ai/office', async (req, res) => {
 
         res.json({
             success: true,
-            office: 'Kantor AI',
-            policy: 'auto_publish',
+            office: 'Kantor AI — Tim Konten',
+            policy: settings.autonomyLevel,
+            emergencyPause: !!settings.emergencyPause,
+            dailyPostCap: settings.dailyPostCap,
+            settings: {
+                autonomyLevel: settings.autonomyLevel,
+                emergencyPause: settings.emergencyPause,
+                dailyPostCap: settings.dailyPostCap
+            },
             employees,
             board,
+            briefTemplates: BRIEF_TEMPLATES.map(t => ({ id: t.id, label: t.label })),
             jobCounts: {
                 total: sorted.length,
                 queued: sorted.filter(j => j.status === 'queued').length,
                 needs_info: sorted.filter(j => j.status === 'needs_info').length,
+                awaiting_approval: sorted.filter(j => j.status === 'awaiting_approval').length,
                 publishing: sorted.filter(j => j.status === 'publishing').length,
                 done: sorted.filter(j => j.status === 'done').length,
                 failed: sorted.filter(j => j.status === 'failed').length
@@ -1099,7 +1310,12 @@ app.get('/api/ai/jobs/:id', async (req, res) => {
     try {
         const job = await db.getAiJobById(req.params.id);
         if (!job) return res.status(404).json({ success: false, message: 'Job tidak ditemukan.' });
-        res.json({ success: true, job });
+        const brandMemories = await collectBrandMemories(job.platforms || []);
+        res.json({
+            success: true,
+            job,
+            brandMemorySummary: brandMemoryContextSummary(brandMemories, job.platforms || [])
+        });
     } catch (err) {
         res.status(500).json({ success: false, message: err.message });
     }
@@ -1109,20 +1325,32 @@ app.post('/api/ai/jobs', async (req, res) => {
     try {
         const {
             brief,
+            structuredBrief,
             platforms,
             mediaUrl,
             mediaType,
             employeeName,
             employeeRole,
             roleId,
-            forceQueued
+            forceQueued,
+            templateId
         } = req.body || {};
 
-        const briefText = String(brief || '').trim();
+        let briefInput = structuredBrief || brief;
+        if (templateId && !briefInput) {
+            const tpl = BRIEF_TEMPLATES.find(t => t.id === templateId);
+            if (tpl) briefInput = tpl.brief;
+        }
+
+        const assessment = forceQueued
+            ? { thin: false, questions: [], structured: null, text: String(brief || '').trim() }
+            : assessStructuredBrief(briefInput);
+
+        const briefText = assessment.text || String(brief || '').trim();
         if (!briefText && !forceQueued) {
             return res.status(400).json({
                 success: false,
-                message: 'Wajib isi brief.'
+                message: 'Wajib isi brief atau structuredBrief.'
             });
         }
 
@@ -1134,29 +1362,50 @@ app.post('/api/ai/jobs', async (req, res) => {
             });
         }
 
-        const assessment = forceQueued
-            ? { thin: false, questions: [] }
-            : assessBrief(briefText);
-
         const status = assessment.thin ? 'needs_info' : 'queued';
+        const fromStructured = assessment.structured?.platforms?.length
+            ? assessment.structured.platforms
+            : null;
         const resolvedPlatforms = Array.isArray(platforms) && platforms.length
             ? platforms.map(p => String(p).toLowerCase())
-            : (role?.defaultPlatforms || []);
+            : (fromStructured || role?.defaultPlatforms || []);
+
+        const decisionLog = appendDecision([], {
+            actor: role?.name || 'system',
+            reason: assessment.thin ? 'Brief tipis — needs_info' : 'Brief cukup — queued',
+            status
+        });
 
         const job = await db.addAiJob({
             brief: briefText,
+            structuredBrief: assessment.structured,
             status,
             questions: assessment.questions,
-            draftHistory: [{ at: new Date().toISOString(), type: 'created', brief: briefText }],
+            draftHistory: [{
+                at: new Date().toISOString(),
+                type: 'created',
+                version: 'v1',
+                brief: briefText,
+                complianceNote: null
+            }],
+            decisionLog,
             platforms: resolvedPlatforms,
             mediaUrl: mediaUrl || '',
             mediaType: mediaType || '',
             employeeName: (employeeName || role?.name || 'Karyawan AI').trim(),
             employeeRole: (employeeRole || role?.id || 'content').trim(),
-            roleId: role?.id || (roleId ? String(roleId).trim() : null),
+            roleId: role?.id || (roleId ? normalizeRoleId(roleId) : null),
             runId: null,
             version: 1,
+            lastError: null,
             publishResults: {}
+        });
+
+        await db.appendAuditLog({
+            actor: job.employeeName,
+            action: 'job_created',
+            target: job.id,
+            detail: { status, roleId: job.roleId, thin: assessment.thin }
         });
 
         console.log(`📋 [AI-JOB] ${job.id} status=${status} thin=${assessment.thin} role=${job.roleId || '-'}`);
@@ -1179,8 +1428,16 @@ app.post('/api/ai/jobs/:id/answer', async (req, res) => {
         const job = await db.getAiJobById(req.params.id);
         if (!job) return res.status(404).json({ success: false, message: 'Job tidak ditemukan.' });
 
-        const { answers, brief } = req.body || {};
+        const { answers, brief, structuredBrief, complianceNote } = req.body || {};
         let nextBrief = String(brief || job.brief || '').trim();
+        let nextStructured = job.structuredBrief || null;
+
+        if (structuredBrief && typeof structuredBrief === 'object') {
+            const assessed = assessStructuredBrief({ ...(job.structuredBrief || {}), ...structuredBrief });
+            nextStructured = assessed.structured;
+            nextBrief = assessed.text || nextBrief;
+        }
+
         const answerList = Array.isArray(answers)
             ? answers.map(a => String(a || '').trim()).filter(Boolean)
             : (typeof answers === 'string' && answers.trim() ? [answers.trim()] : []);
@@ -1201,26 +1458,93 @@ app.post('/api/ai/jobs/:id/answer', async (req, res) => {
             });
         }
 
+        const nextVersion = (job.version || 1) + 1;
         const history = Array.isArray(job.draftHistory) ? [...job.draftHistory] : [];
         history.push({
             at: new Date().toISOString(),
             type: 'answer',
+            version: draftVersionLabel(nextVersion),
             answers: answerList,
-            brief: nextBrief
+            brief: nextBrief,
+            complianceNote: complianceNote || null
+        });
+
+        const decisionLog = appendDecision(job.decisionLog, {
+            actor: 'user',
+            reason: 'Jawaban klarifikasi diterima → queued',
+            status: 'queued'
         });
 
         const updated = await db.updateAiJob(job.id, {
             brief: nextBrief,
+            structuredBrief: nextStructured,
             status: 'queued',
             questions: [],
             draftHistory: history,
-            version: (job.version || 1) + 1
+            decisionLog,
+            version: nextVersion,
+            lastError: null
+        });
+
+        await db.appendAuditLog({
+            actor: 'user',
+            action: 'job_answered',
+            target: job.id,
+            detail: { version: nextVersion }
         });
 
         console.log(`📋 [AI-JOB] ${job.id} answered → queued`);
         res.json({ success: true, job: updated });
     } catch (err) {
         console.error('📋 [AI-JOB] answer error:', err.message);
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+/**
+ * Setujui job awaiting_approval lalu publish (forcePublish).
+ */
+app.post('/api/ai/jobs/:id/approve', async (req, res) => {
+    try {
+        const job = await db.getAiJobById(req.params.id);
+        if (!job) return res.status(404).json({ success: false, message: 'Job tidak ditemukan.' });
+
+        if (!['awaiting_approval', 'queued', 'failed'].includes(job.status)) {
+            return res.status(400).json({
+                success: false,
+                message: `Status ${job.status} tidak bisa di-approve.`
+            });
+        }
+
+        const decisionLog = appendDecision(job.decisionLog, {
+            actor: 'user',
+            reason: req.body?.note || 'Disetujui manusia',
+            status: 'approved'
+        });
+
+        await db.updateAiJob(job.id, {
+            status: 'queued',
+            decisionLog,
+            approvedAt: new Date().toISOString()
+        });
+
+        await db.appendAuditLog({
+            actor: 'user',
+            action: 'job_approved',
+            target: job.id,
+            detail: { note: req.body?.note || '' }
+        });
+
+        // Re-run with forcePublish via internal call pattern — set flag on job
+        req.body = { ...(req.body || {}), forcePublish: true, caption: req.body?.caption || job.caption };
+        // Fall through by calling run logic: redirect client to /run with forcePublish
+        res.json({
+            success: true,
+            message: 'Disetujui. Panggil POST /run dengan forcePublish:true atau gunakan tombol Publish di UI.',
+            job: await db.getAiJobById(job.id),
+            next: { method: 'POST', path: `/api/ai/jobs/${job.id}/run`, body: { forcePublish: true } }
+        });
+    } catch (err) {
         res.status(500).json({ success: false, message: err.message });
     }
 });
@@ -1247,7 +1571,9 @@ app.post('/api/ai/jobs/:id/run', async (req, res) => {
             platforms,
             mediaUrl,
             mediaType,
-            employeeName
+            employeeName,
+            forcePublish,
+            complianceNote
         } = req.body || {};
 
         const finalCaption = captionFromBrief(job.brief, caption || job.caption);
@@ -1274,10 +1600,79 @@ app.post('/api/ai/jobs/:id/run', async (req, res) => {
             });
         }
 
+        const settings = await db.getAiSettings();
+        const brandMemories = await collectBrandMemories(targetPlatforms);
+        const brandSummary = brandMemoryContextSummary(brandMemories, targetPlatforms);
+        const recentPosts = await db.getPosts();
+        const humanApproved = !!forcePublish || !!job.approvedAt;
+
+        const gate = evaluatePublishGate({
+            settings,
+            platforms: targetPlatforms,
+            caption: finalCaption,
+            brief: job.brief || '',
+            brandMemories,
+            recentPosts,
+            forcePublish: humanApproved
+        });
+
         const name = (employeeName || job.employeeName || 'Karyawan AI').trim();
-        const runId = 'run-' + Date.now();
+        const nextVersion = (job.version || 1) + 1;
         const history = Array.isArray(job.draftHistory) ? [...job.draftHistory] : [];
+        history.push({
+            at: new Date().toISOString(),
+            type: 'draft',
+            version: draftVersionLabel(nextVersion),
+            caption: finalCaption,
+            complianceNote: complianceNote || null
+        });
+
+        if (!gate.allowPublish) {
+            const decisionLog = appendDecision(job.decisionLog, {
+                actor: name,
+                reason: gate.reasons[0] || 'Menunggu approval',
+                status: 'awaiting_approval',
+                policy: gate.policy
+            });
+            const updated = await db.updateAiJob(job.id, {
+                status: 'awaiting_approval',
+                caption: finalCaption,
+                platforms: targetPlatforms,
+                mediaUrl: mediaUrl != null ? mediaUrl : (job.mediaUrl || ''),
+                mediaType: mediaType != null ? mediaType : (job.mediaType || ''),
+                employeeName: name,
+                draftHistory: history,
+                decisionLog,
+                version: nextVersion,
+                lastError: null
+            });
+            await db.appendAuditLog({
+                actor: name,
+                action: 'job_awaiting_approval',
+                target: job.id,
+                detail: { reasons: gate.reasons, policy: gate.policy }
+            });
+            return res.json({
+                success: true,
+                awaitingApproval: true,
+                policy: gate.policy,
+                reasons: gate.reasons,
+                duplicateWarning: gate.duplicateWarning,
+                brandMemorySummary: brandSummary,
+                job: updated,
+                message: gate.reasons[0] || 'Menunggu persetujuan manusia.'
+            });
+        }
+
+        const runId = 'run-' + Date.now();
         history.push({ at: new Date().toISOString(), type: 'run_start', caption: finalCaption, runId });
+
+        let decisionLog = appendDecision(job.decisionLog, {
+            actor: name,
+            reason: gate.reasons[0] || 'Auto-publish diizinkan',
+            status: 'publishing',
+            policy: gate.policy
+        });
 
         await db.updateAiJob(job.id, {
             status: 'publishing',
@@ -1287,10 +1682,14 @@ app.post('/api/ai/jobs/:id/run', async (req, res) => {
             mediaType: mediaType != null ? mediaType : (job.mediaType || ''),
             employeeName: name,
             runId,
-            draftHistory: history
+            draftHistory: history,
+            decisionLog,
+            version: nextVersion,
+            lastError: null,
+            approvedAt: null
         });
 
-        console.log(`📋 [AI-JOB] ${job.id} publishing → ${targetPlatforms.join(', ')}`);
+        console.log(`📋 [AI-JOB] ${job.id} publishing → ${targetPlatforms.join(', ')} (${gate.policy})`);
 
         const newPost = await db.addPost({
             caption: finalCaption,
@@ -1310,23 +1709,32 @@ app.post('/api/ai/jobs/:id/run', async (req, res) => {
 
         const results = await publishToAllPlatforms(newPost);
         const failed = Object.values(results).some(r => r && r.status === 'error');
+        const lastError = failed
+            ? Object.entries(results)
+                .filter(([, r]) => r && r.status === 'error')
+                .map(([plat, r]) => `${plat}: ${r.message || 'gagal'}`)
+                .join('; ')
+            : null;
+
         await db.updatePost(newPost.id, {
             status: failed ? 'failed' : 'posted',
             publishResults: results,
             stats: generateMockStats(),
-            lastError: failed
-                ? Object.entries(results)
-                    .filter(([, r]) => r && r.status === 'error')
-                    .map(([plat, r]) => `${plat}: ${r.message || 'gagal'}`)
-                    .join('; ')
-                : undefined
+            lastError: lastError || undefined
         });
 
         history.push({
             at: new Date().toISOString(),
             type: failed ? 'run_failed' : 'run_done',
             postId: newPost.id,
-            runId
+            runId,
+            lastError
+        });
+
+        decisionLog = appendDecision(decisionLog, {
+            actor: name,
+            reason: failed ? `Publish gagal: ${lastError}` : 'Publish sukses',
+            status: failed ? 'failed' : 'done'
         });
 
         const updatedJob = await db.updateAiJob(job.id, {
@@ -1336,7 +1744,16 @@ app.post('/api/ai/jobs/:id/run', async (req, res) => {
             publishResults: results,
             postId: newPost.id,
             draftHistory: history,
-            version: (job.version || 1) + 1
+            decisionLog,
+            lastError,
+            version: nextVersion
+        });
+
+        await db.appendAuditLog({
+            actor: name,
+            action: failed ? 'job_run_failed' : 'job_run_ok',
+            target: job.id,
+            detail: { postId: newPost.id, platforms: targetPlatforms, policy: gate.policy, lastError }
         });
 
         const post = await db.getPostById(newPost.id);
@@ -1344,7 +1761,9 @@ app.post('/api/ai/jobs/:id/run', async (req, res) => {
 
         res.json({
             success: !failed,
-            policy: 'auto_publish',
+            policy: gate.policy,
+            brandMemorySummary: brandSummary,
+            duplicateWarning: gate.duplicateWarning,
             job: updatedJob,
             post,
             results
@@ -1352,14 +1771,22 @@ app.post('/api/ai/jobs/:id/run', async (req, res) => {
     } catch (err) {
         console.error('📋 [AI-JOB] run error:', err.message);
         try {
+            const job = await db.getAiJobById(req.params.id);
             await db.updateAiJob(req.params.id, {
                 status: 'failed',
-                publishResults: { error: err.message }
+                lastError: err.message,
+                publishResults: { error: err.message },
+                decisionLog: appendDecision(job?.decisionLog, {
+                    actor: 'system',
+                    reason: err.message,
+                    status: 'failed'
+                })
             });
         } catch (_) { /* ignore */ }
         res.status(500).json({ success: false, message: err.message });
     }
 });
+
 
 // Cron Vercel: publish postingan terjadwal yang jatuh tempo
 app.get('/api/cron/publish', async (req, res) => {

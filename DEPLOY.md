@@ -42,3 +42,25 @@ Login CLI harus akun **sebelasonlinemedia-bot** (bukan akun lain).
 - Jadwal post: Cron tiap 5 menit (`/api/cron/publish`)
 
 Untuk otomasi browser penuh, tetap jalankan `npm run dev` di VPS/lokal.
+
+## 4. Tim Konten — skema baru (Fase 1)
+
+Setelah pull, pastikan Neon punya tabel tambahan (otomatis di `db-postgres.load()` atau jalankan `schema.sql`):
+
+- `app_meta` — settings otonomi / emergencyPause / dailyPostCap
+- `audit_log` — jejak aksi agen
+- `accounts.data.brandMemory` — memori brand (JSONB di kolom `data`)
+- `ai_jobs.status` — termasuk `awaiting_approval`; field ekstra di `data` JSONB
+
+Lokal (`db.json`) mendapat `aiSettings` + `auditLog` otomatis saat load.
+
+## 5. Fase 2 — stub / TODO
+
+| Item | Status | Catatan |
+|------|--------|---------|
+| Analitik penggerak agen | Stub | `GET /api/ai/insights` + placeholder UI Kantor AI |
+| Notifikasi email/WhatsApp | Stub | Field `settings.notifications` di `PUT /api/ai/settings` |
+| Token encryption at rest | Helper minimal | `lib/token-crypto.js` — set `TOKEN_ENCRYPTION_KEY` (≥16 char). Belum di-wire ke upsert OAuth (hindari breaking). TODO: encrypt on write / decrypt on read. |
+| Izin per peran/akun | Stub model | Field `settings.rolePermissions` — enforce belum |
+
+Jangan commit `.env`, `db.json`, atau secrets.

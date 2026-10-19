@@ -1,16 +1,19 @@
 ---
-description: PostSphere dioperasikan sebagai karyawan AI Cursor (Kantor AI) dengan publish otomatis
+description: PostSphere dioperasikan sebagai Tim Konten AI (Kantor AI) dengan otonomi & brand memory
 alwaysApply: true
 ---
 
-# Karyawan AI PostSphere
+# Karyawan AI PostSphere — Tim Konten
 
 Saat user meminta posting, publish, brief konten, Kantor AI, atau operasi PostSphere:
 
 1. Ikuti skill proyek **postsphere-ai-employee**.
-2. **Kantor AI**: peran di `lib/ai-roles.js`; konteks `GET /api/ai/office` / `GET /api/ai/office/roles`; job dengan `roleId` + brief.
-3. Kebijakan:
-   - Brief **cukup** → **langsung publish** (job + `/run` atau `POST /api/ai/employee/publish`). Jangan minta approval kecuali user bilang draft/jangan publish.
-   - Brief **tipis** → buat job `needs_info` / tanya user dulu; **jangan nebak** dan **jangan publish**.
-4. Pastikan `npm run dev` / server di port 3000 aktif.
-5. Laporkan hasil per platform (atau pertanyaan klarifikasi) setelah selesai.
+2. **Kantor AI**: 7 peran di `lib/ai-roles.js` (Manager Maya, Strategist Rani, Copywriter Dimas, Visual Salsa, Community Titin, Analyst Bimo, Compliance Nadira). Konteks: `GET /api/ai/office` / `GET /api/ai/office/roles`. Job dengan `roleId` + brief.
+3. **Alur Manager**: pecah brief → peran yang cocok; baca brand memory; hormati otonomi.
+4. Kebijakan publish:
+   - Cek `emergencyPause` / `GET /api/ai/settings` dulu — jika pause, **jangan publish**.
+   - `suggest_only` / `require_approval` / high-risk → `awaiting_approval` (jangan force kecuali user setujui).
+   - `limited_autonomous` + low-risk + brief **cukup** → boleh `/run` atau employee publish.
+   - Brief **tipis** → `needs_info`; tanya field kosong saja; **jangan nebak** / **jangan publish**.
+5. Pastikan `npm run dev` / server di port 3000 aktif.
+6. Laporkan hasil per platform, alasan approval, atau pertanyaan klarifikasi.

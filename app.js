@@ -17,7 +17,16 @@ const appState = {
     accounts: [],
     posts: [],
     aiJobs: [],
-    office: { employees: [], board: {}, jobCounts: {}, selectedJobId: null, focusRoleId: null, stageReady: false },
+    office: {
+        employees: [],
+        board: {},
+        jobCounts: {},
+        settings: null,
+        selectedJobId: null,
+        focusRoleId: null,
+        stageReady: false,
+        briefTemplates: []
+    },
     serverMode: 'sandbox',  // 'sandbox' | 'real'
     currentView: 'dashboard',
     composerSelectedPlatforms: [],
@@ -448,14 +457,41 @@ app.setupOfficeEvents = function () {
     }
     const runBtn = document.getElementById('office-run-job-btn');
     if (runBtn) {
-        runBtn.addEventListener('click', () => this.runOfficeJob());
+        runBtn.addEventListener('click', () => this.runOfficeJob(false));
     }
+    const approveBtn = document.getElementById('office-approve-job-btn');
+    if (approveBtn) {
+        approveBtn.addEventListener('click', () => this.approveOfficeJob());
+    }
+    const retryBtn = document.getElementById('office-retry-job-btn');
+    if (retryBtn) {
+        retryBtn.addEventListener('click', () => this.runOfficeJob(true));
+    }
+    const settingsSave = document.getElementById('office-settings-save');
+    if (settingsSave) {
+        settingsSave.addEventListener('click', () => this.saveOfficeSettings());
+    }
+    const pauseBtn = document.getElementById('office-emergency-pause-btn');
+    if (pauseBtn) {
+        pauseBtn.addEventListener('click', () => this.toggleEmergencyPause());
+    }
+    const brandSave = document.getElementById('office-brand-save');
+    if (brandSave) {
+        brandSave.addEventListener('click', () => this.saveOfficeBrandMemory());
+    }
+    const brandLoad = document.getElementById('office-brand-load');
+    if (brandLoad) {
+        brandLoad.addEventListener('click', () => this.loadOfficeBrandMemory());
+    }
+    document.querySelectorAll('.office-tpl-btn').forEach(btn => {
+        btn.addEventListener('click', () => this.applyOfficeBriefTemplate(btn.dataset.tpl));
+    });
     const toggle3d = document.getElementById('office-3d-toggle');
     if (toggle3d) {
         const prefOn = (typeof AiOffice3D !== 'undefined' && AiOffice3D.loadPreference)
             ? AiOffice3D.loadPreference()
-            : true;
-        toggle3d.checked = prefOn;
+            : false;
+        toggle3d.checked = !!prefOn;
         toggle3d.addEventListener('change', () => {
             if (typeof AiOffice3D === 'undefined') return;
             AiOffice3D.setEnabled(toggle3d.checked);
@@ -474,6 +510,8 @@ app.loadOfficeFromServer = async function () {
             appState.office.employees = data.employees || [];
             appState.office.board = data.board || {};
             appState.office.jobCounts = data.jobCounts || {};
+            appState.office.settings = data.settings || null;
+            appState.office.briefTemplates = data.briefTemplates || [];
         }
         await this.loadAiJobsFromServer();
     } catch (e) {
@@ -483,6 +521,7 @@ app.loadOfficeFromServer = async function () {
 
 app.renderOffice = async function () {
     await this.loadOfficeFromServer();
+    this.renderOfficeSettings();
     this.renderOfficeEmployees();
     this.renderOfficeBoard();
     this.renderOfficeRoleSelect();
@@ -490,6 +529,124 @@ app.renderOffice = async function () {
     this.initOffice3D();
     this.syncOffice3DEmployees();
     lucide.createIcons();
+};
+
+app.renderOfficeSettings = function () {
+    const s = appState.office.settings;
+    const autonomy = document.getElementById('office-autonomy-select');
+    const cap = document.getElementById('office-daily-cap');
+    const status = document.getElementById('office-settings-status');
+    const pauseBtn = document.getElementById('office-emergency-pause-btn');
+    if (!s) {
+        if (status) status.textContent = 'Settings belum dimuat.';
+        return;
+    }
+    if (autonomy) autonomy.value = s.autonomyLevel || 'limited_autonomous';
+    if (cap) cap.value = s.dailyPostCap != null ? s.dailyPostCap : 10;
+    if (status) {
+        status.textContent = s.emergencyPause
+            ? '⛔ Jeda darurat AKTIF — agen tidak boleh publish.'
+            : `Otonomi: ${s.autonomyLevel} · cap ${s.dailyPostCap}/hari`;
+    }
+    if (pauseBtn) {
+        pauseBtn.textContent = s.emergencyPause ? 'Lepas jeda' : 'Jeda darurat';
+        pauseBtn.classList.toggle('btn-danger', !s.emergencyPause);
+        pauseBtn.classList.toggle('btn-secondary', !!s.emergencyPause);
+    }
+};
+
+app.saveOfficeSettings = async function () {
+    try {
+        const autonomyLevel = document.getElementById('office-autonomy-select')?.value;
+        const dailyPostCap = parseInt(document.getElementById('office-daily-cap')?.value, 10);
+        const data = await api.put('/api/ai/settings', { autonomyLevel, dailyPostCap });
+        if (!data.success) {
+            this.showToast(data.message || 'Gagal simpan settings.', 'red');
+            return;
+        }
+        appState.office.settings = {
+            autonomyLevel: data.settings.autonomyLevel,
+            emergencyPause: data.settings.emergencyPause,
+            dailyPostCap: data.settings.dailyPostCap
+        };
+        this.renderOfficeSettings();
+        this.showToast('Settings Tim Konten disimpan.', 'emerald');
+    } catch (e) {
+        this.showToast('Gagal simpan settings.', 'red');
+    }
+};
+
+app.toggleEmergencyPause = async function () {
+    const s = appState.office.settings;
+    const pause = !(s && s.emergencyPause);
+    try {
+        const data = await api.post('/api/ai/settings/emergency-pause', { pause });
+        if (!data.success) {
+            this.showToast(data.message || 'Gagal.', 'red');
+            return;
+        }
+        appState.office.settings = {
+            autonomyLevel: data.settings.autonomyLevel,
+            emergencyPause: data.settings.emergencyPause,
+            dailyPostCap: data.settings.dailyPostCap
+        };
+        this.renderOfficeSettings();
+        this.showToast(data.message || (pause ? 'Jeda aktif' : 'Jeda lepas'), pause ? 'yellow' : 'emerald');
+    } catch (e) {
+        this.showToast('Gagal mengubah jeda darurat.', 'red');
+    }
+};
+
+app.applyOfficeBriefTemplate = async function (tplId) {
+    try {
+        const data = await api.get('/api/ai/brief-templates');
+        const tpl = (data.templates || []).find(t => t.id === tplId);
+        const ta = document.getElementById('office-brief-text');
+        if (tpl && ta) {
+            ta.value = tpl.text || '';
+            this.showToast(`Templat: ${tpl.label}`, 'emerald');
+        }
+    } catch (e) {
+        this.showToast('Gagal memuat templat.', 'red');
+    }
+};
+
+app.loadOfficeBrandMemory = async function () {
+    const platform = document.getElementById('office-brand-platform')?.value || 'instagram';
+    try {
+        const data = await api.get(`/api/accounts/${platform}/brand-memory`);
+        const bm = data.brandMemory || {};
+        document.getElementById('office-brand-tone').value = bm.tone || '';
+        document.getElementById('office-brand-audience').value = bm.audience || '';
+        document.getElementById('office-brand-banned').value = (bm.bannedWords || []).join(', ');
+        document.getElementById('office-brand-pillars').value = (bm.pillars || []).join(', ');
+        document.getElementById('office-brand-emoji').checked = bm.emojiOk !== false;
+        this.showToast(data.summary || 'Brand memory dimuat.', 'emerald');
+    } catch (e) {
+        this.showToast('Belum ada memori — isi lalu simpan.', 'yellow');
+    }
+};
+
+app.saveOfficeBrandMemory = async function () {
+    const platform = document.getElementById('office-brand-platform')?.value || 'instagram';
+    const split = (s) => String(s || '').split(',').map(x => x.trim()).filter(Boolean);
+    const brandMemory = {
+        tone: document.getElementById('office-brand-tone')?.value || '',
+        audience: document.getElementById('office-brand-audience')?.value || '',
+        bannedWords: split(document.getElementById('office-brand-banned')?.value),
+        pillars: split(document.getElementById('office-brand-pillars')?.value),
+        emojiOk: !!document.getElementById('office-brand-emoji')?.checked
+    };
+    try {
+        const data = await api.put(`/api/accounts/${platform}/brand-memory`, { brandMemory });
+        if (!data.success) {
+            this.showToast(data.message || 'Gagal simpan.', 'red');
+            return;
+        }
+        this.showToast(`Memori ${platform} disimpan.`, 'emerald');
+    } catch (e) {
+        this.showToast('Gagal simpan brand memory.', 'red');
+    }
 };
 
 app.initOffice3D = function () {
@@ -567,6 +724,7 @@ app._statusLabel = function (status) {
         idle: 'Siaga',
         queued: 'Antri',
         needs_info: 'Perlu info',
+        awaiting_approval: 'Approval',
         working: 'Kerja',
         publishing: 'Publish…',
         done: 'Selesai',
@@ -580,6 +738,7 @@ app._statusBadge = function (status) {
         idle: 'badge-indigo',
         queued: 'badge-indigo',
         needs_info: 'badge-yellow',
+        awaiting_approval: 'badge-orange',
         working: 'badge-violet',
         publishing: 'badge-violet',
         done: 'badge-emerald',
@@ -609,8 +768,9 @@ app.renderOfficeEmployees = function () {
         card.type = 'button';
         card.className = 'office-employee-card';
         card.dataset.roleId = emp.id;
+        const workload = emp.workload || (emp.activeCount ? `${emp.activeCount} tugas` : 'idle');
         const brief = emp.latestJob
-            ? this._escapeHtml((emp.latestJob.brief || '').slice(0, 80))
+            ? this._escapeHtml((emp.latestJob.brief || '').slice(0, 72))
             : 'Belum ada job';
         card.innerHTML = `
             <div class="office-employee-avatar" style="background:${emp.avatarColor || 'var(--indigo)'}">
@@ -619,13 +779,14 @@ app.renderOfficeEmployees = function () {
             <div class="office-employee-info">
                 <span class="office-employee-name">${this._escapeHtml(emp.name)}</span>
                 <span class="office-employee-title">${this._escapeHtml(emp.title)}</span>
+                <span class="office-employee-workload">${this._escapeHtml(workload)}</span>
                 <span class="office-employee-brief">${brief}</span>
             </div>
             <span class="badge ${this._statusBadge(emp.status)}">${this._statusLabel(emp.status)}</span>`;
         if (appState.office.focusRoleId === emp.id) card.classList.add('is-focused');
         card.addEventListener('click', () => {
             this.focusOfficeEmployee(emp.id);
-            if (emp.latestJob && emp.latestJob.status === 'needs_info') {
+            if (emp.latestJob) {
                 appState.office.selectedJobId = emp.latestJob.id;
                 this.renderOfficeAnswerPanel();
             }
@@ -635,13 +796,13 @@ app.renderOfficeEmployees = function () {
 };
 
 app.renderOfficeBoard = function () {
-    const statuses = ['queued', 'needs_info', 'publishing', 'done', 'failed'];
+    const statuses = ['queued', 'needs_info', 'awaiting_approval', 'publishing', 'done', 'failed'];
     const board = appState.office.board || {};
     const counts = appState.office.jobCounts || {};
     const countsEl = document.getElementById('office-board-counts');
     if (countsEl) {
         countsEl.textContent = counts.total
-            ? `${counts.total} job · ${counts.needs_info || 0} perlu info · ${counts.queued || 0} antri`
+            ? `${counts.total} job · ${counts.needs_info || 0} info · ${counts.awaiting_approval || 0} approval · ${counts.queued || 0} antri`
             : 'Belum ada job';
     }
 
@@ -675,9 +836,13 @@ app.renderOfficeBoard = function () {
             item.type = 'button';
             item.className = 'office-job-card';
             if (appState.office.selectedJobId === job.id) item.classList.add('active');
+            const errHint = job.lastError
+                ? `<span class="office-job-error">${this._escapeHtml(String(job.lastError).slice(0, 60))}</span>`
+                : '';
             item.innerHTML = `
                 <span class="office-job-brief">${this._escapeHtml(job.brief || '(tanpa brief)')}</span>
-                <span class="office-job-meta">${this._escapeHtml(job.employeeName || job.roleId || 'AI')} · ${this._escapeHtml(job.id)}</span>`;
+                <span class="office-job-meta">${this._escapeHtml(job.employeeName || job.roleId || 'AI')} · v${job.version || 1} · ${this._escapeHtml(job.id)}</span>
+                ${errHint}`;
             item.addEventListener('click', () => {
                 appState.office.selectedJobId = job.id;
                 this.renderOfficeBoard();
@@ -731,37 +896,76 @@ app.renderOfficeAnswerPanel = function () {
     const job = (appState.aiJobs || []).find(j => j.id === jobId)
         || Object.values(appState.office.board || {}).flat().find(j => j.id === jobId);
 
-    if (!job || job.status !== 'needs_info') {
-        // Show run option for queued jobs
-        if (job && (job.status === 'queued' || job.status === 'failed')) {
-            card.classList.remove('hidden');
-            document.getElementById('office-answer-job-id').textContent = job.id;
-            document.getElementById('office-answer-brief').textContent = job.brief || '';
-            document.getElementById('office-answer-questions').innerHTML =
-                '<p class="text-secondary font-sm">Job siap dijalankan. Cursor/agen bisa /run, atau tekan tombol di bawah (caption dari brief).</p>';
-            document.getElementById('office-answer-submit').classList.add('hidden');
-            document.getElementById('office-run-job-btn').classList.remove('hidden');
-            return;
-        }
+    const answerBtn = document.getElementById('office-answer-submit');
+    const runBtn = document.getElementById('office-run-job-btn');
+    const approveBtn = document.getElementById('office-approve-job-btn');
+    const retryBtn = document.getElementById('office-retry-job-btn');
+    const errEl = document.getElementById('office-answer-error');
+
+    const hideActions = () => {
+        if (answerBtn) answerBtn.classList.add('hidden');
+        if (runBtn) runBtn.classList.add('hidden');
+        if (approveBtn) approveBtn.classList.add('hidden');
+        if (retryBtn) retryBtn.classList.add('hidden');
+    };
+
+    if (!job) {
         card.classList.add('hidden');
         return;
     }
 
     card.classList.remove('hidden');
-    document.getElementById('office-answer-job-id').textContent = job.id;
+    document.getElementById('office-answer-job-id').textContent = `${job.id} · ${job.status}`;
     document.getElementById('office-answer-brief').textContent = job.brief || '';
-    document.getElementById('office-answer-submit').classList.remove('hidden');
-    document.getElementById('office-run-job-btn').classList.add('hidden');
+    hideActions();
+
+    if (errEl) {
+        if (job.lastError) {
+            errEl.textContent = `Error: ${job.lastError}`;
+            errEl.classList.remove('hidden');
+        } else {
+            errEl.textContent = '';
+            errEl.classList.add('hidden');
+        }
+    }
 
     const qWrap = document.getElementById('office-answer-questions');
-    const questions = job.questions || [];
-    qWrap.innerHTML = questions.length
-        ? questions.map((q, i) => `
-            <div class="form-group">
-                <label for="office-answer-${i}">${this._escapeHtml(q)}</label>
-                <textarea id="office-answer-${i}" class="form-control office-answer-input" rows="2" data-index="${i}" required></textarea>
-            </div>`).join('')
-        : '<p class="text-secondary font-sm">Lengkapi brief lalu kirim jawaban.</p>';
+
+    if (job.status === 'needs_info') {
+        if (answerBtn) answerBtn.classList.remove('hidden');
+        const questions = job.questions || [];
+        qWrap.innerHTML = questions.length
+            ? questions.map((q, i) => `
+                <div class="form-group">
+                    <label for="office-answer-${i}">${this._escapeHtml(q)}</label>
+                    <textarea id="office-answer-${i}" class="form-control office-answer-input" rows="2" data-index="${i}" required></textarea>
+                </div>`).join('')
+            : '<p class="text-secondary font-sm">Lengkapi brief lalu kirim jawaban.</p>';
+        return;
+    }
+
+    if (job.status === 'awaiting_approval') {
+        qWrap.innerHTML = '<p class="text-secondary font-sm">Menunggu persetujuan manusia (otonomi / high-risk / cap / jeda). Setujui untuk publish.</p>';
+        if (approveBtn) approveBtn.classList.remove('hidden');
+        return;
+    }
+
+    if (job.status === 'failed') {
+        qWrap.innerHTML = `<p class="text-secondary font-sm">Publish gagal.${job.lastError ? ' Perbaiki lalu retry.' : ''}</p>`;
+        if (retryBtn) retryBtn.classList.remove('hidden');
+        if (runBtn) runBtn.classList.remove('hidden');
+        return;
+    }
+
+    if (job.status === 'queued' || job.status === 'done') {
+        qWrap.innerHTML = job.status === 'queued'
+            ? '<p class="text-secondary font-sm">Job siap. Jalankan publish (gate otonomi tetap berlaku).</p>'
+            : '<p class="text-secondary font-sm">Job selesai. Bisa dijalankan ulang jika perlu.</p>';
+        if (runBtn) runBtn.classList.remove('hidden');
+        return;
+    }
+
+    qWrap.innerHTML = `<p class="text-secondary font-sm">Status: ${this._escapeHtml(job.status)}</p>`;
 };
 
 app.submitOfficeBrief = async function () {
@@ -835,7 +1039,7 @@ app.submitOfficeAnswers = async function () {
     }
 };
 
-app.runOfficeJob = async function () {
+app.runOfficeJob = async function (forcePublish) {
     const jobId = appState.office.selectedJobId;
     if (!jobId) return;
 
@@ -847,20 +1051,60 @@ app.runOfficeJob = async function () {
 
     try {
         const data = await api.post(`/api/ai/jobs/${jobId}/run`, {
-            caption: job.brief,
+            caption: job.caption || job.brief,
             platforms: job.platforms || [],
-            employeeName: job.employeeName
+            employeeName: job.employeeName,
+            forcePublish: !!forcePublish
         });
-        if (!data.success) {
+        if (data.awaitingApproval) {
+            this.showToast(data.message || 'Menunggu approval.', 'yellow');
+            if (data.duplicateWarning) {
+                this.showToast(data.duplicateWarning.message, 'yellow');
+            }
+        } else if (!data.success) {
             this.showToast(data.message || 'Publish gagal.', 'red');
         } else {
             this.showToast(`Publish selesai (${job.employeeName || 'AI'}).`, 'emerald');
+            if (data.duplicateWarning) {
+                this.showToast(data.duplicateWarning.message, 'yellow');
+            }
         }
         await this.loadPostsFromServer();
         await this.renderOffice();
         this.renderAiJobs();
     } catch (e) {
         this.showToast('Gagal menjalankan job.', 'red');
+    }
+};
+
+app.approveOfficeJob = async function () {
+    const jobId = appState.office.selectedJobId;
+    if (!jobId) return;
+    try {
+        const approve = await api.post(`/api/ai/jobs/${jobId}/approve`, { note: 'Disetujui dari UI Kantor AI' });
+        if (!approve.success) {
+            this.showToast(approve.message || 'Gagal approve.', 'red');
+            return;
+        }
+        const job = approve.job || (appState.aiJobs || []).find(j => j.id === jobId);
+        const data = await api.post(`/api/ai/jobs/${jobId}/run`, {
+            caption: job?.caption || job?.brief,
+            platforms: job?.platforms || [],
+            employeeName: job?.employeeName,
+            forcePublish: true
+        });
+        if (!data.success && !data.awaitingApproval) {
+            this.showToast(data.message || 'Publish setelah approve gagal.', 'red');
+        } else if (data.awaitingApproval) {
+            this.showToast(data.message || 'Masih terblokir (jeda darurat?).', 'yellow');
+        } else {
+            this.showToast('Disetujui & dipublish.', 'emerald');
+        }
+        await this.loadPostsFromServer();
+        await this.renderOffice();
+        this.renderAiJobs();
+    } catch (e) {
+        this.showToast('Gagal approve job.', 'red');
     }
 };
 

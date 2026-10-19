@@ -2,6 +2,7 @@
  * PostSphere — Neon Postgres adapter (semua method async)
  */
 const { neon } = require('@neondatabase/serverless');
+const { normalizeAiSettings, DEFAULT_AI_SETTINGS } = require('./lib/ai-policy');
 
 function getSql() {
     const url = process.env.DATABASE_URL;
@@ -90,6 +91,24 @@ class PostgresDatabase {
         `;
         await sql`CREATE INDEX IF NOT EXISTS idx_ai_jobs_status ON ai_jobs (status)`;
         await sql`CREATE INDEX IF NOT EXISTS idx_ai_jobs_created ON ai_jobs (created_at DESC)`;
+        await sql`
+            CREATE TABLE IF NOT EXISTS app_meta (
+                key TEXT PRIMARY KEY,
+                data JSONB NOT NULL DEFAULT '{}'::jsonb,
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+        `;
+        await sql`
+            CREATE TABLE IF NOT EXISTS audit_log (
+                id TEXT PRIMARY KEY,
+                actor TEXT,
+                action TEXT,
+                target TEXT,
+                detail JSONB NOT NULL DEFAULT '{}'::jsonb,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+        `;
+        await sql`CREATE INDEX IF NOT EXISTS idx_audit_log_created ON audit_log (created_at DESC)`;
         console.log('✅ [DB] Terhubung ke Neon Postgres');
         return this;
     }
@@ -269,9 +288,11 @@ class PostgresDatabase {
         const now = new Date().toISOString();
         const job = {
             brief: '',
+            structuredBrief: null,
             status: 'queued',
             questions: [],
             draftHistory: [],
+            decisionLog: [],
             caption: '',
             platforms: [],
             mediaUrl: '',
@@ -281,6 +302,7 @@ class PostgresDatabase {
             roleId: null,
             runId: null,
             version: 1,
+            lastError: null,
             publishResults: {},
             ...jobData,
             id,
@@ -313,6 +335,67 @@ class PostgresDatabase {
             WHERE id = ${id}
         `;
         return this.getAiJobById(id);
+    }
+
+    async getAiSettings() {
+        const sql = getSql();
+        const rows = await sql`
+            SELECT data FROM app_meta WHERE key = 'ai_settings' LIMIT 1
+        `;
+        if (!rows[0]) return normalizeAiSettings(DEFAULT_AI_SETTINGS);
+        return normalizeAiSettings(rows[0].data);
+    }
+
+    async updateAiSettings(partial) {
+        const sql = getSql();
+        const current = await this.getAiSettings();
+        const merged = normalizeAiSettings({ ...current, ...partial });
+        const now = new Date().toISOString();
+        await sql`
+            INSERT INTO app_meta (key, data, updated_at)
+            VALUES ('ai_settings', ${merged}, ${now})
+            ON CONFLICT (key) DO UPDATE SET data = ${merged}, updated_at = ${now}
+        `;
+        return merged;
+    }
+
+    async appendAuditLog(entry) {
+        const sql = getSql();
+        const id = 'audit-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7);
+        const createdAt = new Date().toISOString();
+        const row = {
+            id,
+            actor: entry.actor || 'system',
+            action: entry.action || 'unknown',
+            target: entry.target || '',
+            detail: entry.detail || {},
+            createdAt
+        };
+        await sql`
+            INSERT INTO audit_log (id, actor, action, target, detail, created_at)
+            VALUES (${row.id}, ${row.actor}, ${row.action}, ${row.target}, ${row.detail}, ${createdAt})
+        `;
+        return row;
+    }
+
+    async getAuditLog({ limit = 50, offset = 0 } = {}) {
+        const sql = getSql();
+        const lim = Math.min(200, Math.max(1, parseInt(limit, 10) || 50));
+        const off = Math.max(0, parseInt(offset, 10) || 0);
+        const rows = await sql`
+            SELECT id, actor, action, target, detail, created_at
+            FROM audit_log
+            ORDER BY created_at DESC
+            LIMIT ${lim} OFFSET ${off}
+        `;
+        return rows.map(r => ({
+            id: r.id,
+            actor: r.actor,
+            action: r.action,
+            target: r.target,
+            detail: r.detail || {},
+            createdAt: r.created_at
+        }));
     }
 }
 

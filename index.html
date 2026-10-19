@@ -666,45 +666,11 @@
                     </div>
                 </section>
 
-                <!-- VIEW: KANTOR AI -->
+                <!-- VIEW: KANTOR AI — Tim Konten -->
                 <section id="view-office" class="view-panel">
                     <div class="office-layout">
                         <div class="office-main">
-                            <div class="card office-stage-card" id="office-stage-card">
-                                <div class="card-header">
-                                    <h2>Ruang Tim</h2>
-                                    <label class="office-3d-toggle" title="Nonaktifkan di perangkat lemah / hemat baterai">
-                                        <input type="checkbox" id="office-3d-toggle" checked>
-                                        <span>Tampilan 3D</span>
-                                    </label>
-                                </div>
-                                <div class="office-3d-viewport" id="office-3d-viewport">
-                                    <canvas id="office-3d-canvas" aria-label="Viewport 3D karyawan AI"></canvas>
-                                    <div class="office-3d-labels" id="office-3d-labels" aria-hidden="true"></div>
-                                    <p class="office-3d-hint">Klik avatar untuk fokus job karyawan · status: aura + label</p>
-                                    <div class="office-3d-fallback" id="office-3d-fallback">
-                                        <p>Tampilan 3D dimatikan. Nyalakan toggle di atas, atau gunakan kartu karyawan di bawah.</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="card office-employees-card">
-                                <div class="card-header">
-                                    <h2>Tim Karyawan AI</h2>
-                                    <button class="btn btn-sm btn-secondary" type="button" id="office-refresh-btn">
-                                        <i data-lucide="refresh-cw"></i>
-                                        <span>Segarkan</span>
-                                    </button>
-                                </div>
-                                <div class="office-employees-grid" id="office-employees-grid">
-                                    <div class="empty-state-small" id="office-employees-empty">
-                                        <i data-lucide="users"></i>
-                                        <p>Memuat tim…</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="card office-board-card">
+                            <div class="card office-board-card office-board-primary">
                                 <div class="card-header">
                                     <h2>Work Board</h2>
                                     <span class="text-secondary font-sm" id="office-board-counts"></span>
@@ -723,6 +689,13 @@
                                             <span class="office-column-count" id="office-count-needs_info">0</span>
                                         </div>
                                         <div class="office-column-list" id="office-col-needs_info"></div>
+                                    </div>
+                                    <div class="office-column" data-status="awaiting_approval">
+                                        <div class="office-column-head">
+                                            <span class="badge badge-orange">Approval</span>
+                                            <span class="office-column-count" id="office-count-awaiting_approval">0</span>
+                                        </div>
+                                        <div class="office-column-list" id="office-col-awaiting_approval"></div>
                                     </div>
                                     <div class="office-column" data-status="publishing">
                                         <div class="office-column-head">
@@ -747,9 +720,78 @@
                                     </div>
                                 </div>
                             </div>
+
+                            <div class="card office-employees-card">
+                                <div class="card-header">
+                                    <h2>Tim Konten AI</h2>
+                                    <button class="btn btn-sm btn-secondary" type="button" id="office-refresh-btn">
+                                        <i data-lucide="refresh-cw"></i>
+                                        <span>Segarkan</span>
+                                    </button>
+                                </div>
+                                <div class="office-employees-grid" id="office-employees-grid">
+                                    <div class="empty-state-small" id="office-employees-empty">
+                                        <i data-lucide="users"></i>
+                                        <p>Memuat tim…</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="card office-stage-card office-stage-optional" id="office-stage-card">
+                                <div class="card-header">
+                                    <h2>Ruang Tim (3D opsional)</h2>
+                                    <label class="office-3d-toggle" title="Nonaktifkan di perangkat lemah / hemat baterai">
+                                        <input type="checkbox" id="office-3d-toggle">
+                                        <span>Tampilan 3D</span>
+                                    </label>
+                                </div>
+                                <div class="office-3d-viewport is-3d-off" id="office-3d-viewport">
+                                    <canvas id="office-3d-canvas" aria-label="Viewport 3D karyawan AI"></canvas>
+                                    <div class="office-3d-labels" id="office-3d-labels" aria-hidden="true"></div>
+                                    <p class="office-3d-hint">Klik avatar untuk fokus job · work board di atas lebih utama</p>
+                                    <div class="office-3d-fallback" id="office-3d-fallback">
+                                        <p>3D opsional. Work board dan kartu tim di atas adalah ruang kerja utama.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="card office-insights-stub" id="office-insights-stub">
+                                <div class="card-header">
+                                    <h2>Insights (Fase 2)</h2>
+                                    <span class="badge badge-indigo">Stub</span>
+                                </div>
+                                <p class="text-secondary font-sm" id="office-insights-placeholder">
+                                    Analitik yang menggerakkan Strategist belum aktif. Endpoint: <code>GET /api/ai/insights</code>
+                                </p>
+                            </div>
                         </div>
 
                         <aside class="office-side">
+                            <div class="card office-settings-card">
+                                <div class="card-header">
+                                    <h2>Otonomi &amp; Pengaman</h2>
+                                </div>
+                                <div class="office-settings-form" id="office-settings-form">
+                                    <div class="form-group">
+                                        <label for="office-autonomy-select">Tingkat otonomi</label>
+                                        <select id="office-autonomy-select" class="form-control">
+                                            <option value="suggest_only">Suggest only — draft saja</option>
+                                            <option value="require_approval">Require approval</option>
+                                            <option value="limited_autonomous">Limited autonomous</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="office-daily-cap">Daily post cap</label>
+                                        <input type="number" id="office-daily-cap" class="form-control" min="0" max="100" value="10">
+                                    </div>
+                                    <div class="office-settings-actions">
+                                        <button type="button" class="btn btn-sm btn-secondary" id="office-settings-save">Simpan</button>
+                                        <button type="button" class="btn btn-sm btn-danger" id="office-emergency-pause-btn">Jeda darurat</button>
+                                    </div>
+                                    <p class="input-hint mt-2" id="office-settings-status">Memuat settings…</p>
+                                </div>
+                            </div>
+
                             <div class="card">
                                 <div class="card-header">
                                     <h2>Brief Cepat</h2>
@@ -762,11 +804,19 @@
                                         </select>
                                     </div>
                                     <div class="form-group">
+                                        <label>Templat brief</label>
+                                        <div class="office-template-row" id="office-brief-templates">
+                                            <button type="button" class="btn btn-sm btn-secondary office-tpl-btn" data-tpl="product-launch">Peluncuran</button>
+                                            <button type="button" class="btn btn-sm btn-secondary office-tpl-btn" data-tpl="monthly-promo">Promo</button>
+                                            <button type="button" class="btn btn-sm btn-secondary office-tpl-btn" data-tpl="education">Edukasi</button>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
                                         <label for="office-brief-text">Brief</label>
                                         <textarea id="office-brief-text" class="form-control" rows="6"
                                             placeholder="Contoh: Promo launch fitur Jadwal PostSphere untuk UMKM, CTA coba gratis, platform Instagram & Facebook."
                                             required></textarea>
-                                        <span class="input-hint">Brief cukup → antri publish. Tipis → pertanyaan klarifikasi.</span>
+                                        <span class="input-hint">Hormati otonomi akun. High-risk → approval. Tipis → klarifikasi field kosong.</span>
                                     </div>
                                     <button type="submit" class="btn btn-primary width-full" id="office-brief-submit">
                                         <i data-lucide="send"></i>
@@ -775,12 +825,50 @@
                                 </form>
                             </div>
 
+                            <div class="card office-brand-card">
+                                <div class="card-header">
+                                    <h2>Brand Memory</h2>
+                                </div>
+                                <div class="form-group">
+                                    <label for="office-brand-platform">Platform</label>
+                                    <select id="office-brand-platform" class="form-control">
+                                        <option value="instagram">instagram</option>
+                                        <option value="facebook">facebook</option>
+                                        <option value="tiktok">tiktok</option>
+                                        <option value="youtube">youtube</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="office-brand-tone">Tone</label>
+                                    <input type="text" id="office-brand-tone" class="form-control" placeholder="ramah, profesional…">
+                                </div>
+                                <div class="form-group">
+                                    <label for="office-brand-audience">Audience</label>
+                                    <input type="text" id="office-brand-audience" class="form-control" placeholder="UMKM, Gen Z…">
+                                </div>
+                                <div class="form-group">
+                                    <label for="office-brand-banned">Banned words (koma)</label>
+                                    <input type="text" id="office-brand-banned" class="form-control" placeholder="murah, #1…">
+                                </div>
+                                <div class="form-group">
+                                    <label for="office-brand-pillars">Pillars (koma)</label>
+                                    <input type="text" id="office-brand-pillars" class="form-control" placeholder="edukasi, promo, behind-the-scenes">
+                                </div>
+                                <label class="office-3d-toggle mb-2">
+                                    <input type="checkbox" id="office-brand-emoji" checked>
+                                    <span>Emoji OK</span>
+                                </label>
+                                <button type="button" class="btn btn-sm btn-secondary width-full" id="office-brand-save">Simpan memori</button>
+                                <button type="button" class="btn btn-sm btn-text width-full mt-1" id="office-brand-load">Muat</button>
+                            </div>
+
                             <div class="card office-answer-card hidden" id="office-answer-card">
                                 <div class="card-header">
-                                    <h2>Perlu Jawaban</h2>
+                                    <h2>Detail Job</h2>
                                     <span class="badge badge-yellow" id="office-answer-job-id"></span>
                                 </div>
                                 <p class="text-secondary font-sm mb-3" id="office-answer-brief"></p>
+                                <p class="font-sm text-danger hidden" id="office-answer-error"></p>
                                 <div id="office-answer-questions" class="office-questions"></div>
                                 <button type="button" class="btn btn-primary width-full mt-3" id="office-answer-submit">
                                     <i data-lucide="check"></i>
@@ -789,6 +877,14 @@
                                 <button type="button" class="btn btn-secondary width-full mt-2" id="office-run-job-btn">
                                     <i data-lucide="play"></i>
                                     <span>Jalankan Publish</span>
+                                </button>
+                                <button type="button" class="btn btn-primary width-full mt-2 hidden" id="office-approve-job-btn">
+                                    <i data-lucide="shield-check"></i>
+                                    <span>Setujui &amp; Publish</span>
+                                </button>
+                                <button type="button" class="btn btn-secondary width-full mt-2 hidden" id="office-retry-job-btn">
+                                    <i data-lucide="rotate-cw"></i>
+                                    <span>Retry Publish</span>
                                 </button>
                             </div>
                         </aside>

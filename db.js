@@ -8,9 +8,17 @@
 
 const fs = require('fs');
 const path = require('path');
+const { normalizeAiSettings, DEFAULT_AI_SETTINGS } = require('./lib/ai-policy');
 
 const DB_PATH = path.join(__dirname, 'db.json');
-const DEFAULT_DB = { users: [], accounts: [], posts: [], aiJobs: [] };
+const DEFAULT_DB = {
+    users: [],
+    accounts: [],
+    posts: [],
+    aiJobs: [],
+    aiSettings: { ...DEFAULT_AI_SETTINGS },
+    auditLog: []
+};
 
 class JsonDatabase {
     constructor() {
@@ -25,6 +33,8 @@ class JsonDatabase {
                 if (!this._data.accounts) this._data.accounts = [];
                 if (!this._data.posts) this._data.posts = [];
                 if (!this._data.aiJobs) this._data.aiJobs = [];
+                if (!this._data.aiSettings) this._data.aiSettings = { ...DEFAULT_AI_SETTINGS };
+                if (!this._data.auditLog) this._data.auditLog = [];
             } else {
                 this._data = JSON.parse(JSON.stringify(DEFAULT_DB));
                 await this.save();
@@ -158,9 +168,11 @@ class JsonDatabase {
         const job = {
             id: 'job-' + Date.now(),
             brief: '',
+            structuredBrief: null,
             status: 'queued',
             questions: [],
             draftHistory: [],
+            decisionLog: [],
             caption: '',
             platforms: [],
             mediaUrl: '',
@@ -170,6 +182,7 @@ class JsonDatabase {
             roleId: null,
             runId: null,
             version: 1,
+            lastError: null,
             publishResults: {},
             ...jobData,
             createdAt: now,
@@ -190,6 +203,39 @@ class JsonDatabase {
         };
         await this.save();
         return this._data.aiJobs[idx];
+    }
+
+    async getAiSettings() {
+        return normalizeAiSettings(this._data.aiSettings);
+    }
+
+    async updateAiSettings(partial) {
+        const current = normalizeAiSettings(this._data.aiSettings);
+        const merged = normalizeAiSettings({ ...current, ...partial });
+        this._data.aiSettings = merged;
+        await this.save();
+        return merged;
+    }
+
+    async appendAuditLog(entry) {
+        if (!this._data.auditLog) this._data.auditLog = [];
+        const row = {
+            id: 'audit-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7),
+            actor: entry.actor || 'system',
+            action: entry.action || 'unknown',
+            target: entry.target || '',
+            detail: entry.detail || {},
+            createdAt: new Date().toISOString()
+        };
+        this._data.auditLog.unshift(row);
+        this._data.auditLog = this._data.auditLog.slice(0, 500);
+        await this.save();
+        return row;
+    }
+
+    async getAuditLog({ limit = 50, offset = 0 } = {}) {
+        const list = this._data.auditLog || [];
+        return list.slice(offset, offset + limit);
     }
 }
 
