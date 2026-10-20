@@ -4,7 +4,7 @@
  * Startup office matching the reference illustration: isometric cut-away on a
  * green lot with sidewalk & street, wood-floor work area, round meeting table,
  * lounge, game room (ping pong + arcade), kitchen corner, trees & street lamps.
- * Crew are stylized humanoids (capsule + sphere, not boxes).
+ * Crew are glossy chibi robots built procedurally from shared primitives.
  *
  * Work board remains the primary UI; this stage is decorative + focus helper.
  */
@@ -898,111 +898,172 @@
         addPlant(parent, x, z + 0.05, 0.28);
     }
 
-    /* ---------- Characters (stylized realistic — capsule/sphere, not boxes) ---------- */
+    /* ---------- Characters (robot chibi glossy — prosedural, tanpa model/teksur eksternal) ----------
+     * Referensi: kepala bulat sangat besar, visor hitam mengkilap, mata ring menyala,
+     * ear-pod samping, badan putih kecil, sendi & tangan hitam.
+     * Hemat memori: SEMUA geometri + material bodi dibuat SEKALI (cache modul
+     * `robotAssets`) lalu dipakai bersama oleh 7 agen. Per agen hanya dibuat
+     * 1 material aksen (mata/ear-pod/garis dada — mengikuti warna peran, sekaligus
+     * disimpan sebagai `bodyMat` agar syncCharacter tetap bekerja) + 1 material
+     * aura status. Geometri/material bersama ditandai `sharedAsset` agar
+     * disposeObject tidak membuangnya saat satu agen dihapus. */
 
-    function createLimb(matBody, radius, length) {
-        var geo;
-        if (THREE.CapsuleGeometry) {
-            geo = new THREE.CapsuleGeometry(radius, Math.max(0.01, length - radius * 2), 4, 8);
-        } else {
-            geo = new THREE.CylinderGeometry(radius, radius, length, 8);
+    var robotAssets = null;
+
+    function getRobotAssets() {
+        if (robotAssets) return robotAssets;
+        function sharedGeo(geo) { geo.userData.sharedAsset = true; return geo; }
+        function sharedMat(m) { m.userData.sharedAsset = true; return m; }
+        function capsule(r, len, seg) {
+            return THREE.CapsuleGeometry
+                ? new THREE.CapsuleGeometry(r, len, 4, seg || 10)
+                : new THREE.CylinderGeometry(r, r, len + r * 2, seg || 10);
         }
-        geo.translate(0, -length / 2, 0);
-        return new THREE.Mesh(geo, matBody);
+        /* Geometri lengan/kaki digeser sekali di sini: titik putar (pivot)
+           berada di bahu/pinggul, mesh menjulur ke bawah — sama seperti
+           kontrak createLimb lama yang dirotasikan kode animasi. */
+        var armGeo = capsule(0.048, 0.3, 10); armGeo.translate(0, -0.19, 0);
+        var legGeo = capsule(0.06, 0.22, 10); legGeo.translate(0, -0.16, 0);
+
+        robotAssets = {
+            geo: {
+                skull: sharedGeo(new THREE.SphereGeometry(0.34, 24, 18)),
+                visor: sharedGeo(new THREE.SphereGeometry(0.3, 24, 18)),
+                visorRim: sharedGeo(new THREE.TorusGeometry(0.252, 0.009, 8, 32)),
+                eyeRing: sharedGeo(new THREE.TorusGeometry(0.055, 0.013, 8, 20)),
+                strip: sharedGeo(new THREE.BoxGeometry(0.13, 0.028, 0.012)),
+                earOuter: sharedGeo(new THREE.CylinderGeometry(0.095, 0.095, 0.055, 20)),
+                earInner: sharedGeo(new THREE.CylinderGeometry(0.056, 0.056, 0.06, 16)),
+                torso: sharedGeo(capsule(0.21, 0.22, 14)),
+                pelvis: sharedGeo(new THREE.SphereGeometry(0.185, 18, 12)),
+                neck: sharedGeo(new THREE.CylinderGeometry(0.068, 0.078, 0.1, 12)),
+                joint: sharedGeo(new THREE.SphereGeometry(0.068, 12, 10)),
+                arm: sharedGeo(armGeo),
+                leg: sharedGeo(legGeo),
+                foot: sharedGeo(new THREE.SphereGeometry(0.09, 14, 10)),
+                aura: sharedGeo(new THREE.RingGeometry(0.32, 0.42, 28))
+            },
+            mats: {
+                /* Putih glossy (kesan realistis dari pantulan lampu scene yang
+                   sudah ada — tanpa lampu tambahan per agen). */
+                white: sharedMat(mat(0xf7f9fb, 0.3, 0.02)),
+                dark: sharedMat(mat(0x171a1e, 0.62, 0.08)),
+                visor: sharedMat(mat(0x05080c, 0.12, 0.12))
+            }
+        };
+        return robotAssets;
     }
 
-    function createHumanoid(colorHex, look) {
+    function robotPart(geo, material, x, y, z) {
+        var mesh = new THREE.Mesh(geo, material);
+        mesh.position.set(x || 0, y || 0, z || 0);
+        mesh.castShadow = false;
+        mesh.receiveShadow = false;
+        return mesh;
+    }
+
+    function createRobotArm(assets, side) {
+        var arm = new THREE.Group();
+        arm.add(robotPart(assets.geo.joint, assets.mats.dark, 0, 0, 0));
+        arm.add(robotPart(assets.geo.arm, assets.mats.white, 0, 0, 0));
+        var elbow = robotPart(assets.geo.joint, assets.mats.dark, 0, -0.26, 0);
+        elbow.scale.setScalar(0.72);
+        arm.add(elbow);
+        var hand = robotPart(assets.geo.joint, assets.mats.dark, 0, -0.44, 0);
+        hand.scale.set(0.85, 1, 0.85);
+        arm.add(hand);
+        arm.position.set(0.27 * side, 1.02, 0);
+        return arm;
+    }
+
+    function createRobotLeg(assets, side) {
+        var leg = new THREE.Group();
+        leg.add(robotPart(assets.geo.joint, assets.mats.dark, 0, 0, 0));
+        leg.add(robotPart(assets.geo.leg, assets.mats.white, 0, 0, 0));
+        var foot = robotPart(assets.geo.foot, assets.mats.white, 0, -0.44, 0.035);
+        foot.scale.set(1, 0.58, 1.45);
+        leg.add(foot);
+        leg.position.set(0.1 * side, 0.54, 0);
+        return leg;
+    }
+
+    /* Nama dipertahankan (dipanggil layoutCharacters): kini membangun robot.
+       `look` lama (rambut/kulit/celana) tak lagi dipakai — identitas agen kini
+       dari warna aksen peran; parameter dibiarkan agar pemanggil tak berubah. */
+    function createHumanoid(colorHex, look) { // eslint-disable-line no-unused-vars
+        var assets = getRobotAssets();
         var root = new THREE.Group();
-        var bodyMat = mat(colorHex, 0.62, 0.06);
-        var darkMat = mat(look && look.pants ? look.pants : 0x2c3e50, 0.78, 0.04);
-        var skinMat = mat(look && look.skin ? look.skin : 0xe0b089, 0.72, 0.02);
-        var hairMat = mat(look && look.hair ? look.hair : 0x2a2118, 0.88, 0.02);
-        var shoeMat = mat(0x1a1a1a, 0.55, 0.15);
+        /* Satu-satunya material unik per agen: aksen menyala warna peran. */
+        var bodyMat = mat(colorHex, 0.35, 0.02, {
+            emissive: colorHex, emissiveIntensity: 1.35
+        });
 
         var body = new THREE.Group();
         body.name = 'body';
         root.add(body);
 
-        /* Hips + torso (business-casual proportions) */
-        var hips = new THREE.Mesh(
-            THREE.CapsuleGeometry
-                ? new THREE.CapsuleGeometry(0.16, 0.12, 4, 10)
-                : new THREE.CylinderGeometry(0.16, 0.16, 0.28, 10),
-            darkMat
-        );
-        hips.position.y = 0.78;
-        body.add(hips);
+        /* Pinggul + torso putih ramping */
+        var pelvis = robotPart(assets.geo.pelvis, assets.mats.white, 0, 0.58, 0);
+        pelvis.scale.set(1.05, 0.72, 0.85);
+        body.add(pelvis);
 
-        var torso = new THREE.Mesh(
-            THREE.CapsuleGeometry
-                ? new THREE.CapsuleGeometry(0.2, 0.36, 6, 12)
-                : new THREE.CylinderGeometry(0.2, 0.22, 0.62, 12),
-            bodyMat
-        );
-        torso.position.y = 1.12;
+        var torso = new THREE.Group();
+        torso.name = 'torso';
+        torso.position.y = 0.88;
+        var chest = robotPart(assets.geo.torso, assets.mats.white, 0, 0, 0);
+        chest.scale.set(1, 1, 0.82);
+        torso.add(chest);
+        /* Garis aksen menyala di dada (warna peran) */
+        torso.add(robotPart(assets.geo.strip, bodyMat, 0, 0.07, 0.168));
         body.add(torso);
 
-        /* Head — sphere + soft jaw */
-        var head = new THREE.Mesh(new THREE.SphereGeometry(0.155, 16, 14), skinMat);
-        head.position.y = 1.58;
-        head.scale.set(0.95, 1.08, 0.92);
-        body.add(head);
-
-        var neck = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.08, 8), skinMat);
-        neck.position.y = 1.425;
+        var neck = robotPart(assets.geo.neck, assets.mats.dark, 0, 1.13, 0);
         body.add(neck);
 
-        /* Hair cap */
-        var hair = new THREE.Mesh(new THREE.SphereGeometry(0.16, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.58), hairMat);
-        hair.position.y = 1.64;
-        hair.scale.set(1.02, 0.85, 1.05);
-        body.add(hair);
+        /* Kepala robot: grup (diputar kode animasi lewat parts.head) */
+        var head = new THREE.Group();
+        head.name = 'head';
+        head.position.y = 1.44;
+        var skull = robotPart(assets.geo.skull, assets.mats.white, 0, 0, 0);
+        skull.scale.set(1, 0.94, 0.96);
+        head.add(skull);
+        var visor = robotPart(assets.geo.visor, assets.mats.visor, 0, -0.03, 0.115);
+        visor.scale.set(0.86, 0.74, 0.72);
+        head.add(visor);
+        var rim = robotPart(assets.geo.visorRim, bodyMat, 0, -0.03, 0.312);
+        rim.scale.set(1, 0.85, 1);
+        head.add(rim);
+        [-1, 1].forEach(function (side) {
+            head.add(robotPart(assets.geo.eyeRing, bodyMat, 0.105 * side, 0.015, 0.318));
+            var ear = robotPart(assets.geo.earOuter, assets.mats.dark, 0.335 * side, 0.02, 0);
+            ear.rotation.z = Math.PI / 2;
+            head.add(ear);
+            var earGlow = robotPart(assets.geo.earInner, bodyMat, 0.345 * side, 0.02, 0);
+            earGlow.rotation.z = Math.PI / 2;
+            head.add(earGlow);
+        });
+        /* Mulut kecil di visor */
+        var mouth = robotPart(assets.geo.strip, bodyMat, 0, -0.125, 0.3);
+        mouth.scale.set(0.35, 0.4, 1);
+        head.add(mouth);
+        body.add(head);
 
-        /* Simple eyes */
-        var eyeMat = mat(0x1e293b, 0.4, 0.1);
-        var leftEye = new THREE.Mesh(new THREE.SphereGeometry(0.018, 6, 6), eyeMat);
-        leftEye.position.set(-0.045, 1.59, 0.13);
-        body.add(leftEye);
-        var rightEye = new THREE.Mesh(new THREE.SphereGeometry(0.018, 6, 6), eyeMat);
-        rightEye.position.set(0.045, 1.59, 0.13);
-        body.add(rightEye);
-
-        var leftArm = createLimb(bodyMat, 0.055, 0.5);
-        leftArm.position.set(-0.26, 1.32, 0);
+        var leftArm = createRobotArm(assets, -1);
         leftArm.name = 'leftArm';
         body.add(leftArm);
-
-        var rightArm = createLimb(bodyMat, 0.055, 0.5);
-        rightArm.position.set(0.26, 1.32, 0);
+        var rightArm = createRobotArm(assets, 1);
         rightArm.name = 'rightArm';
         body.add(rightArm);
 
-        var leftHand = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 8), skinMat);
-        leftHand.position.set(-0.26, 0.8, 0);
-        body.add(leftHand);
-        var rightHand = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 8), skinMat);
-        rightHand.position.set(0.26, 0.8, 0);
-        body.add(rightHand);
-
-        var leftLeg = createLimb(darkMat, 0.065, 0.58);
-        leftLeg.position.set(-0.09, 0.72, 0);
+        var leftLeg = createRobotLeg(assets, -1);
         leftLeg.name = 'leftLeg';
         body.add(leftLeg);
-
-        var rightLeg = createLimb(darkMat, 0.065, 0.58);
-        rightLeg.position.set(0.09, 0.72, 0);
+        var rightLeg = createRobotLeg(assets, 1);
         rightLeg.name = 'rightLeg';
         body.add(rightLeg);
 
-        var leftShoe = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.06, 0.16), shoeMat);
-        leftShoe.position.set(-0.09, 0.04, 0.02);
-        body.add(leftShoe);
-        var rightShoe = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.06, 0.16), shoeMat);
-        rightShoe.position.set(0.09, 0.04, 0.02);
-        body.add(rightShoe);
-
         var aura = new THREE.Mesh(
-            new THREE.RingGeometry(0.32, 0.42, 28),
+            assets.geo.aura,
             new THREE.MeshBasicMaterial({
                 color: STATUS_AURA.idle,
                 transparent: true,
@@ -1063,6 +1124,8 @@
         ud.roleId = emp.id;
         ud.status = emp.status || 'idle';
         ud.bodyMat.color.set(emp.avatarColor || '#0d9488');
+        /* Aksen robot menyala: samakan emissive dengan warna peran terbaru. */
+        if (ud.bodyMat.emissive) ud.bodyMat.emissive.set(emp.avatarColor || '#0d9488');
         var auraColor = STATUS_AURA[ud.status] || STATUS_AURA.idle;
         ud.parts.aura.material.color.setHex(auraColor);
         ud.parts.aura.material.opacity = ud.status === 'idle' ? 0.35 : 0.7;
@@ -1187,8 +1250,12 @@
         var activity = placement.activity || 'idle';
         var seated = !!placement.seated && !walking;
 
+        /* Kepala robot besar: reset dulu agar tak mewarisi putaran pose sebelumnya
+           (pose thinking/review/waiting menimpanya lagi di bawah). */
+        parts.head.rotation.y = 0;
         if (walking) {
             var swing = Math.sin(t * 10 + ud.phase) * 0.55;
+            parts.head.rotation.y = Math.sin(t * 5 + ud.phase) * 0.06;
             parts.leftLeg.rotation.x = swing;
             parts.rightLeg.rotation.x = -swing;
             parts.leftArm.rotation.x = -swing * 0.85;
@@ -1397,10 +1464,16 @@
 
     function disposeObject(obj) {
         obj.traverse(function (child) {
-            if (child.geometry) child.geometry.dispose();
+            /* Geometri/material robot dipakai bersama 7 agen — jangan dibuang. */
+            if (child.geometry && !(child.geometry.userData && child.geometry.userData.sharedAsset)) {
+                child.geometry.dispose();
+            }
             if (child.material) {
-                if (Array.isArray(child.material)) child.material.forEach(function (m) { m.dispose(); });
-                else child.material.dispose();
+                var disposeMat = function (m) {
+                    if (!(m.userData && m.userData.sharedAsset)) m.dispose();
+                };
+                if (Array.isArray(child.material)) child.material.forEach(disposeMat);
+                else disposeMat(child.material);
             }
         });
     }
