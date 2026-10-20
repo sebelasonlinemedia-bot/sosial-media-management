@@ -110,8 +110,8 @@
             wallHeight: 2.55,
             building: { minX: DEFAULT_BUILDING.minX, maxX: DEFAULT_BUILDING.maxX, minZ: DEFAULT_BUILDING.minZ, maxZ: DEFAULT_BUILDING.maxZ },
             desks: [
-                [-8.6, -3.7], [-6.4, -3.7], [-4.2, -3.7], [-2.0, -3.7],
-                [-7.5, -1.5], [-5.3, -1.5], [-3.1, -1.5]
+                [-8.6, -3.7, 0], [-6.4, -3.7, 0], [-4.2, -3.7, 0], [-2.0, -3.7, 0],
+                [-7.5, -1.5, 0], [-5.3, -1.5, 0], [-3.1, -1.5, 0]
             ],
             furniture: defaultFurniture(),
             partitions: {
@@ -144,17 +144,152 @@
                 x: Math.round((table.x + ox) * 100) / 100,
                 z: Math.round((table.z + oz) * 100) / 100,
                 facing: Math.round(Math.atan2(-ox, -oz) * 1000) / 1000,
-                seated: true
+                seated: true, seatY: 0.3
             });
         }
         return spots;
+    }
+
+    /* --- Geometri lokal→dunia (rotasi Y Three.js: x'=lx·cos+lz·sin, z'=-lx·sin+lz·cos) --- */
+    function rotLocal(rot, lx, lz) {
+        var c = Math.cos(rot || 0);
+        var s = Math.sin(rot || 0);
+        return { x: lx * c + lz * s, z: -lx * s + lz * c };
+    }
+    function round2(n) { return Math.round(n * 100) / 100; }
+
+    /** Info meja agen dari format [x,z] lama, [x,z,rotY] baru, atau {x,z,rotY|rot}. */
+    function deskInfo(d) {
+        if (Array.isArray(d)) return { x: Number(d[0]) || 0, z: Number(d[1]) || 0, rot: Number(d[2]) || 0 };
+        d = d || {};
+        return { x: Number(d.x) || 0, z: Number(d.z) || 0, rot: Number(d.rotY != null ? d.rotY : d.rot) || 0 };
+    }
+    /** Spot duduk meja agen: offset kursi lokal (0,-0.78) DIROTASIKAN rotY meja;
+     *  robot menghadap meja (arah lokal +z yang terotasi). */
+    function deskSeatSpot(d) {
+        var info = deskInfo(d);
+        var off = rotLocal(info.rot, 0, -0.78);
+        return {
+            x: round2(info.x + off.x), z: round2(info.z + off.z),
+            facing: Math.round(info.rot * 1000) / 1000, seated: true, seatY: 0.3
+        };
+    }
+
+    /** Spot dari titik lokal furnitur + arah hadap lokal furnitur itu sendiri. */
+    function localSpot(item, lx, lz, faceDx, faceDz, seated, seatY) {
+        var rot = Number(item.rotY) || 0;
+        var off = rotLocal(rot, lx, lz);
+        var f = rotLocal(rot, faceDx, faceDz);
+        return {
+            x: round2((Number(item.x) || 0) + off.x), z: round2((Number(item.z) || 0) + off.z),
+            facing: Math.round(Math.atan2(f.x, f.z) * 1000) / 1000,
+            seated: !!seated, seatY: seatY || 0
+        };
+    }
+
+    /** Spot idle DITURUNKAN DARI DATA FURNITUR layout aktif — robot duduk persis
+     *  di bantalan/dudukan furnitur (bukan koordinat tebak). Zona tanpa furnitur
+     *  di layout custom dilewati dengan aman (stop tidak dibuat). */
+    function deriveIdleStops(furniture) {
+        var byType = {};
+        (furniture || []).forEach(function (f) {
+            if (!f || !f.type) return;
+            (byType[f.type] = byType[f.type] || []).push(f);
+        });
+        function items(type) { return byType[type] || []; }
+        var lounge = [];
+        items('beanbag').forEach(function (f) { lounge.push(localSpot(f, 0, 0, 0, 1, true, 0.22)); });
+        items('sofa').forEach(function (f) {
+            /* Dua bantalan sofa di lokal (±0.5, 0.05) — lihat addSofa. */
+            lounge.push(localSpot(f, -0.5, 0.05, 0, 1, true, 0.28));
+            lounge.push(localSpot(f, 0.5, 0.05, 0, 1, true, 0.28));
+        });
+        items('armchair').forEach(function (f) { lounge.push(localSpot(f, 0, 0, 0, 1, true, 0.3)); });
+        items('chair').forEach(function (f) { lounge.push(localSpot(f, 0, 0, 0, 1, true, 0.3)); });
+
+        var bars = items('coffeebar');
+        var coffee = [];
+        items('stool').forEach(function (f) {
+            /* Duduk tepat di atas stool, menghadap tegak-lurus counter terdekat. */
+            var spot = localSpot(f, 0, 0, 0, 1, true, 0.55);
+            var bar = null;
+            var best = Infinity;
+            bars.forEach(function (b) {
+                var dd = Math.hypot(b.x - f.x, b.z - f.z);
+                if (dd < best) { best = dd; bar = b; }
+            });
+            if (bar && best < 3) {
+                var inBar = rotLocal(-(Number(bar.rotY) || 0), f.x - bar.x, f.z - bar.z);
+                var face = rotLocal(Number(bar.rotY) || 0, 0, inBar.z < 0 ? 1 : -1);
+                spot.facing = Math.round(Math.atan2(face.x, face.z) * 1000) / 1000;
+            }
+            coffee.push(spot);
+        });
+        bars.forEach(function (bar) {
+            /* Berdiri di depan counter: sisi stool terdekat (fallback sisi lokal -z),
+               bergeser 0.75 m menyamping agar tidak menabrak stool. */
+            var front = null;
+            var best = Infinity;
+            items('stool').forEach(function (s) {
+                var dd = Math.hypot(s.x - bar.x, s.z - bar.z);
+                if (dd < best) { best = dd; front = { x: s.x - bar.x, z: s.z - bar.z }; }
+            });
+            if (front && best > 0.01) { var fl = Math.hypot(front.x, front.z); front = { x: front.x / fl, z: front.z / fl }; }
+            else front = rotLocal(Number(bar.rotY) || 0, 0, -1);
+            var lat = { x: -front.z, z: front.x };
+            coffee.push({
+                x: round2(bar.x + front.x * 0.78 + lat.x * 0.75),
+                z: round2(bar.z + front.z * 0.78 + lat.z * 0.75),
+                facing: Math.round(Math.atan2(-front.x, -front.z) * 1000) / 1000,
+                seated: false, seatY: 0
+            });
+        });
+
+        var game = [];
+        items('pingpong').forEach(function (f) {
+            /* Berdiri di luar kedua ujung meja (setengah panjang 1.37 + 0.5). */
+            game.push(localSpot(f, -1.87, 0, 1, 0, false, 0));
+            game.push(localSpot(f, 1.87, 0, -1, 0, false, 0));
+        });
+        items('arcade').forEach(function (f) { game.push(localSpot(f, 0, 0.85, 0, -1, false, 0)); });
+
+        var kitchen = [];
+        items('pantry').forEach(function (f) {
+            /* Berdiri di depan counter dapur (sisi lokal +z, 0.3+0.48 dari pusat). */
+            kitchen.push(localSpot(f, -0.55, 0.78, 0, -1, false, 0));
+            kitchen.push(localSpot(f, 0.55, 0.78, 0, -1, false, 0));
+        });
+        items('fridge').forEach(function (f) { kitchen.push(localSpot(f, 0, 0.88, 0, -1, false, 0)); });
+
+        var stops = [];
+        if (lounge.length) stops.push({ key: 'lounge', label: 'Relaxing in the lounge', spots: lounge });
+        if (coffee.length) stops.push({ key: 'coffee', label: 'At the coffee bar', spots: coffee });
+        if (game.length) stops.push({ key: 'game', label: 'Playing ping pong', spots: game });
+        if (kitchen.length) stops.push({ key: 'kitchen', label: 'In the kitchen', spots: kitchen });
+        stops.push({
+            key: 'chat', label: 'Chatting in the aisle',
+            spots: [
+                { x: -0.1, z: -0.1, facing: Math.PI / 2, seated: false },
+                { x: 1.5, z: -0.1, facing: -Math.PI / 2, seated: false }
+            ]
+        });
+        stops.push({
+            key: 'jalan', label: 'Walking the aisle',
+            spots: [
+                { x: -1.4, z: AISLE_Z, facing: 0, seated: false },
+                { x: 2.6, z: AISLE_Z, facing: Math.PI, seated: false },
+                { x: 5.2, z: 1.0, facing: 0, seated: false }
+            ]
+        });
+        return stops;
     }
 
     function buildLayout(agentCount, custom) {
         var cfg = custom && typeof custom === 'object' ? custom : null;
         var desks = (cfg && Array.isArray(cfg.desks) && cfg.desks.length
             ? cfg.desks.map(function (d) {
-                return Array.isArray(d) ? [Number(d[0]) || 0, Number(d[1]) || 0] : [Number(d.x) || 0, Number(d.z) || 0];
+                var info = deskInfo(d);
+                return [info.x, info.z, round2(info.rot)];
             })
             : defaultLayoutData().desks
         ).slice(0, Math.max(1, agentCount));
@@ -185,59 +320,12 @@
             ? cfg.partitions
             : defaultLayoutData().partitions;
 
-        /* Spot idle menempel furnitur layout baru (beanbag/pingpong/stool/dapur/sofa). */
-        var idleStops = [
-            {
-                key: 'lounge',
-                label: 'On the bean bag',
-                spots: [
-                    { x: 6.8, z: 0.4, facing: -0.5, seated: true },
-                    { x: 8.6, z: 0.4, facing: Math.PI, seated: true }
-                ]
-            },
-            {
-                key: 'coffee',
-                label: 'At the coffee bar',
-                spots: [
-                    { x: 5.4, z: 3.65, facing: 0, seated: true },
-                    { x: 6.1, z: 3.65, facing: 0, seated: true },
-                    { x: 7.1, z: 3.9, facing: Math.PI, seated: false }
-                ]
-            },
-            {
-                key: 'game',
-                label: 'Playing ping pong',
-                spots: [
-                    { x: 5.8, z: -2.7, facing: Math.PI / 2, seated: false },
-                    { x: 9.4, z: -2.7, facing: -Math.PI / 2, seated: false }
-                ]
-            },
-            {
-                key: 'kitchen',
-                label: 'In the kitchen',
-                spots: [
-                    { x: 8.5, z: 3.0, facing: Math.PI / 2, seated: false },
-                    { x: 7.4, z: 4.0, facing: Math.PI, seated: false }
-                ]
-            },
-            {
-                key: 'chat',
-                label: 'Chatting in the aisle',
-                spots: [
-                    { x: -0.1, z: -0.1, facing: Math.PI / 2, seated: false },
-                    { x: 1.5, z: -0.1, facing: -Math.PI / 2, seated: false }
-                ]
-            },
-            {
-                key: 'jalan',
-                label: 'Walking the aisle',
-                spots: [
-                    { x: -1.4, z: AISLE_Z, facing: 0, seated: false },
-                    { x: 2.6, z: AISLE_Z, facing: Math.PI, seated: false },
-                    { x: 5.2, z: 1.0, facing: 0, seated: false }
-                ]
-            }
-        ];
+        /* Spot idle diturunkan dari furnitur layout aktif (deriveIdleStops):
+           bean bag/sofa/stool persis di dudukannya, pingpong/dapur titik berdiri. */
+        var idleStops = deriveIdleStops(furniture);
+        var idleRoute = ['lounge', 'coffee', 'game', 'chat', 'kitchen', 'jalan']
+            .filter(function (k) { return idleStops.some(function (s) { return s.key === k; }); });
+        if (!idleRoute.length) idleRoute = ['chat'];
 
         return {
             aisleZ: AISLE_Z,
@@ -252,7 +340,7 @@
             cameraOffset: [-8, 18, 19],
             pan: { minX: -12.5, maxX: 13.5, minZ: -8, maxZ: 8 },
             idleStops: idleStops,
-            idleRoute: ['lounge', 'coffee', 'game', 'chat', 'kitchen', 'jalan', 'lounge']
+            idleRoute: idleRoute
         };
     }
 
@@ -395,7 +483,7 @@
             var ed = w * s + d * c;
             boxes.push({ minX: cx - ew / 2, maxX: cx + ew / 2, minZ: cz - ed / 2, maxZ: cz + ed / 2 });
         }
-        (LAYOUT.desks || []).forEach(function (d) { addBox(d[0], d[1], 1.42, 0.76, 0); });
+        (LAYOUT.desks || []).forEach(function (d) { var di = deskInfo(d); addBox(di.x, di.z, 1.42, 0.76, di.rot); });
         (LAYOUT.furniture || []).forEach(function (item) {
             if (!item || !item.type) return;
             var x = Number(item.x) || 0;
@@ -709,9 +797,9 @@
         var anim = emp.animationState || (emp.animation && emp.animation.state) || '';
         // Pose baru tersuling (#3): berpikir & kelebihan beban selalu di meja.
         if (anim === 'thinking' || anim === 'overloaded') {
-            var deskAnim = LAYOUT.desks[seatIndex % LAYOUT.desks.length];
+            var seatAnim = deskSeatSpot(LAYOUT.desks[seatIndex % LAYOUT.desks.length]);
             return {
-                x: deskAnim[0], z: deskAnim[1] - 0.78, facing: 0, seated: true,
+                x: seatAnim.x, z: seatAnim.z, facing: seatAnim.facing, seated: true, seatY: seatAnim.seatY,
                 pose: anim === 'thinking' ? 'thinking' : 'tired',
                 activity: anim,
                 speech: statusSpeech(emp),
@@ -719,9 +807,9 @@
             };
         }
         if (anim === 'waiting' && st !== 'awaiting_approval') {
-            var deskWait = LAYOUT.desks[seatIndex % LAYOUT.desks.length];
+            var seatWait = deskSeatSpot(LAYOUT.desks[seatIndex % LAYOUT.desks.length]);
             return {
-                x: deskWait[0], z: deskWait[1] - 0.78, facing: 0, seated: true,
+                x: seatWait.x, z: seatWait.z, facing: seatWait.facing, seated: true, seatY: seatWait.seatY,
                 pose: 'waiting', activity: 'waiting',
                 speech: statusSpeech(emp), label: 'Waiting'
             };
@@ -729,7 +817,7 @@
         if (st === 'awaiting_approval') {
             var m = LAYOUT.meeting[meetingIndex % LAYOUT.meeting.length];
             return {
-                x: m.x, z: m.z, facing: m.facing, seated: !!m.seated,
+                x: m.x, z: m.z, facing: m.facing, seated: !!m.seated, seatY: m.seatY || 0,
                 pose: m.seated ? 'sit' : 'stand',
                 activity: 'chat',
                 speech: statusSpeech(emp),
@@ -737,9 +825,9 @@
             };
         }
         if (st === 'working' || st === 'standby' || st === 'needs_info' || st === 'failed' || st === 'done') {
-            var desk = LAYOUT.desks[seatIndex % LAYOUT.desks.length];
+            var seatDesk = deskSeatSpot(LAYOUT.desks[seatIndex % LAYOUT.desks.length]);
             return {
-                x: desk[0], z: desk[1] - 0.78, facing: 0,
+                x: seatDesk.x, z: seatDesk.z, facing: seatDesk.facing, seatY: seatDesk.seatY,
                 seated: st === 'working' || st === 'standby' || st === 'needs_info',
                 pose: st === 'failed' ? 'slump' : (st === 'done' ? 'cheer' : 'sit'),
                 activity: st === 'working' || st === 'standby' ? 'work' : (st === 'needs_info' ? 'review' : st),
@@ -750,7 +838,7 @@
         if (idleAssignment) {
             var spot = idleAssignment.spot;
             return {
-                x: spot.x, z: spot.z, facing: spot.facing,
+                x: spot.x, z: spot.z, facing: spot.facing, seatY: spot.seatY || 0,
                 seated: !!spot.seated,
                 pose: spot.seated ? 'sit' : 'stand',
                 activity: idleAssignment.stop.key,
@@ -759,9 +847,9 @@
                 idleKey: idleAssignment.stop.key
             };
         }
-        var desk2 = LAYOUT.desks[seatIndex % LAYOUT.desks.length];
+        var seatIdle = deskSeatSpot(LAYOUT.desks[seatIndex % LAYOUT.desks.length]);
         return {
-            x: desk2[0], z: desk2[1] - 0.78, facing: 0, seated: false,
+            x: seatIdle.x, z: seatIdle.z, facing: seatIdle.facing, seated: false,
             pose: 'stand', activity: 'idle', speech: '', label: STATUS_LABEL.idle
         };
     }
@@ -1223,7 +1311,8 @@
         /* Work desks + colorful chairs */
         var chairColors = [TEAL, YELLOW, TEAL, YELLOW, TEAL, YELLOW, TEAL];
         LAYOUT.desks.forEach(function (d, i) {
-            addStartupDesk(roomRoot, d[0], d[1], chairColors[i % chairColors.length]);
+            var di = deskInfo(d);
+            addStartupDesk(roomRoot, di.x, di.z, chairColors[i % chairColors.length], di.rot);
         });
         /* Meja meeting memanjang — hanya bila belum dihapus dari layout */
         if (LAYOUT.meetingTable && LAYOUT.meetingTable.enabled !== false) {
@@ -1247,8 +1336,8 @@
         box(parent, x, 0.97, z, 0.24, 0.06, 0.16, 0xeab308, 0.7);
     }
 
-    function addStartupDesk(parent, x, z, seatColor) {
-        var g = groupAt(parent, x, 0, z);
+    function addStartupDesk(parent, x, z, seatColor, rotY) {
+        var g = groupAt(parent, x, 0, z, rotY || 0);
         /* Meja futuristik: slab putih glossy melayang, kaki panel grafit
            miring, dan strip cahaya cyan di tepi depan + bawah meja. */
         box(g, 0, 0.72, 0, 1.35, 0.06, 0.72, 0xf8fafc, 0.22, 0.08);
@@ -1867,6 +1956,9 @@
         }
 
         applyPose(ch, t, walking);
+        /* Tinggi duduk mengikuti furnitur (bean bag rendah, stool tinggi). */
+        var seatTargetY = (!walking && ud.placement && ud.placement.seated) ? (Number(ud.placement.seatY) || 0) : 0;
+        ch.position.y += (seatTargetY - ch.position.y) * Math.min(1, (dt || 0.016) * 8);
         var auraPulse = ud.status === 'working' ? 1 + Math.sin(t * 4) * 0.08 : 1;
         ud.parts.aura.scale.setScalar(auraPulse);
     }
@@ -1919,8 +2011,8 @@
             if (!ch) {
                 var look = agentLook(emp.id, emp.avatarColor);
                 ch = createHumanoid(emp.avatarColor || look.shirt, look);
-                var desk = LAYOUT.desks[i % LAYOUT.desks.length];
-                ch.position.set(desk[0], 0, desk[1] - 0.78);
+                var seat0 = deskSeatSpot(LAYOUT.desks[i % LAYOUT.desks.length]);
+                ch.position.set(seat0.x, 0, seat0.z);
                 scene.add(ch);
                 characters.push(ch);
             }
@@ -2339,6 +2431,11 @@
         isPanMode: isPanMode,
         setLayout: setLayout,
         getLayout: getLayout,
+        __test: {
+            buildLayout: buildLayout, deskSeatSpot: deskSeatSpot, deskInfo: deskInfo,
+            deriveIdleStops: deriveIdleStops, navPath: navPath, pointBlocked: pointBlocked,
+            getLayoutRef: function () { return LAYOUT; }
+        },
         getDefaultLayout: defaultLayoutData
     };
 })(typeof window !== 'undefined' ? window : globalThis);

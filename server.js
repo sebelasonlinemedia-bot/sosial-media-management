@@ -1773,6 +1773,7 @@ app.put('/api/ai/settings', async (req, res) => {
         if (body.rolePermissions != null) patch.rolePermissions = body.rolePermissions;
         if (body.roleSkills != null) patch.roleSkills = body.roleSkills;
         if (body.officeLayout !== undefined) patch.officeLayout = body.officeLayout;
+        if (body.defaultOfficeLayout !== undefined) patch.defaultOfficeLayout = body.defaultOfficeLayout;
         if (body.insightsEnabled != null) patch.insightsEnabled = !!body.insightsEnabled;
 
         // LLM: provider/model + apiKey (plain dari client → encrypt at-rest)
@@ -2254,6 +2255,7 @@ app.get('/api/ai/office', async (req, res) => {
                 rolePermissions: settings.rolePermissions,
                 roleSkills: settings.roleSkills || {},
                 officeLayout: settings.officeLayout || null,
+                defaultOfficeLayout: settings.defaultOfficeLayout || null,
                 insightsEnabled: settings.insightsEnabled !== false
             },
             knownSkills: KNOWN_SKILLS,

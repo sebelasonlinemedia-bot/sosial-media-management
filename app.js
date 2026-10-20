@@ -1341,14 +1341,25 @@ app.renderSettings = async function () {
 // ============================================================
 app._layoutEditor = null;
 
+/** Posisi+rotasi meja agen dari format [x,z] lama / [x,z,rotY] / {x,z,rotY}. */
+app._deskPos = function (d) {
+    if (Array.isArray(d)) return [Number(d[0]) || 0, Number(d[1]) || 0, Number(d[2]) || 0];
+    d = d || {};
+    return [Number(d.x) || 0, Number(d.z) || 0, Number(d.rotY != null ? d.rotY : d.rot) || 0];
+};
+
+/** Default efektif: default tersimpan server (Save to Default) > default pabrik kode. */
 app._layoutDefaultData = function () {
+    const savedDefault = typeof appState !== 'undefined' && appState.office && appState.office.settings
+        ? appState.office.settings.defaultOfficeLayout : null;
+    if (savedDefault) return JSON.parse(JSON.stringify(savedDefault));
     if (typeof AiOffice3D !== 'undefined' && typeof AiOffice3D.getDefaultLayout === 'function') {
         return AiOffice3D.getDefaultLayout();
     }
     return {
         wallHeight: 2.55,
         building: { minX: -10.7, maxX: 12.1, minZ: -5.9, maxZ: 5.1 },
-        desks: [[-8.6, -3.7], [-6.4, -3.7], [-4.2, -3.7], [-2.0, -3.7], [-7.5, -1.5], [-5.3, -1.5], [-3.1, -1.5]],
+        desks: [[-8.6, -3.7, 0], [-6.4, -3.7, 0], [-4.2, -3.7, 0], [-2.0, -3.7, 0], [-7.5, -1.5, 0], [-5.3, -1.5, 0], [-3.1, -1.5, 0]],
         partitions: { segments: [
             { axis: 'v', at: 0.7, from: -5.9, to: -1.0 },
             { axis: 'v', at: 0.7, from: 0.8, to: 1.8 },
@@ -1417,7 +1428,10 @@ app._updateLayoutSelectedInfo = function () {
     const sel = ed.selected;
     if (sel.kind === 'desk') {
         const d = ed.data.desks[sel.index];
-        info.textContent = d ? `Meja agen #${sel.index + 1} — posisi (${d[0].toFixed(1)}, ${d[1].toFixed(1)})` : 'Meja agen';
+        if (d) {
+            const dp = app._deskPos(d);
+            info.textContent = `Meja agen #${sel.index + 1} — posisi (${dp[0].toFixed(1)}, ${dp[1].toFixed(1)}) \u00b7 putar ${Math.round((dp[2] * 180) / Math.PI)}\u00b0`;
+        } else info.textContent = 'Meja agen';
     } else if (sel.kind === 'meeting') {
         const m = ed.data.meetingTable;
         info.textContent = m ? `Meja meeting — posisi (${m.x.toFixed(1)}, ${m.z.toFixed(1)})` : 'Meja meeting';
@@ -1524,6 +1538,8 @@ app._drawLayoutCanvas = function () {
         ctx.fillText('MEETING', mtX, mtY + 3);
     }
 
+    // Offset lokal (lx,lz) diputar rotY dunia (samakan dengan rotLocal scene 3D)
+    const rotOffset = (rot, lx, lz) => [lx * Math.cos(rot) + lz * Math.sin(rot), -lx * Math.sin(rot) + lz * Math.cos(rot)];
     const drawItem = (x, z, w, h, color, label, selected, rotY) => {
         const [px, py] = toPx(x, z);
         const pw = Math.max(8, w * scale);
@@ -1568,8 +1584,10 @@ app._drawLayoutCanvas = function () {
     // Meja agen + kursi (kursi di sisi atas meja = sisi agen duduk)
     (d.desks || []).forEach((desk, i) => {
         const sel = ed.selected && ed.selected.kind === 'desk' && ed.selected.index === i;
-        drawItem(desk[0], desk[1] - 0.68, 0.42, 0.42, '#1f6f6b', '', sel);
-        drawItem(desk[0], desk[1], 1.25, 0.65, '#e8d5b5', `A${i + 1}`, sel);
+        const dp = app._deskPos(desk);
+        const co = rotOffset(dp[2], 0, -0.68);
+        drawItem(dp[0] + co[0], dp[1] + co[1], 0.42, 0.42, '#1f6f6b', '', sel, dp[2]);
+        drawItem(dp[0], dp[1], 1.25, 0.65, '#e8d5b5', `A${i + 1}`, sel, dp[2]);
     });
 
     // Label zona
@@ -1594,7 +1612,12 @@ app._layoutHitTest = function (worldX, worldZ) {
         if (en <= 1) return { kind: 'meeting', index: 0 };
     }
     for (let i = (d.desks || []).length - 1; i >= 0; i--) {
-        if (Math.abs(worldX - d.desks[i][0]) <= 0.75 && Math.abs(worldZ - d.desks[i][1]) <= 0.6) {
+        const hp = app._deskPos(d.desks[i]);
+        const dxw = worldX - hp[0];
+        const dzw = worldZ - hp[1];
+        const lx = dxw * Math.cos(hp[2]) - dzw * Math.sin(hp[2]);
+        const lz = dxw * Math.sin(hp[2]) + dzw * Math.cos(hp[2]);
+        if (Math.abs(lx) <= 0.8 && lz >= -1.05 && lz <= 0.5) {
             return { kind: 'desk', index: i };
         }
     }
@@ -1683,7 +1706,8 @@ app.setupLayoutEditorEvents = function () {
             const nx = Math.round((wx - ed.drag.dx) * 10) / 10;
             const nz = Math.round((wz - ed.drag.dz) * 10) / 10;
             if (ed.drag.kind === 'desk') {
-                ed.data.desks[ed.drag.index] = [nx, nz];
+                const oldRot = app._deskPos(ed.data.desks[ed.drag.index])[2];
+                ed.data.desks[ed.drag.index] = [nx, nz, oldRot];
             } else {
                 ed.data.furniture[ed.drag.index].x = nx;
                 ed.data.furniture[ed.drag.index].z = nz;
@@ -1774,6 +1798,11 @@ app.setupLayoutEditorEvents = function () {
                         seg.to = Math.round((center + half) * 10) / 10;
                     }
                 }
+            } else if (ed.selected.kind === 'desk') {
+                const cur = app._deskPos(ed.data.desks[ed.selected.index]);
+                let nextRot = cur[2] + Math.PI / 4;
+                if (nextRot > Math.PI) nextRot -= Math.PI * 2;
+                ed.data.desks[ed.selected.index] = [cur[0], cur[1], Math.round(nextRot * 100) / 100];
             } else if (ed.selected.kind === 'furniture') {
                 const f = ed.data.furniture[ed.selected.index];
                 if (f) {
@@ -1872,7 +1901,7 @@ app.setupLayoutEditorEvents = function () {
                 this.showToast('Maksimal 12 meja agen.', 'yellow');
                 return;
             }
-            ed.data.desks.push([-1, 1.8]);
+            ed.data.desks.push([-1, 1.8, 0]);
             ed.selected = { kind: 'desk', index: ed.data.desks.length - 1 };
             this._updateLayoutSelectedInfo();
             this._drawLayoutCanvas();
@@ -1906,6 +1935,10 @@ app.setupLayoutEditorEvents = function () {
     if (saveBtn) {
         saveBtn.addEventListener('click', () => this.saveOfficeLayout());
     }
+    const saveDefaultBtn = document.getElementById('layout-save-default');
+    if (saveDefaultBtn) {
+        saveDefaultBtn.addEventListener('click', () => this.saveLayoutAsDefault());
+    }
     const openBtn = document.getElementById('layout-open-office');
     if (openBtn) {
         openBtn.addEventListener('click', () => this.switchView('mission'));
@@ -1929,6 +1962,30 @@ app.saveOfficeLayout = async function () {
         this.showToast('Layout kantor disimpan & diterapkan.', 'emerald');
     } catch (e) {
         this.showToast('Gagal menyimpan layout.', 'red');
+    }
+};
+
+/** "Save to Default": simpan layout editan sebagai DEFAULT workspace persisten
+ *  di server (settings.defaultOfficeLayout) sekaligus layout aktif, sehingga
+ *  Reset bawaan kembali ke layout ini & kantor langsung memakainya. */
+app.saveLayoutAsDefault = async function () {
+    const ed = this._layoutEditor;
+    if (!ed) return;
+    try {
+        const data = await api.put('/api/ai/settings', { defaultOfficeLayout: ed.data, officeLayout: ed.data });
+        if (!data.success) {
+            this.showToast(data.message || 'Gagal menyimpan default.', 'red');
+            return;
+        }
+        if (!appState.office.settings) appState.office.settings = {};
+        appState.office.settings.defaultOfficeLayout = data.settings.defaultOfficeLayout;
+        appState.office.settings.officeLayout = data.settings.officeLayout;
+        this.applySavedOfficeLayout(true);
+        const status = document.getElementById('layout-editor-status');
+        if (status) status.textContent = 'Layout ini sekarang DEFAULT workspace - Reset bawaan akan kembali ke layout ini.';
+        this.showToast('Layout disimpan sebagai default workspace.', 'emerald');
+    } catch (e) {
+        this.showToast('Gagal menyimpan layout sebagai default.', 'red');
     }
 };
 
@@ -2430,7 +2487,8 @@ app.saveOfficeBrandMemory = async function () {
 /** Terapkan officeLayout tersimpan ke scene 3D (sekali per perubahan data). */
 app.applySavedOfficeLayout = function (force) {
     if (typeof AiOffice3D === 'undefined' || typeof AiOffice3D.setLayout !== 'function') return;
-    const saved = appState.office.settings && appState.office.settings.officeLayout;
+    const saved = appState.office.settings
+        && (appState.office.settings.officeLayout || appState.office.settings.defaultOfficeLayout);
     if (!saved) return;
     const key = JSON.stringify(saved);
     if (!force && appState.office.appliedLayoutJson === key) return;
