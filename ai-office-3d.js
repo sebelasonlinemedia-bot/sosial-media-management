@@ -14,6 +14,12 @@
     var STORAGE_KEY = 'piks-digital-lab-office-3d';
     var IDLE_STOP_MS = 28000;
     var WALK_SPEED = 2.6;
+    /* Navigasi anti-tabrakan: robot dianggap lingkaran berjari-jari ini;
+       jalur dicari dengan A* di grid lantai, lalu antar-robot saling
+       menghindar dengan steering pemisah setiap frame. */
+    var ROBOT_RADIUS = 0.3;
+    var NAV_CELL = 0.3;
+    var AGENT_MIN_DIST = 0.58;
 
     var STATUS_AURA = {
         idle: 0x64748b,
@@ -175,8 +181,8 @@
                 key: 'game',
                 label: 'Playing ping pong',
                 spots: [
-                    { x: 4.85, z: -0.55, facing: Math.PI / 2, seated: false },
-                    { x: 7.35, z: -0.55, facing: -Math.PI / 2, seated: false }
+                    { x: 4.5, z: -0.55, facing: Math.PI / 2, seated: false },
+                    { x: 7.7, z: -0.55, facing: -Math.PI / 2, seated: false }
                 ]
             },
             {
@@ -337,13 +343,331 @@
         return plan;
     }
 
+    /* ---------- Navigasi anti-tabrakan (statis: furnitur; dinamis: robot lain) ---------- */
+
+    var FURNITURE_FOOTPRINT = {
+        desk: [1.45, 1.6], workdesk: [1.95, 1.6], chair: [0.62, 0.62],
+        sofa: [2.45, 1.0], armchair: [0.95, 0.9], coffeetable: [1.35, 0.75],
+        pantry: [2.05, 0.7], fridge: [0.85, 0.8], galon: [0.5, 0.5],
+        bookshelf: [1.45, 0.45], tv: [2.05, 0.25], stool: [0.4, 0.4],
+        arcade: [0.8, 0.7], coffeebar: [2.25, 0.65], pingpong: [2.8, 1.58]
+    };
+    var FURNITURE_CIRCLE = { beanbag: 0.44, roundtable: 0.52, meetingtable: 1.08, plant: 0.3, tree: 0.35, lamp: 0.18 };
+
+    var navCache = null;
+
+    /** Daftar rintangan dari layout aktif: kotak (AABB dunia) + lingkaran. */
+    function buildNavObstacles() {
+        var boxes = [];
+        var circles = [];
+        function addBox(cx, cz, w, d, rot) {
+            var c = Math.abs(Math.cos(rot || 0));
+            var s = Math.abs(Math.sin(rot || 0));
+            var ew = w * c + d * s;
+            var ed = w * s + d * c;
+            boxes.push({ minX: cx - ew / 2, maxX: cx + ew / 2, minZ: cz - ed / 2, maxZ: cz + ed / 2 });
+        }
+        (LAYOUT.desks || []).forEach(function (d) { addBox(d[0], d[1], 1.42, 0.76, 0); });
+        (LAYOUT.furniture || []).forEach(function (item) {
+            if (!item || !item.type) return;
+            var x = Number(item.x) || 0;
+            var z = Number(item.z) || 0;
+            if (FURNITURE_CIRCLE[item.type]) {
+                circles.push({ x: x, z: z, r: FURNITURE_CIRCLE[item.type] });
+            } else if (FURNITURE_FOOTPRINT[item.type]) {
+                var fp = FURNITURE_FOOTPRINT[item.type];
+                addBox(x, z, fp[0], fp[1], Number(item.rotY) || 0);
+            }
+        });
+        if (LAYOUT.meetingTable && LAYOUT.meetingTable.enabled !== false) {
+            circles.push({ x: LAYOUT.meetingTable.x, z: LAYOUT.meetingTable.z, r: (LAYOUT.meetingTable.radius || 1.05) + 0.03 });
+        }
+        (LAYOUT.partitions && LAYOUT.partitions.segments || []).forEach(function (seg) {
+            if (seg.axis === 'h') addBox((seg.from + seg.to) / 2, seg.at, Math.abs(seg.to - seg.from), 0.26, 0);
+            else addBox(seg.at, (seg.from + seg.to) / 2, 0.26, Math.abs(seg.to - seg.from), 0);
+        });
+        /* Kabinet rendah di dinding belakang TIDAK dijadikan rintangan:
+           kursi baris belakang memang menempel tepat di depannya. */
+        return { boxes: boxes, circles: circles };
+    }
+
+    function getNavObstacles() {
+        if (!navCache) navCache = buildNavObstacles();
+        return navCache;
+    }
+
+    /** Titik (x,z) menabrak furnitur? `pad` = tambahan jarak aman di luar jari-jari robot.
+     *  `extra` = lingkaran rintangan tambahan (mis. posisi robot lain saat jalur-ulang). */
+    function pointBlocked(x, z, pad, extra) {
+        var nav = getNavObstacles();
+        var p = (pad || 0) + ROBOT_RADIUS;
+        var i;
+        for (i = 0; i < nav.boxes.length; i += 1) {
+            var b = nav.boxes[i];
+            if (x > b.minX - p && x < b.maxX + p && z > b.minZ - p && z < b.maxZ + p) return true;
+        }
+        var circles = extra && extra.length ? nav.circles.concat(extra) : nav.circles;
+        for (i = 0; i < circles.length; i += 1) {
+            var c = circles[i];
+            var dx = x - c.x;
+            var dz = z - c.z;
+            var rr = c.r + p;
+            if (dx * dx + dz * dz < rr * rr) return true;
+        }
+        return false;
+    }
+
+    function segmentHitsBox(x1, z1, x2, z2, b, p) {
+        var minX = b.minX - p;
+        var maxX = b.maxX + p;
+        var minZ = b.minZ - p;
+        var maxZ = b.maxZ + p;
+        var dx = x2 - x1;
+        var dz = z2 - z1;
+        var tmin = 0;
+        var tmax = 1;
+        var t;
+        if (Math.abs(dx) < 1e-9) { if (x1 < minX || x1 > maxX) return false; }
+        else {
+            t = (minX - x1) / dx;
+            var t2 = (maxX - x1) / dx;
+            if (t > t2) { var tt = t; t = t2; t2 = tt; }
+            tmin = Math.max(tmin, t); tmax = Math.min(tmax, t2);
+            if (tmin > tmax) return false;
+        }
+        if (Math.abs(dz) < 1e-9) { if (z1 < minZ || z1 > maxZ) return false; }
+        else {
+            t = (minZ - z1) / dz;
+            var t3 = (maxZ - z1) / dz;
+            if (t > t3) { var t4 = t; t = t3; t3 = t4; }
+            tmin = Math.max(tmin, t); tmax = Math.min(tmax, t3);
+            if (tmin > tmax) return false;
+        }
+        return true;
+    }
+
+    /** Garis lurus dari (x1,z1) ke (x2,z2) menabrak furnitur? */
+    function segmentBlocked(x1, z1, x2, z2, pad, extra) {
+        var nav = getNavObstacles();
+        var p = (pad || 0) + ROBOT_RADIUS;
+        var i;
+        for (i = 0; i < nav.boxes.length; i += 1) {
+            if (segmentHitsBox(x1, z1, x2, z2, nav.boxes[i], p)) return true;
+        }
+        var circles = extra && extra.length ? nav.circles.concat(extra) : nav.circles;
+        for (i = 0; i < circles.length; i += 1) {
+            var c = circles[i];
+            var dx = x2 - x1;
+            var dz = z2 - z1;
+            var len2 = dx * dx + dz * dz || 1e-9;
+            var t = ((c.x - x1) * dx + (c.z - z1) * dz) / len2;
+            t = Math.max(0, Math.min(1, t));
+            var px = x1 + dx * t - c.x;
+            var pz = z1 + dz * t - c.z;
+            var rr = c.r + p;
+            if (px * px + pz * pz < rr * rr) return true;
+        }
+        return false;
+    }
+
+    /** Cari jalur bebas furnitur dengan A* di grid lantai, lalu luruskan
+     *  (line-of-sight shortcut). Sel awal & tujuan selalu dianggap bebas —
+     *  tujuan memang bisa menempel furnitur (kursi meja, bean bag, stool). */
+    function navPath(fromX, fromZ, toX, toZ, extraCircles) {
+        var b = LAYOUT.building;
+        var minX = b.minX + ROBOT_RADIUS + 0.08;
+        var maxX = b.maxX - ROBOT_RADIUS - 0.08;
+        var minZ = b.minZ + ROBOT_RADIUS + 0.08;
+        var maxZ = b.maxZ - ROBOT_RADIUS - 0.08;
+        var cols = Math.max(2, Math.ceil((maxX - minX) / NAV_CELL));
+        var rows = Math.max(2, Math.ceil((maxZ - minZ) / NAV_CELL));
+        function cellOf(x, z) {
+            var cx = Math.max(0, Math.min(cols - 1, Math.floor((x - minX) / NAV_CELL)));
+            var cz = Math.max(0, Math.min(rows - 1, Math.floor((z - minZ) / NAV_CELL)));
+            return cz * cols + cx;
+        }
+        function centerOf(idx) {
+            return { x: minX + (idx % cols + 0.5) * NAV_CELL, z: minZ + (Math.floor(idx / cols) + 0.5) * NAV_CELL };
+        }
+        var total = cols * rows;
+        var blocked = new Uint8Array(total);
+        var i;
+        for (i = 0; i < total; i += 1) {
+            var cc = centerOf(i);
+            if (pointBlocked(cc.x, cc.z, 0, extraCircles)) blocked[i] = 1;
+        }
+        /* Titik awal/tujuan bisa berada DI zona furnitur (duduk di bean bag,
+           stool, kursi menempel meja): sel persisnya dikelilingi sel terblokir
+           sehingga tak terjangkau A*. Maka bidik sel bebas terdekat, dan
+           pendekatan akhir ke titik persisnya ditempuh lurus (diizinkan oleh
+           pengecualian dekat-tujuan & aturan keluar di navPositionFree). */
+        function nearestFreeCell(x, z) {
+            var best = -1;
+            var bestD = Infinity;
+            for (var k = 0; k < total; k += 1) {
+                if (blocked[k]) continue;
+                var c = centerOf(k);
+                var d = (c.x - x) * (c.x - x) + (c.z - z) * (c.z - z);
+                if (d < bestD) { bestD = d; best = k; }
+            }
+            return best;
+        }
+        var start = cellOf(fromX, fromZ);
+        if (blocked[start]) start = nearestFreeCell(fromX, fromZ);
+        var goal = cellOf(toX, toZ);
+        if (blocked[goal]) goal = nearestFreeCell(toX, toZ);
+        if (start === -1 || goal === -1) return null;
+        blocked[start] = 0;
+        blocked[goal] = 0;
+        var gScore = new Float32Array(total).fill(Infinity);
+        var came = new Int32Array(total).fill(-1);
+        var closed = new Uint8Array(total);
+        var open = [start];
+        gScore[start] = 0;
+        var goalC = centerOf(goal);
+        function heur(idx) {
+            var c = centerOf(idx);
+            return Math.hypot(c.x - goalC.x, c.z - goalC.z);
+        }
+        var found = start === goal;
+        while (open.length && !found) {
+            var bestI = 0;
+            var bestF = Infinity;
+            for (i = 0; i < open.length; i += 1) {
+                var f = gScore[open[i]] + heur(open[i]);
+                if (f < bestF) { bestF = f; bestI = i; }
+            }
+            var cur = open.splice(bestI, 1)[0];
+            if (cur === goal) { found = true; break; }
+            if (closed[cur]) continue;
+            closed[cur] = 1;
+            var cxI = cur % cols;
+            var czI = Math.floor(cur / cols);
+            var dirs = [[1, 0, 1], [-1, 0, 1], [0, 1, 1], [0, -1, 1], [1, 1, 1.414], [1, -1, 1.414], [-1, 1, 1.414], [-1, -1, 1.414]];
+            dirs.forEach(function (d) {
+                var nx = cxI + d[0];
+                var nz = czI + d[1];
+                if (nx < 0 || nz < 0 || nx >= cols || nz >= rows) return;
+                var nIdx = nz * cols + nx;
+                if (blocked[nIdx] || closed[nIdx]) return;
+                /* Jangan memotong sudut furnitur secara diagonal. */
+                if (d[0] && d[1] && (blocked[czI * cols + nx] || blocked[nz * cols + cxI])) return;
+                var g = gScore[cur] + d[2] * NAV_CELL;
+                if (g < gScore[nIdx]) {
+                    gScore[nIdx] = g;
+                    came[nIdx] = cur;
+                    open.push(nIdx);
+                }
+            });
+        }
+        if (!found) {
+            /* Tujuan persis terkurung furnitur (sel bebas terdekat pun bisa
+               berada di kantong terisolasi): berhenti di sel terjangkau yang
+               paling dekat dengan tujuan, pendekatan akhirnya ditempuh lurus. */
+            var bestGoal = -1;
+            var bestGD = Infinity;
+            for (i = 0; i < total; i += 1) {
+                if (!closed[i] && i !== start) continue;
+                var gc = centerOf(i);
+                var gd = (gc.x - toX) * (gc.x - toX) + (gc.z - toZ) * (gc.z - toZ);
+                if (gd < bestGD) { bestGD = gd; bestGoal = i; }
+            }
+            if (bestGoal === -1) return null;
+            goal = bestGoal;
+            found = true;
+        }
+        var cells = [];
+        var node = goal;
+        while (node !== -1) { cells.push(node); node = came[node]; }
+        cells.reverse();
+        var pts = [{ x: fromX, z: fromZ }];
+        cells.forEach(function (idx) { pts.push(centerOf(idx)); });
+        pts.push({ x: toX, z: toZ });
+        /* Pelurusan: lompat ke titik terjauh yang terlihat langsung. */
+        var out = [];
+        var anchor = pts[0];
+        var ai = 0;
+        while (ai < pts.length - 1) {
+            var far = ai + 1;
+            var j;
+            for (j = pts.length - 1; j > ai + 1; j -= 1) {
+                if (!segmentBlocked(anchor.x, anchor.z, pts[j].x, pts[j].z, 0, extraCircles)) { far = j; break; }
+            }
+            anchor = pts[far];
+            out.push({ x: anchor.x, z: anchor.z });
+            ai = far;
+        }
+        return out;
+    }
+
     function aislePath(fromX, fromZ, toX, toZ) {
+        var nav = navPath(fromX, fromZ, toX, toZ);
+        if (nav && nav.length) return nav;
+        /* Cadangan bila A* gagal: jalur lorong tengah lama. */
         var az = LAYOUT.aisleZ;
         var pts = [];
         if (Math.abs(fromZ - az) > 0.12) pts.push({ x: fromX, z: az });
         if (Math.abs(fromX - toX) > 0.12) pts.push({ x: toX, z: az });
         pts.push({ x: toX, z: toZ });
         return pts;
+    }
+
+    /** Seberapa dalam titik ini masuk ke zona rintangan (0 = bebas). */
+    function blockedDepth(x, z) {
+        var nav = getNavObstacles();
+        var depth = 0;
+        var i;
+        for (i = 0; i < nav.boxes.length; i += 1) {
+            var b = nav.boxes[i];
+            if (x > b.minX - ROBOT_RADIUS && x < b.maxX + ROBOT_RADIUS &&
+                z > b.minZ - ROBOT_RADIUS && z < b.maxZ + ROBOT_RADIUS) {
+                var dIn = Math.min(
+                    x - (b.minX - ROBOT_RADIUS), (b.maxX + ROBOT_RADIUS) - x,
+                    z - (b.minZ - ROBOT_RADIUS), (b.maxZ + ROBOT_RADIUS) - z
+                );
+                if (dIn > depth) depth = dIn;
+            }
+        }
+        for (i = 0; i < nav.circles.length; i += 1) {
+            var c = nav.circles[i];
+            var dc = (c.r + ROBOT_RADIUS) - Math.hypot(x - c.x, z - c.z);
+            if (dc > depth) depth = dc;
+        }
+        return depth;
+    }
+
+    /** Posisi kandidat aman? Tidak menabrak furnitur & tidak terlalu dekat
+     *  robot lain. Dekat titik tujuan akhir tetap diizinkan (spot menempel furnitur). */
+    function navPositionFree(selfCh, x, z) {
+        var ud = selfCh.userData;
+        var nearGoal = ud.placement && Math.hypot(x - ud.placement.x, z - ud.placement.z) < 0.42;
+        if (!nearGoal && pointBlocked(x, z, 0)) {
+            /* Pengecualian keluar: robot yang sedang duduk DI spot furnitur
+               (bean bag, stool, ujung meja pingpong) posisinya sendiri berada
+               di zona rintangan — izinkan bergerak bila makin keluar. */
+            var curDepth = blockedDepth(selfCh.position.x, selfCh.position.z);
+            var escaping = curDepth > 0 && blockedDepth(x, z) < curDepth - 0.001;
+            /* Pengecualian masuk: pendekatan akhir ke spot furnitur — kandidat
+               adalah langkah terakhir, dekat tujuan, dan makin mendekat. */
+            var finalApproach = false;
+            if (ud.placement && ud.path && ud.path.length <= 1) {
+                var dCand = Math.hypot(x - ud.placement.x, z - ud.placement.z);
+                var dCur = Math.hypot(selfCh.position.x - ud.placement.x, selfCh.position.z - ud.placement.z);
+                /* Ambang 1,05: zona tiup furnitur tujuan (mis. bean bag r 0,74)
+                   mulai memblokir sebelum robot cukup dekat ke titik duduknya. */
+                finalApproach = dCand < 1.05 && dCand < dCur;
+            }
+            if (!escaping && !finalApproach) return false;
+        }
+        var b = LAYOUT.building;
+        if (x < b.minX + ROBOT_RADIUS || x > b.maxX - ROBOT_RADIUS ||
+            z < b.minZ + ROBOT_RADIUS || z > b.maxZ - ROBOT_RADIUS) return false;
+        for (var i = 0; i < characters.length; i += 1) {
+            var o = characters[i];
+            if (o === selfCh) continue;
+            if (Math.hypot(x - o.position.x, z - o.position.z) < AGENT_MIN_DIST) return false;
+        }
+        return true;
     }
 
     function placementFor(emp, seatIndex, idleAssignment, meetingIndex) {
@@ -888,14 +1212,16 @@
         legL.rotation.z = 0.08;
         var legR = box(g, 0.56, 0.35, 0, 0.06, 0.68, 0.56, 0x334155, 0.32, 0.65);
         legR.rotation.z = -0.08;
-        /* Monitor ultra-tipis + layar menyala + keyboard slab */
-        cyl(g, 0, 0.8, -0.14, 0.025, 0.14, 0x64748b, 0.28, 0.85);
-        box(g, 0, 0.94, -0.13, 0.54, 0.35, 0.018, 0x0f172a, 0.25, 0.4);
-        box(g, 0, 0.94, -0.118, 0.5, 0.31, 0.006, 0x38bdf8, 0.3, 0.05, {
+        /* Monitor ultra-tipis + layar menyala + keyboard slab.
+           Agen duduk di sisi -z menghadap +z: keyboard dekat agen (-z),
+           monitor lebih jauh (+z) dengan layar menghadap agen (-z). */
+        cyl(g, 0, 0.8, 0.18, 0.025, 0.14, 0x64748b, 0.28, 0.85);
+        box(g, 0, 0.94, 0.17, 0.54, 0.35, 0.018, 0x0f172a, 0.25, 0.4);
+        box(g, 0, 0.94, 0.158, 0.5, 0.31, 0.006, 0x38bdf8, 0.3, 0.05, {
             emissive: 0x38bdf8,
             emissiveIntensity: 0.55
         });
-        box(g, 0, 0.758, 0.13, 0.44, 0.014, 0.17, 0x1e293b, 0.4, 0.3);
+        box(g, 0, 0.758, -0.15, 0.44, 0.014, 0.17, 0x1e293b, 0.4, 0.3);
         /* Kursi futuristik — sisi yang sama dengan posisi duduk agen (z - 0.68) */
         addFutureChair(g, 0, -0.68, 0, seatColor);
         addPlant(g, 0.52, 0.18, 0.35);
@@ -1417,15 +1743,69 @@
             if (dist < 0.05) {
                 ud.path.shift();
             } else {
-                walking = true;
                 var step = Math.min(dist, dt * WALK_SPEED);
-                ch.position.x += (dx / dist) * step;
-                ch.position.z += (dz / dist) * step;
-                var heading = Math.atan2(dx, dz);
-                var dy = heading - ch.rotation.y;
-                while (dy > Math.PI) dy -= Math.PI * 2;
-                while (dy < -Math.PI) dy += Math.PI * 2;
-                ch.rotation.y += dy * 0.22;
+                var mx = (dx / dist) * step;
+                var mz = (dz / dist) * step;
+                /* Steering pemisah: menjauh halus dari robot lain di sekitar. */
+                var sx = 0;
+                var sz = 0;
+                characters.forEach(function (o) {
+                    if (o === ch) return;
+                    var ox = ch.position.x - o.position.x;
+                    var oz = ch.position.z - o.position.z;
+                    var od = Math.hypot(ox, oz);
+                    if (od > 0.001 && od < 0.95) {
+                        var push = (0.95 - od) * step * 1.35;
+                        sx += (ox / od) * push;
+                        sz += (oz / od) * push;
+                    }
+                });
+                /* Coba gerak penuh, lalu geser sumbu X saja / Z saja bila
+                   kandidat menabrak furnitur atau terlalu dekat robot lain. */
+                var tries = [
+                    [mx + sx, mz + sz],
+                    [mx, mz],
+                    [mx + sx, 0],
+                    [0, mz + sz],
+                    [-(mz + sz) * 0.7, (mx + sx) * 0.7]
+                ];
+                var moved = false;
+                for (var ti = 0; ti < tries.length; ti += 1) {
+                    var nx = ch.position.x + tries[ti][0];
+                    var nz = ch.position.z + tries[ti][1];
+                    if (Math.hypot(tries[ti][0], tries[ti][1]) < 0.001) continue;
+                    if (navPositionFree(ch, nx, nz)) {
+                        ch.position.x = nx;
+                        ch.position.z = nz;
+                        moved = true;
+                        break;
+                    }
+                }
+                /* Semua arah buntu (robot lain menghalangi): menunggu di tempat
+                   dengan pose berdiri, bukan memaksa menembus. Bila buntu
+                   >0,6 dtk, hitung jalur baru yang mengelilingi robot lain. */
+                walking = moved;
+                if (!moved) {
+                    ud.blockedFor = (ud.blockedFor || 0) + dt;
+                    if (ud.blockedFor > 0.6 && ud.placement) {
+                        ud.blockedFor = 0;
+                        var extra = [];
+                        characters.forEach(function (o) {
+                            if (o !== ch) extra.push({ x: o.position.x, z: o.position.z, r: 0.26 });
+                        });
+                        var repath = navPath(ch.position.x, ch.position.z, ud.placement.x, ud.placement.z, extra);
+                        if (repath && repath.length) ud.path = repath;
+                    }
+                } else {
+                    ud.blockedFor = 0;
+                }
+                if (moved) {
+                    var heading = Math.atan2(dx, dz);
+                    var dy = heading - ch.rotation.y;
+                    while (dy > Math.PI) dy -= Math.PI * 2;
+                    while (dy < -Math.PI) dy += Math.PI * 2;
+                    ch.rotation.y += dy * 0.22;
+                }
             }
         }
 
@@ -1708,6 +2088,7 @@
     function setLayout(cfg) {
         CUSTOM_LAYOUT = cfg && typeof cfg === 'object' ? cfg : null;
         LAYOUT = buildLayout(Math.max(1, employeesCache.length || 7), CUSTOM_LAYOUT);
+        navCache = null;
         if (!scene || !lastInitEl) return false;
         var emps = employeesCache.slice();
         var el = lastInitEl;
