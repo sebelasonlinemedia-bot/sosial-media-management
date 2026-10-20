@@ -36,6 +36,7 @@ const appState = {
     },
     mission: {
         panelOpen: true,
+        workingPanelOpen: true,
         workboardOpen: false,
         tab: 'crew',
         syncedAt: null,
@@ -843,6 +844,15 @@ app.setupMissionEvents = function () {
     if (panelClose) {
         panelClose.addEventListener('click', () => this.setMissionPanelOpen(false));
     }
+    const workingBtn = document.getElementById('mission-working-btn');
+    const workingClose = document.getElementById('mission-working-close');
+    if (workingBtn) {
+        workingBtn.addEventListener('click', () => this.setMissionWorkingPanelOpen(!appState.mission.workingPanelOpen));
+    }
+    if (workingClose) {
+        workingClose.addEventListener('click', () => this.setMissionWorkingPanelOpen(false));
+    }
+    this.setMissionWorkingPanelOpen(this.loadMissionWorkingPanelPref(), false);
     document.querySelectorAll('[data-mission-tab]').forEach(tab => {
         tab.addEventListener('click', () => this.setMissionTab(tab.getAttribute('data-mission-tab')));
     });
@@ -932,6 +942,196 @@ app.setMissionPanelOpen = function (open) {
     if (appState.mission.panelOpen && appState.mission.tab === 'calendar') this.renderMissionCalendar();
     if (typeof AiOffice3D !== 'undefined' && appState.office.stageReady) {
         requestAnimationFrame(() => AiOffice3D.resize());
+    }
+};
+
+/** Panel kiri "Sedang Dikerjakan" — tampil / sembunyi (state diingat, pola sama seperti Work Board). */
+app.setMissionWorkingPanelOpen = function (open, persist = true) {
+    appState.mission.workingPanelOpen = !!open;
+    const shell = document.getElementById('view-mission');
+    const btn = document.getElementById('mission-working-btn');
+    if (shell) shell.classList.toggle('is-working-collapsed', !appState.mission.workingPanelOpen);
+    if (btn) {
+        btn.classList.toggle('is-active', appState.mission.workingPanelOpen);
+        btn.setAttribute('aria-pressed', appState.mission.workingPanelOpen ? 'true' : 'false');
+    }
+    if (persist) {
+        try { localStorage.setItem('piks-working-panel-open', appState.mission.workingPanelOpen ? '1' : '0'); } catch (_) { /* ignore */ }
+    }
+    if (appState.mission.workingPanelOpen && typeof this.renderMissionWorkingPanel === 'function') {
+        this.renderMissionWorkingPanel();
+    }
+    if (typeof AiOffice3D !== 'undefined' && appState.office.stageReady) {
+        requestAnimationFrame(() => AiOffice3D.resize());
+    }
+};
+
+app.loadMissionWorkingPanelPref = function () {
+    try {
+        const saved = localStorage.getItem('piks-working-panel-open');
+        return saved === null ? true : saved === '1';
+    } catch (_) {
+        return true;
+    }
+};
+
+/** Durasi ringkas Bahasa Indonesia: "baru saja" / "2 mnt" / "1 jam 5 mnt" / "2 hr". */
+app._relativeTimeId = function (value) {
+    if (!value) return '';
+    const t = new Date(value).getTime();
+    if (Number.isNaN(t)) return '';
+    const diffMs = Date.now() - t;
+    if (diffMs < 60 * 1000) return 'baru saja';
+    const mins = Math.floor(diffMs / 60000);
+    if (mins < 60) return `${mins} mnt`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) {
+        const rest = mins % 60;
+        return rest ? `${hours} jam ${rest} mnt` : `${hours} jam`;
+    }
+    return `${Math.floor(hours / 24)} hr`;
+};
+
+/**
+ * Kategorikan agen untuk panel kiri dari status karyawan + state animasi server
+ * + snapshot aktivitas 3D. Mengembalikan null bila agen tidak sedang aktif.
+ * section: 'working' (benar-benar bekerja) | 'waiting' (menunggu / perlu perhatian).
+ */
+app._missionWorkingCategory = function (emp, activityRow) {
+    const status = (emp && emp.status) || (activityRow && activityRow.status) || 'idle';
+    // Presence "meeting" memetakan agen idle ke awaiting_approval untuk pose rapat 3D —
+    // itu bukan job yang menunggu approval, jadi jangan tampilkan sebagai Menunggu.
+    if (emp && emp.fromPresence && status === 'awaiting_approval'
+        && !(emp.latestJob && emp.latestJob.status === 'awaiting_approval')) {
+        return null;
+    }
+    const anim = (emp && (emp.animationState || (emp.animation && emp.animation.state))) || '';
+    const act = (activityRow && activityRow.activity) || '';
+    const label = (activityRow && activityRow.label) || '';
+    if (anim === 'blocked' || status === 'failed' || label === 'Blocked') {
+        return { section: 'waiting', badge: 'Blocked', badgeClass: 'is-blocked', live: false };
+    }
+    if (anim === 'thinking' || act === 'thinking') {
+        return { section: 'working', badge: 'Thinking', badgeClass: 'is-thinking', live: true };
+    }
+    if (status === 'needs_info' || act === 'review') {
+        return { section: 'waiting', badge: 'Reviewing', badgeClass: 'is-reviewing', live: false };
+    }
+    if (status === 'awaiting_approval' || anim === 'waiting' || act === 'waiting' || act === 'chat') {
+        return { section: 'waiting', badge: 'Waiting', badgeClass: 'is-waiting', live: false };
+    }
+    if (anim === 'overloaded') {
+        return { section: 'working', badge: 'Working · Overload', badgeClass: 'is-working', live: true };
+    }
+    if (status === 'working' || status === 'publishing' || anim === 'working' || act === 'work') {
+        return { section: 'working', badge: 'Working', badgeClass: 'is-working', live: true };
+    }
+    return null;
+};
+
+/**
+ * Panel kiri "Sedang Dikerjakan" — real-time per agen.
+ * Sumber data (tanpa endpoint/polling baru):
+ *  - appState.office.employees dari GET /api/ai/office (status, animationState,
+ *    presenceNote, latestJob) yang dimuat siklus renderMission + polling 20 dtk;
+ *  - snapshot aktivitas 3D (AiOffice3D.getActivitySnapshot / appState.office.activityLive
+ *    dari callback onActivity) untuk teks speech terbaru per agen.
+ * Aman dipanggil kapan pun: panel/data belum ada → no-op tanpa error.
+ */
+app.renderMissionWorkingPanel = function () {
+    const body = document.getElementById('mission-working-body');
+    if (!body) return;
+    const summaryEl = document.getElementById('mission-working-summary');
+    const liveDot = document.getElementById('mission-working-live-dot');
+    try {
+        const employees = Array.isArray(appState.office.employees) ? appState.office.employees : [];
+        let snapshot = Array.isArray(appState.office.activityLive) ? appState.office.activityLive : [];
+        if (typeof AiOffice3D !== 'undefined' && AiOffice3D.getActivitySnapshot && appState.office.stageReady) {
+            const snap = AiOffice3D.getActivitySnapshot();
+            if (Array.isArray(snap) && snap.length) snapshot = snap;
+        }
+        const byRole = {};
+        snapshot.forEach(row => { if (row && row.roleId) byRole[row.roleId] = row; });
+
+        if (!employees.length) {
+            if (summaryEl) summaryEl.textContent = 'Menunggu data kantor…';
+            if (liveDot) liveDot.classList.remove('is-live');
+            body.innerHTML = '<p class="mission-empty">Belum ada data agen. Panel terisi otomatis setelah data kantor dimuat.</p>';
+            return;
+        }
+
+        const working = [];
+        const waiting = [];
+        let standbyCount = 0;
+        employees.forEach(emp => {
+            const row = byRole[emp.id] || null;
+            const cat = this._missionWorkingCategory(emp, row);
+            if (!cat) { standbyCount += 1; return; }
+            (cat.section === 'working' ? working : waiting).push({ emp, row, cat });
+        });
+
+        if (summaryEl) {
+            summaryEl.textContent = working.length || waiting.length
+                ? `${working.length} bekerja · ${waiting.length} menunggu · ${standbyCount} standby`
+                : `${standbyCount} agen standby`;
+        }
+        if (liveDot) liveDot.classList.toggle('is-live', working.length > 0);
+
+        if (!working.length && !waiting.length) {
+            body.innerHTML = `<div class="mission-working-empty">
+                <p class="mission-working-empty-title">Tidak ada agen yang sedang bekerja — tim standby.</p>
+                <p class="mission-working-empty-sub">${standbyCount} dari ${employees.length} agen siaga menunggu brief berikutnya.</p>
+            </div>`;
+            return;
+        }
+
+        const renderCard = ({ emp, row, cat }) => {
+            const job = emp.latestJob || null;
+            const fullJob = job && typeof this._findOfficeJob === 'function' ? this._findOfficeJob(job.id) : null;
+            const speech = (row && row.speech) || emp.presenceNote || '';
+            const activityText = speech
+                || (cat.badge === 'Thinking' ? 'Thinking…' : cat.section === 'working' ? 'Working on brief…' : 'Menunggu tindak lanjut');
+            const brief = job ? String(job.brief || '').trim() : '';
+            const platforms = fullJob && Array.isArray(fullJob.platforms) && fullJob.platforms.length
+                ? fullJob.platforms.map(p => (appState.platforms[p] ? appState.platforms[p].name : p)).join(', ')
+                : '';
+            const since = job ? this._relativeTimeId(job.createdAt) : '';
+            const updated = job ? this._relativeTimeId(job.updatedAt) : '';
+            const timeText = since ? `sejak ${since}` : (updated ? `diperbarui ${updated}` : '');
+            const extraJobs = emp.activeCount > 1 ? `<span class="mission-working-chip">+${emp.activeCount - 1} tugas lain</span>` : '';
+            const focused = appState.office.focusRoleId === emp.id ? ' is-focused' : '';
+            const color = this._escapeHtml(emp.avatarColor || 'var(--indigo)');
+            return `<button type="button" class="mission-working-card${focused}" data-role-id="${this._escapeHtml(emp.id)}" data-job-id="${job ? this._escapeHtml(String(job.id)) : ''}" title="Fokus ${this._escapeHtml(emp.name)}${job ? ' & buka detail job' : ''}">
+                <span class="mission-working-avatar" style="background:${color}"><span>${emp.emoji || '🤖'}</span><span class="mission-working-dot ${cat.badgeClass}${cat.live ? ' is-live' : ''}" aria-hidden="true"></span></span>
+                <span class="mission-working-info">
+                    <span class="mission-working-name-row"><span class="mission-working-name">${this._escapeHtml(emp.name)}</span><span class="mission-working-badge ${cat.badgeClass}">${this._escapeHtml(cat.badge)}</span></span>
+                    <span class="mission-working-role">${this._escapeHtml(emp.title || '')}</span>
+                    <span class="mission-working-activity">${this._escapeHtml(activityText)}</span>
+                    ${brief ? `<span class="mission-working-brief">${this._escapeHtml(brief.slice(0, 110))}</span>` : ''}
+                    <span class="mission-working-meta">${platforms ? `<span>${this._escapeHtml(platforms)}</span>` : ''}${timeText ? `<span>${this._escapeHtml(timeText)}</span>` : ''}${extraJobs}</span>
+                </span>
+            </button>`;
+        };
+        const sectionHtml = (title, items, hint) => items.length
+            ? `<div class="mission-working-section"><h3 class="mission-working-section-title">${title} <span>${items.length}</span></h3>${hint ? `<p class="mission-working-section-hint">${hint}</p>` : ''}<div class="mission-working-list">${items.map(renderCard).join('')}</div></div>`
+            : '';
+        body.innerHTML = sectionHtml('Sedang bekerja', working, '')
+            + sectionHtml('Menunggu', waiting, 'Perlu info, approval, atau perhatian manusia.');
+        body.querySelectorAll('.mission-working-card').forEach(card => {
+            card.addEventListener('click', () => {
+                const roleId = card.getAttribute('data-role-id');
+                const jobId = card.getAttribute('data-job-id');
+                if (roleId) this.focusOfficeEmployee(roleId);
+                if (jobId && typeof this.openJobDetailModal === 'function' && this._findOfficeJob(jobId)) {
+                    this.openJobDetailModal(jobId);
+                }
+                this.renderMissionWorkingPanel();
+            });
+        });
+    } catch (err) {
+        // Panel tidak boleh mematahkan Mission Control bila data belum siap.
+        console.warn('[APP] Panel Sedang Dikerjakan belum bisa dirender:', err);
+        body.innerHTML = '<p class="mission-empty">Aktivitas agen belum tersedia.</p>';
     }
 };
 
@@ -1249,10 +1449,14 @@ app.finishStandup = async function () {
 
 app.renderMissionCrew = function () {
     const list = document.getElementById('mission-crew-list');
-    if (!list) return;
+    if (!list) {
+        if (typeof this.renderMissionWorkingPanel === 'function') this.renderMissionWorkingPanel();
+        return;
+    }
     const employees = appState.office.employees || [];
     if (!employees.length) {
         list.innerHTML = '<p class="mission-empty">Belum ada peran terdaftar.</p>';
+        if (typeof this.renderMissionWorkingPanel === 'function') this.renderMissionWorkingPanel();
         return;
     }
     list.innerHTML = employees.map(emp => {
@@ -1280,10 +1484,13 @@ app.renderMissionCrew = function () {
             this.renderMissionCrew();
         });
     });
+    // Panel kiri "Sedang Dikerjakan" ikut siklus render yang sama (polling 20 dtk / renderMission).
+    if (typeof this.renderMissionWorkingPanel === 'function') this.renderMissionWorkingPanel();
 };
 
 app.renderMission = async function () {
     this.setMissionPanelOpen(appState.mission.panelOpen);
+    this.setMissionWorkingPanelOpen(appState.mission.workingPanelOpen, false);
     this.setMissionWorkboardOpen(appState.mission.workboardOpen, false);
     this.setMissionTab(appState.mission.tab || 'crew');
     await this.loadOfficeFromServer();
@@ -2529,12 +2736,14 @@ app.initOffice3D = function () {
 };
 
 app.renderOfficeActivityLive = function (rows) {
-    const list = document.getElementById('office-activity-live');
-    if (!list) return;
     const items = Array.isArray(rows) ? rows : (typeof AiOffice3D !== 'undefined' && AiOffice3D.getActivitySnapshot
         ? AiOffice3D.getActivitySnapshot()
         : []);
     appState.office.activityLive = items;
+    // Speech 3D berubah (onActivity) → panel kiri ikut segar tanpa menunggu polling.
+    if (typeof this.renderMissionWorkingPanel === 'function') this.renderMissionWorkingPanel();
+    const list = document.getElementById('office-activity-live');
+    if (!list) return;
     if (!items.length) {
         list.innerHTML = '<li class="text-secondary">Belum ada aktivitas ruang.</li>';
         return;

@@ -65,6 +65,10 @@
                 <button type="button" class="mission-mode-btn" id="mission-mode-2d" data-mode="2d">2D</button>
                 <button type="button" class="mission-mode-btn is-active" id="mission-mode-3d" data-mode="3d">3D</button>
             </div>
+            <button type="button" class="mission-tool-btn is-active app-shell-mission-only" id="mission-working-btn" title="Panel kiri — Sedang Dikerjakan" aria-pressed="true">
+                <i data-lucide="panel-left"></i>
+                <span>Aktif</span>
+            </button>
             <button type="button" class="mission-tool-btn app-shell-mission-only" id="mission-tasks-btn" title="Work Board / Tasks">
                 <i data-lucide="list-checks"></i>
                 <span>Tasks</span>
@@ -109,6 +113,22 @@
     <!-- Mission Control — halaman depan (full-bleed di bawah top bar) -->
     <section id="view-mission" class="mission-shell hidden" aria-label="Mission Control PiK's Digital Lab">
         <div class="mission-body">
+            <!-- Panel kiri — Sedang Dikerjakan (real-time per agen) -->
+            <aside class="mission-working-panel" id="mission-working-panel" aria-label="Panel Sedang Dikerjakan">
+                <div class="mission-working-head">
+                    <div class="mission-working-head-text">
+                        <h2 class="mission-working-title"><span class="mission-working-live-dot" id="mission-working-live-dot" aria-hidden="true"></span>Sedang Dikerjakan</h2>
+                        <p class="mission-working-summary" id="mission-working-summary">Memuat aktivitas agen…</p>
+                    </div>
+                    <button type="button" class="mission-panel-close" id="mission-working-close" title="Sembunyikan panel kiri" aria-label="Sembunyikan panel Sedang Dikerjakan">
+                        <i data-lucide="x"></i>
+                    </button>
+                </div>
+                <div class="mission-working-body" id="mission-working-body" aria-live="polite">
+                    <p class="mission-empty">Memuat tim…</p>
+                </div>
+                <p class="mission-working-foot">Live dari status job &amp; aktivitas ruang 3D · klik agen untuk fokus &amp; detail job.</p>
+            </aside>
             <div class="mission-stage">
                 <div class="office-3d-viewport mission-3d-viewport" id="office-3d-viewport">
                     <canvas id="office-3d-canvas" aria-label="Viewport Ruang Kantor AI PiK's Digital Lab"></canvas>
