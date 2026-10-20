@@ -69,7 +69,7 @@
                 <i data-lucide="list-checks"></i>
                 <span>Tasks</span>
             </button>
-            <button type="button" class="mission-tool-btn app-shell-mission-only" id="mission-calendar-btn" title="Jadwal &amp; Kalender">
+            <button type="button" class="mission-tool-btn app-shell-mission-only" id="mission-calendar-btn" title="Kalender di panel kanan" aria-pressed="false">
                 <i data-lucide="calendar"></i>
                 <span>Calendar</span>
             </button>
@@ -121,7 +121,7 @@
                     </div>
                     <p class="office-3d-hint mission-3d-hint-hidden">Drag to rotate · right-drag / Shift-drag to pan · scroll to zoom · klik agen untuk detail</p>
                     <div class="office-3d-fallback" id="office-3d-fallback">
-                        <p>Mode 2D aktif. Nyalakan 3D untuk Ruang Kantor, atau buka Work Board lewat Tasks.</p>
+                        <p>Mode 2D aktif. Nyalakan 3D untuk Ruang Kantor, buka Work Board lewat Tasks, atau kalender lewat tombol Calendar di panel kanan.</p>
                     </div>
                 </div>
                 <input type="checkbox" id="office-3d-toggle" class="mission-3d-pref" checked hidden aria-hidden="true">
@@ -134,6 +134,7 @@
                         <button type="button" class="mission-panel-tab" role="tab" aria-selected="false" data-mission-tab="stats">Stats</button>
                         <button type="button" class="mission-panel-tab" role="tab" aria-selected="false" data-mission-tab="activity">Activity</button>
                         <button type="button" class="mission-panel-tab" role="tab" aria-selected="false" data-mission-tab="chat">Chat</button>
+                        <button type="button" class="mission-panel-tab" role="tab" aria-selected="false" data-mission-tab="calendar">Calendar</button>
                     </div>
                     <button type="button" class="mission-panel-close" id="mission-panel-close" title="Tutup panel" aria-label="Tutup panel">
                         <i data-lucide="x"></i>
@@ -167,6 +168,30 @@
                                 <h3>Audit</h3>
                             </div>
                             <ul class="office-activity-audit" id="office-activity-audit"></ul>
+                        </div>
+                    </div>
+                    <div class="mission-tab-pane" id="mission-tab-calendar" role="tabpanel" hidden>
+                        <div class="mission-calendar">
+                            <div class="mission-calendar-head">
+                                <button type="button" class="mission-calendar-nav" id="mission-calendar-prev-month" title="Bulan sebelumnya" aria-label="Bulan sebelumnya">
+                                    <i data-lucide="chevron-left"></i>
+                                </button>
+                                <h3 class="mission-calendar-month" id="mission-calendar-month-year">—</h3>
+                                <button type="button" class="mission-calendar-nav" id="mission-calendar-next-month" title="Bulan berikutnya" aria-label="Bulan berikutnya">
+                                    <i data-lucide="chevron-right"></i>
+                                </button>
+                            </div>
+                            <div class="mission-calendar-weekdays" aria-hidden="true">
+                                <span>Min</span><span>Sen</span><span>Sel</span><span>Rab</span><span>Kam</span><span>Jum</span><span>Sab</span>
+                            </div>
+                            <div class="mission-calendar-grid" id="mission-calendar-days-grid"></div>
+                            <div class="mission-calendar-list-head">
+                                <h4 id="mission-calendar-selected-label">Postingan</h4>
+                                <button type="button" class="mission-calendar-full-link" id="mission-calendar-open-queue">Jadwal penuh</button>
+                            </div>
+                            <ul class="mission-calendar-posts" id="mission-calendar-posts-list">
+                                <li class="mission-empty">Memuat kalender…</li>
+                            </ul>
                         </div>
                     </div>
                     <div class="mission-tab-pane" id="mission-tab-chat" role="tabpanel" hidden>

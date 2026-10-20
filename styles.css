@@ -4002,6 +4002,7 @@ body.is-mission-mode #app-login-gate:not(.hidden) ~ .mission-shell {
 
 .mission-panel-tabs {
     display: flex;
+    flex-wrap: wrap;
     gap: 4px;
 }
 
@@ -4029,6 +4030,242 @@ body.is-mission-mode #app-login-gate:not(.hidden) ~ .mission-shell {
 
 .mission-tab-pane[hidden] {
     display: none !important;
+}
+
+/* Kalender mini di panel kanan Mission Control (prefix mission-calendar-/mission-cal-) */
+.mission-calendar {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.mission-calendar-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.mission-calendar-month {
+    margin: 0;
+    font-size: 0.85rem;
+    font-weight: 750;
+    color: var(--mc-text);
+    text-align: center;
+}
+
+.mission-calendar-nav,
+.mission-calendar-full-link {
+    appearance: none;
+    border: 1px solid var(--mc-border);
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--mc-text);
+    border-radius: 7px;
+    cursor: pointer;
+    font: inherit;
+}
+
+.mission-calendar-nav {
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    flex-shrink: 0;
+}
+
+.mission-calendar-nav i {
+    width: 14px;
+    height: 14px;
+}
+
+.mission-calendar-nav:hover,
+.mission-calendar-full-link:hover {
+    border-color: rgba(20, 184, 166, 0.55);
+    color: #5eead4;
+}
+
+.mission-calendar-weekdays,
+.mission-calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 3px;
+}
+
+.mission-calendar-weekdays span {
+    text-align: center;
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    color: var(--mc-muted);
+    padding: 2px 0;
+}
+
+.mission-cal-day {
+    appearance: none;
+    min-width: 0;
+    aspect-ratio: 1 / 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    padding: 2px 0;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    background: rgba(255, 255, 255, 0.03);
+    color: var(--mc-text);
+    font: inherit;
+    cursor: pointer;
+}
+
+button.mission-cal-day:hover {
+    border-color: rgba(20, 184, 166, 0.45);
+}
+
+.mission-cal-day.is-other {
+    opacity: 0.3;
+    background: transparent;
+    cursor: default;
+    font-size: 0.68rem;
+}
+
+.mission-cal-day.is-today {
+    border-color: rgba(20, 184, 166, 0.55);
+}
+
+.mission-cal-day.is-selected {
+    background: var(--mc-accent-dim);
+    border-color: rgba(20, 184, 166, 0.7);
+    color: #5eead4;
+}
+
+.mission-cal-num {
+    font-size: 0.7rem;
+    font-weight: 650;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+}
+
+.mission-cal-dots {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    min-height: 6px;
+}
+
+.mission-cal-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--mc-accent);
+}
+
+.mission-cal-dot.is-posted {
+    background: #34d399;
+}
+
+.mission-cal-more {
+    font-size: 0.52rem;
+    color: var(--mc-muted);
+    line-height: 1;
+}
+
+.mission-calendar-list-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 6px;
+    padding-top: 10px;
+    border-top: 1px solid var(--mc-border);
+}
+
+.mission-calendar-list-head h4 {
+    margin: 0;
+    font-size: 0.74rem;
+    font-weight: 700;
+    color: var(--mc-text);
+}
+
+.mission-calendar-full-link {
+    padding: 4px 8px;
+    font-size: 0.65rem;
+    font-weight: 650;
+    flex-shrink: 0;
+}
+
+.mission-calendar-posts {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.mission-cal-post {
+    appearance: none;
+    width: 100%;
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    padding: 8px;
+    border: 1px solid var(--mc-border);
+    border-radius: 9px;
+    background: rgba(255, 255, 255, 0.03);
+    color: var(--mc-text);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.mission-cal-post:hover {
+    border-color: rgba(20, 184, 166, 0.45);
+    background: var(--mc-accent-dim);
+}
+
+.mission-cal-post-time {
+    flex-shrink: 0;
+    font-size: 0.65rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: #5eead4;
+    padding-top: 1px;
+}
+
+.mission-cal-post-main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.mission-cal-post-caption {
+    font-size: 0.72rem;
+    line-height: 1.35;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.mission-cal-post-meta {
+    font-size: 0.63rem;
+    color: var(--mc-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .mission-panel,
+    .mission-cal-day {
+        transition: none;
+    }
 }
 
 .mission-crew-list {

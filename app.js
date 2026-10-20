@@ -38,7 +38,9 @@ const appState = {
         panelOpen: true,
         workboardOpen: false,
         tab: 'crew',
-        syncedAt: null
+        syncedAt: null,
+        calendarDate: new Date(),
+        calendarSelectedDate: null
     },
     serverMode: 'sandbox',  // 'sandbox' | 'real'
     authStatus: null,
@@ -146,6 +148,10 @@ const app = {
                 this.renderOfficeEmployees();
                 this.renderOfficeBoard();
                 if (typeof this.renderMissionCrew === 'function') this.renderMissionCrew();
+                if (appState.mission.tab === 'calendar' && typeof this.renderMissionCalendar === 'function') {
+                    await this.loadPostsFromServer();
+                    this.renderMissionCalendar();
+                }
                 if (typeof this.updateMissionPills === 'function') this.updateMissionPills();
                 this.syncOffice3DEmployees();
                 this.updateMissionSynced();
@@ -803,7 +809,27 @@ app.setupMissionEvents = function () {
     this.setMissionWorkboardOpen(this.loadMissionWorkboardPref(), false);
     const calendarBtn = document.getElementById('mission-calendar-btn');
     if (calendarBtn) {
-        calendarBtn.addEventListener('click', () => this.switchView('queue'));
+        calendarBtn.addEventListener('click', () => this.toggleMissionCalendarPanel());
+    }
+    const missionCalPrev = document.getElementById('mission-calendar-prev-month');
+    if (missionCalPrev) {
+        missionCalPrev.addEventListener('click', () => {
+            const d = appState.mission.calendarDate instanceof Date ? appState.mission.calendarDate : new Date();
+            appState.mission.calendarDate = new Date(d.getFullYear(), d.getMonth() - 1, 1);
+            this.renderMissionCalendar();
+        });
+    }
+    const missionCalNext = document.getElementById('mission-calendar-next-month');
+    if (missionCalNext) {
+        missionCalNext.addEventListener('click', () => {
+            const d = appState.mission.calendarDate instanceof Date ? appState.mission.calendarDate : new Date();
+            appState.mission.calendarDate = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+            this.renderMissionCalendar();
+        });
+    }
+    const missionCalQueue = document.getElementById('mission-calendar-open-queue');
+    if (missionCalQueue) {
+        missionCalQueue.addEventListener('click', () => this.switchView('queue'));
     }
     const panelBtn = document.getElementById('mission-panel-btn');
     const panelClose = document.getElementById('mission-panel-close');
@@ -881,6 +907,14 @@ app.loadMissionWorkboardPref = function () {
     }
 };
 
+app._syncMissionCalendarBtn = function () {
+    const btn = document.getElementById('mission-calendar-btn');
+    if (!btn) return;
+    const on = !!appState.mission.panelOpen && appState.mission.tab === 'calendar';
+    btn.classList.toggle('is-active', on);
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+};
+
 app.setMissionPanelOpen = function (open) {
     appState.mission.panelOpen = !!open;
     const shell = document.getElementById('view-mission');
@@ -890,6 +924,8 @@ app.setMissionPanelOpen = function (open) {
         btn.classList.toggle('is-active', appState.mission.panelOpen);
         btn.setAttribute('aria-pressed', appState.mission.panelOpen ? 'true' : 'false');
     }
+    this._syncMissionCalendarBtn();
+    if (appState.mission.panelOpen && appState.mission.tab === 'calendar') this.renderMissionCalendar();
     if (typeof AiOffice3D !== 'undefined' && appState.office.stageReady) {
         requestAnimationFrame(() => AiOffice3D.resize());
     }
@@ -903,14 +939,144 @@ app.setMissionTab = function (tab) {
         el.classList.toggle('is-active', on);
         el.setAttribute('aria-selected', on ? 'true' : 'false');
     });
-    ['crew', 'stats', 'activity', 'chat'].forEach(id => {
+    ['crew', 'stats', 'activity', 'chat', 'calendar'].forEach(id => {
         const pane = document.getElementById(`mission-tab-${id}`);
         if (!pane) return;
         const on = id === next;
         pane.classList.toggle('is-active', on);
         pane.hidden = !on;
     });
+    this._syncMissionCalendarBtn();
     if (next === 'chat') this.loadCeoChat();
+    if (next === 'calendar') this.renderMissionCalendar();
+};
+
+/** Tombol Calendar top bar: buka/tutup kalender sebagai panel kanan Mission Control. */
+app.toggleMissionCalendarPanel = function () {
+    if (appState.currentView !== 'mission') {
+        this.switchView('mission');
+    }
+    if (appState.mission.panelOpen && appState.mission.tab === 'calendar') {
+        this.setMissionPanelOpen(false);
+        return;
+    }
+    appState.mission.tab = 'calendar';
+    this.setMissionPanelOpen(true);
+    this.setMissionTab('calendar');
+};
+
+app._missionCalendarKey = function (date) {
+    const d = date instanceof Date ? date : new Date(date);
+    if (Number.isNaN(d.getTime())) return '';
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+app.renderMissionCalendar = function () {
+    const grid = document.getElementById('mission-calendar-days-grid');
+    const monthLabel = document.getElementById('mission-calendar-month-year');
+    const list = document.getElementById('mission-calendar-posts-list');
+    const selectedLabel = document.getElementById('mission-calendar-selected-label');
+    if (!grid || !monthLabel || !list) return;
+
+    if (!(appState.mission.calendarDate instanceof Date) || Number.isNaN(appState.mission.calendarDate.getTime())) {
+        appState.mission.calendarDate = new Date();
+    }
+    const cur = appState.mission.calendarDate;
+    const year = cur.getFullYear();
+    const month = cur.getMonth();
+    const indonesianMonths = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+    const indonesianDays = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+    monthLabel.textContent = `${indonesianMonths[month]} ${year}`;
+
+    const todayKey = this._missionCalendarKey(new Date());
+    if (!appState.mission.calendarSelectedDate) {
+        appState.mission.calendarSelectedDate = todayKey;
+    }
+    const selectedKey = appState.mission.calendarSelectedDate;
+
+    // Ikuti kalender lama (status terjadwal), plus yang sudah terbit agar panel informatif.
+    const visible = (appState.posts || []).filter(p => p && (p.status === 'scheduled' || p.status === 'posted'));
+    const byKey = {};
+    visible.forEach(post => {
+        const key = this._missionCalendarKey(post.publishDate);
+        if (!key) return;
+        if (!byKey[key]) byKey[key] = [];
+        byKey[key].push(post);
+    });
+    Object.values(byKey).forEach(arr => arr.sort((a, b) => new Date(a.publishDate) - new Date(b.publishDate)));
+
+    const firstDayIndex = new Date(year, month, 1).getDay();
+    const lastDay = new Date(year, month + 1, 0).getDate();
+    const prevLastDay = new Date(year, month, 0).getDate();
+    const cells = [];
+    for (let x = firstDayIndex; x > 0; x--) {
+        cells.push({ day: prevLastDay - x + 1, other: true, key: '' });
+    }
+    for (let i = 1; i <= lastDay; i++) {
+        cells.push({ day: i, other: false, key: this._missionCalendarKey(new Date(year, month, i)) });
+    }
+    const trailing = (7 - (cells.length % 7)) % 7;
+    for (let j = 1; j <= trailing; j++) {
+        cells.push({ day: j, other: true, key: '' });
+    }
+
+    grid.innerHTML = cells.map(cell => {
+        if (cell.other) {
+            return `<span class="mission-cal-day is-other" aria-hidden="true">${cell.day}</span>`;
+        }
+        const posts = byKey[cell.key] || [];
+        const dots = posts.slice(0, 3).map(p => `<span class="mission-cal-dot is-${this._escapeHtml(p.status)}"></span>`).join('')
+            + (posts.length > 3 ? `<span class="mission-cal-more">+${posts.length - 3}</span>` : '');
+        const cls = ['mission-cal-day', cell.key === todayKey ? 'is-today' : '', cell.key === selectedKey ? 'is-selected' : '', posts.length ? 'has-posts' : ''].filter(Boolean).join(' ');
+        const label = `${cell.day} ${indonesianMonths[month]} ${year}${posts.length ? `, ${posts.length} postingan` : ''}`;
+        return `<button type="button" class="${cls}" data-mission-cal-date="${cell.key}" aria-label="${this._escapeHtml(label)}" aria-pressed="${cell.key === selectedKey ? 'true' : 'false'}"><span class="mission-cal-num">${cell.day}</span><span class="mission-cal-dots">${dots}</span></button>`;
+    }).join('');
+    grid.querySelectorAll('[data-mission-cal-date]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            appState.mission.calendarSelectedDate = btn.getAttribute('data-mission-cal-date');
+            this.renderMissionCalendar();
+        });
+    });
+
+    const selectedDate = selectedKey ? new Date(`${selectedKey}T00:00:00`) : null;
+    const selectedInMonth = selectedDate && !Number.isNaN(selectedDate.getTime())
+        && selectedDate.getFullYear() === year && selectedDate.getMonth() === month;
+    let listPosts;
+    if (selectedInMonth) {
+        listPosts = byKey[selectedKey] || [];
+        if (selectedLabel) {
+            selectedLabel.textContent = `${indonesianDays[selectedDate.getDay()]}, ${selectedDate.getDate()} ${indonesianMonths[month]} ${year}`;
+        }
+    } else {
+        const monthKey = `${year}-${String(month + 1).padStart(2, '0')}-`;
+        listPosts = visible
+            .filter(p => this._missionCalendarKey(p.publishDate).startsWith(monthKey))
+            .sort((a, b) => new Date(a.publishDate) - new Date(b.publishDate));
+        if (selectedLabel) selectedLabel.textContent = `Semua di ${indonesianMonths[month]} ${year}`;
+    }
+
+    if (!listPosts.length) {
+        list.innerHTML = `<li class="mission-empty">${selectedInMonth ? 'Tidak ada postingan terjadwal/terbit di hari ini.' : 'Tidak ada postingan terjadwal/terbit di bulan ini.'}</li>`;
+        return;
+    }
+    list.innerHTML = listPosts.map(post => {
+        const when = new Date(post.publishDate);
+        const platformNames = (post.platforms || []).map(p => {
+            const info = appState.platforms[p];
+            return info ? info.name : p;
+        }).join(', ');
+        const caption = (post.caption || 'Tanpa keterangan').trim();
+        const datePrefix = selectedInMonth ? '' : `${when.getDate()} ${indonesianMonths[when.getMonth()]} · `;
+        const statusLabel = post.status === 'posted' ? 'Terbit' : 'Terjadwal';
+        return `<li><button type="button" class="mission-cal-post" data-mission-cal-post="${this._escapeHtml(String(post.id))}">
+            <span class="mission-cal-post-time">${this._escapeHtml(datePrefix)}${this._escapeHtml(this._formatTime24(when))}</span>
+            <span class="mission-cal-post-main"><span class="mission-cal-post-caption">${this._escapeHtml(caption.slice(0, 90))}</span>
+            <span class="mission-cal-post-meta">${this._escapeHtml(platformNames || '—')} · ${statusLabel}</span></span>
+        </button></li>`;
+    }).join('');
+    list.querySelectorAll('[data-mission-cal-post]').forEach(btn => {
+        btn.addEventListener('click', () => this.openPostDetailsModal(btn.getAttribute('data-mission-cal-post')));
+    });
 };
 
 app.applyMission3DMode = function (enabled3d) {
