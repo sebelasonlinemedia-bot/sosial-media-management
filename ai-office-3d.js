@@ -95,8 +95,26 @@
                 [-4.2, -0.55], [-2.4, -0.55], [-0.5, -0.55],
                 [-3.3, 1.55]
             ],
-            furniture: defaultFurniture()
+            furniture: defaultFurniture(),
+            partitions: {
+                segments: [
+                    { axis: 'v', at: 2.85, from: -5.0, to: -0.55 },
+                    { axis: 'v', at: 2.85, from: 1.15, to: 4.2 }
+                ]
+            },
+            meetingTable: { x: 1.6, z: 0.2, radius: 1.05, enabled: true }
         };
+    }
+
+    /** Spot berdiri mengelilingi meja meeting (mengikuti posisi meja). */
+    function meetingSpotsAround(table) {
+        var r = (table.radius || 1.05) + 0.55;
+        return [
+            { x: table.x - r, z: table.z, facing: Math.PI / 2, seated: false },
+            { x: table.x + r, z: table.z, facing: -Math.PI / 2, seated: false },
+            { x: table.x, z: table.z - r, facing: 0, seated: false },
+            { x: table.x, z: table.z + r, facing: Math.PI, seated: false }
+        ];
     }
 
     function buildLayout(agentCount, custom) {
@@ -120,12 +138,19 @@
         var furniture = cfg && Array.isArray(cfg.furniture) ? cfg.furniture : defaultFurniture();
         var wallHeight = cfg && Number(cfg.wallHeight) ? Number(cfg.wallHeight) : 2.55;
 
-        var meeting = [
-            { x: 1.35, z: 0.25, facing: Math.PI / 2, seated: false },
-            { x: 2.05, z: -0.35, facing: -0.5, seated: false },
-            { x: 1.55, z: 0.95, facing: Math.PI, seated: false },
-            { x: 2.15, z: 0.55, facing: -Math.PI / 2, seated: false }
-        ];
+        var meetingTable = cfg && cfg.meetingTable && typeof cfg.meetingTable === 'object'
+            ? {
+                x: Number(cfg.meetingTable.x) || 1.6,
+                z: Number(cfg.meetingTable.z) || 0.2,
+                radius: Number(cfg.meetingTable.radius) || 1.05,
+                enabled: cfg.meetingTable.enabled !== false
+            }
+            : { x: 1.6, z: 0.2, radius: 1.05, enabled: true };
+        var meeting = meetingSpotsAround(meetingTable);
+
+        var partitions = cfg && cfg.partitions && Array.isArray(cfg.partitions.segments)
+            ? cfg.partitions
+            : defaultLayoutData().partitions;
 
         var idleStops = [
             {
@@ -186,8 +211,9 @@
             building: building,
             wallHeight: wallHeight,
             furniture: furniture,
+            partitions: partitions,
             meeting: meeting,
-            meetingTable: { x: 1.6, z: 0.2, radius: 1.05 },
+            meetingTable: meetingTable,
             cameraTarget: [0.7, 0.4, -0.3],
             cameraOffset: [-6.5, 14.5, 15.5],
             pan: { minX: -9, maxX: 10.5, minZ: -7.5, maxZ: 7 },
@@ -724,40 +750,43 @@
 
     /* ---------- Scene ---------- */
 
-    /** Gambar satu item mebel dari layout (dipakai bawaan & custom). */
+    /** Gambar satu item mebel dari layout (dipakai bawaan & custom).
+     *  Semua mebel digambar di dalam grup pembungkus yang diputar rotY,
+     *  jadi rotasi dari editor berlaku untuk SEMUA jenis mebel. */
     var furnitureDeskIndex = 0;
     function addFurnitureItem(parent, item) {
         if (!item || !item.type) return;
         var x = Number(item.x) || 0;
         var z = Number(item.z) || 0;
         var rot = Number(item.rotY) || 0;
+        var g = groupAt(parent, x, 0, z, rot);
         switch (item.type) {
             case 'desk': {
                 var colors = [TEAL, YELLOW];
-                addStartupDesk(parent, x, z, colors[furnitureDeskIndex++ % colors.length]);
+                addStartupDesk(g, 0, 0, colors[furnitureDeskIndex++ % colors.length]);
                 break;
             }
-            case 'workdesk': addWorkDesk(parent, x, z, false); break;
-            case 'chair': addOfficeChair(parent, x, z, rot); break;
-            case 'sofa': addSofa(parent, x, z, rot); break;
-            case 'armchair': addArmchair(parent, x, z, rot, 0x7a6a9a); break;
-            case 'beanbag': addBeanBag(parent, x, z, ORANGE); break;
-            case 'coffeetable': addCoffeeTable(parent, x, z); break;
-            case 'roundtable': addRoundLoungeTable(parent, x, z); break;
-            case 'meetingtable': addRoundMeetingTable(parent, x, z, 1.05); break;
-            case 'pingpong': addPingPong(parent, x, z); break;
-            case 'arcade': addArcade(parent, x, z, 0xb54b45); break;
-            case 'coffeebar': addCoffeeBar(parent, x, z); break;
-            case 'pantry': addPantryCounter(parent, x, z, rot); break;
-            case 'fridge': addFridge(parent, x, z, rot); break;
-            case 'galon': addGalon(parent, x, z, rot); break;
-            case 'bookshelf': addBookshelf(parent, x, z, rot); break;
-            case 'tv': addTelevision(parent, x, 1.55, z); break;
-            case 'plant': addPlant(parent, x, z, 0.7); break;
-            case 'stool': addColorStool(parent, x, z, TEAL); break;
-            case 'foodstall': addFoodStall(parent, x, z); break;
-            case 'tree': addTree(parent, x, z, 1.1); break;
-            case 'lamp': addStreetLamp(parent, x, z); break;
+            case 'workdesk': addWorkDesk(g, 0, 0, false); break;
+            case 'chair': addOfficeChair(g, 0, 0, 0); break;
+            case 'sofa': addSofa(g, 0, 0, 0); break;
+            case 'armchair': addArmchair(g, 0, 0, 0, 0x7a6a9a); break;
+            case 'beanbag': addBeanBag(g, 0, 0, ORANGE); break;
+            case 'coffeetable': addCoffeeTable(g, 0, 0); break;
+            case 'roundtable': addRoundLoungeTable(g, 0, 0); break;
+            case 'meetingtable': addRoundMeetingTable(g, 0, 0, 1.05); break;
+            case 'pingpong': addPingPong(g, 0, 0); break;
+            case 'arcade': addArcade(g, 0, 0, 0xb54b45); break;
+            case 'coffeebar': addCoffeeBar(g, 0, 0); break;
+            case 'pantry': addPantryCounter(g, 0, 0, 0); break;
+            case 'fridge': addFridge(g, 0, 0, 0); break;
+            case 'galon': addGalon(g, 0, 0, 0); break;
+            case 'bookshelf': addBookshelf(g, 0, 0, 0); break;
+            case 'tv': addTelevision(g, 0, 1.55, 0); break;
+            case 'plant': addPlant(g, 0, 0, 0.7); break;
+            case 'stool': addColorStool(g, 0, 0, TEAL); break;
+            case 'foodstall': addFoodStall(g, 0, 0); break;
+            case 'tree': addTree(g, 0, 0, 1.1); break;
+            case 'lamp': addStreetLamp(g, 0, 0); break;
             default: break;
         }
     }
@@ -821,9 +850,14 @@
         addWall(roomRoot, b.maxX, b.minZ, b.maxX, b.maxZ);
         addWall(roomRoot, b.minX, b.maxZ, b.minX + 2.2, b.maxZ, 0.5);
 
-        /* Partition between work & break (doorway gap) */
-        addWall(roomRoot, PARTITION_X, b.minZ, PARTITION_X, -0.55);
-        addWall(roomRoot, PARTITION_X, 1.15, PARTITION_X, b.maxZ);
+        /* Partisi ruangan dari layout (bisa digeser/diperpendek/dihapus di editor) */
+        (LAYOUT.partitions && LAYOUT.partitions.segments || []).forEach(function (seg) {
+            if (seg.axis === 'h') {
+                addWall(roomRoot, seg.from, seg.at, seg.to, seg.at);
+            } else {
+                addWall(roomRoot, seg.at, seg.from, seg.at, seg.to);
+            }
+        });
 
         /* Left wall windows */
         addWindow(roomRoot, b.minX + 0.12, 1.45, -2.6, 1.9, Math.PI / 2);
@@ -845,8 +879,10 @@
         LAYOUT.desks.forEach(function (d, i) {
             addStartupDesk(roomRoot, d[0], d[1], chairColors[i % chairColors.length]);
         });
-        /* Meja meeting bundar (furnitur untuk spot meeting) */
-        addRoundMeetingTable(roomRoot, LAYOUT.meetingTable.x, LAYOUT.meetingTable.z, LAYOUT.meetingTable.radius);
+        /* Meja meeting bundar — hanya bila belum dihapus dari layout */
+        if (LAYOUT.meetingTable && LAYOUT.meetingTable.enabled !== false) {
+            addRoundMeetingTable(roomRoot, LAYOUT.meetingTable.x, LAYOUT.meetingTable.z, LAYOUT.meetingTable.radius);
+        }
         addWallArt(roomRoot, 6.9, 1.7, b.maxZ - 0.12);
         /* Pembatas rendah zona game (tetap) */
         box(roomRoot, 3.35, 0.5, -0.55, 0.06, 1.0, 2.6, 0xe2e8f0, 0.85);
@@ -1664,7 +1700,9 @@
             wallHeight: LAYOUT.wallHeight || 2.55,
             building: LAYOUT.building,
             desks: LAYOUT.desks,
-            furniture: LAYOUT.furniture || []
+            furniture: LAYOUT.furniture || [],
+            partitions: LAYOUT.partitions || { segments: [] },
+            meetingTable: LAYOUT.meetingTable || { x: 1.6, z: 0.2, radius: 1.05, enabled: true }
         }));
     }
 

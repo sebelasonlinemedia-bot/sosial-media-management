@@ -1359,12 +1359,12 @@ app.renderLayoutEditor = async function () {
     }
     const saved = appState.office.settings && appState.office.settings.officeLayout;
     const base = saved ? JSON.parse(JSON.stringify(saved)) : this._layoutDefaultData();
-    if (!base.furniture || !base.furniture.length) {
-        // Layout lama tanpa daftar mebel → pakai mebel bawaan agar denah lengkap
-        const def = this._layoutDefaultData();
-        if (!base.furniture || !base.furniture.length) base.furniture = def.furniture;
-        if (!base.desks || !base.desks.length) base.desks = def.desks;
-    }
+    // Layout lama tanpa field baru → lengkapi dari bawaan agar denah utuh
+    const def = this._layoutDefaultData();
+    if (!base.furniture || !base.furniture.length) base.furniture = def.furniture;
+    if (!base.desks || !base.desks.length) base.desks = def.desks;
+    if (!base.partitions || !Array.isArray(base.partitions.segments)) base.partitions = def.partitions;
+    if (!base.meetingTable) base.meetingTable = def.meetingTable;
     this._layoutEditor = { data: base, selected: null, drag: null };
     this._syncLayoutEditorControls();
     this._drawLayoutCanvas();
@@ -1410,9 +1410,19 @@ app._updateLayoutSelectedInfo = function () {
     if (sel.kind === 'desk') {
         const d = ed.data.desks[sel.index];
         info.textContent = d ? `Meja agen #${sel.index + 1} — posisi (${d[0].toFixed(1)}, ${d[1].toFixed(1)})` : 'Meja agen';
+    } else if (sel.kind === 'meeting') {
+        const m = ed.data.meetingTable;
+        info.textContent = m ? `Meja meeting — posisi (${m.x.toFixed(1)}, ${m.z.toFixed(1)})` : 'Meja meeting';
+    } else if (sel.kind === 'partition') {
+        const s = ed.data.partitions && ed.data.partitions.segments[sel.index];
+        info.textContent = s
+            ? `Partisi ${s.axis === 'h' ? 'horizontal' : 'vertikal'} — panjang ${(s.to - s.from).toFixed(1)} m`
+            : 'Partisi';
     } else {
         const f = ed.data.furniture[sel.index];
-        info.textContent = f ? `Mebel: ${f.type} — posisi (${f.x.toFixed(1)}, ${f.z.toFixed(1)})` : 'Mebel';
+        info.textContent = f
+            ? `Mebel: ${f.type} — posisi (${f.x.toFixed(1)}, ${f.z.toFixed(1)}) · putar ${Math.round(((f.rotY || 0) * 180) / Math.PI)}°`
+            : 'Mebel';
     }
 };
 
@@ -1474,36 +1484,57 @@ app._drawLayoutCanvas = function () {
     ctx.strokeStyle = '#ffffff';
     ctx.lineWidth = 3;
     ctx.strokeRect(bx, by, bx2 - bx, by2 - by);
-    // Partisi kerja/break (x tetap 2.85)
-    const [partX] = toPx(2.85, 0);
-    ctx.strokeStyle = 'rgba(255,255,255,0.85)';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(partX, by);
-    ctx.lineTo(partX, by2);
-    ctx.stroke();
-    // Meja meeting bundar (tetap)
-    const [mtX, mtY] = toPx(1.6, 0.2);
-    ctx.fillStyle = '#6e4a30';
-    ctx.beginPath();
-    ctx.arc(mtX, mtY, 1.05 * scale, 0, Math.PI * 2);
-    ctx.fill();
+    // Partisi ruangan (dari layout — bisa digeser/diperpendek/dihapus)
+    ((d.partitions && d.partitions.segments) || []).forEach((seg, i) => {
+        const sel = ed.selected && ed.selected.kind === 'partition' && ed.selected.index === i;
+        const [sx, sy] = seg.axis === 'h' ? toPx(seg.from, seg.at) : toPx(seg.at, seg.from);
+        const [ex, ey] = seg.axis === 'h' ? toPx(seg.to, seg.at) : toPx(seg.at, seg.to);
+        ctx.strokeStyle = sel ? '#facc15' : '#ffffff';
+        ctx.lineWidth = sel ? 7 : 5;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(sx, sy);
+        ctx.lineTo(ex, ey);
+        ctx.stroke();
+        ctx.lineCap = 'butt';
+    });
+    // Meja meeting bundar (dari layout — bisa diseret/dihapus)
+    const mt = d.meetingTable;
+    if (mt && mt.enabled !== false) {
+        const [mtX, mtY] = toPx(mt.x, mt.z);
+        const sel = ed.selected && ed.selected.kind === 'meeting';
+        ctx.fillStyle = '#6e4a30';
+        ctx.beginPath();
+        ctx.arc(mtX, mtY, (mt.radius || 1.05) * scale, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = sel ? '#facc15' : 'rgba(15,23,42,0.55)';
+        ctx.lineWidth = sel ? 3 : 1;
+        ctx.stroke();
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '600 9px system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('MEETING', mtX, mtY + 3);
+    }
 
-    const drawItem = (x, z, w, h, color, label, selected) => {
+    const drawItem = (x, z, w, h, color, label, selected, rotY) => {
         const [px, py] = toPx(x, z);
         const pw = Math.max(8, w * scale);
         const ph = Math.max(8, h * scale);
+        ctx.save();
+        ctx.translate(px, py);
+        if (rotY) ctx.rotate(-rotY);
         ctx.fillStyle = color;
-        ctx.fillRect(px - pw / 2, py - ph / 2, pw, ph);
+        ctx.fillRect(-pw / 2, -ph / 2, pw, ph);
         ctx.strokeStyle = selected ? '#facc15' : 'rgba(15,23,42,0.55)';
         ctx.lineWidth = selected ? 3 : 1;
-        ctx.strokeRect(px - pw / 2, py - ph / 2, pw, ph);
+        ctx.strokeRect(-pw / 2, -ph / 2, pw, ph);
         if (label) {
             ctx.fillStyle = '#0f172a';
             ctx.font = '600 9px system-ui, sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText(label, px, py + 3);
+            ctx.fillText(label, 0, 3);
         }
+        ctx.restore();
     };
 
     // Mebel
@@ -1523,7 +1554,7 @@ app._drawLayoutCanvas = function () {
             tree: [1.2, 1.2, '#3f7a3c', 'pohon'], lamp: [0.3, 0.3, '#2f3336', 'lampu']
         };
         const s = shapes[f.type] || [0.6, 0.6, '#94a3b8', f.type];
-        drawItem(f.x, f.z, s[0], s[1], s[2], s[3], sel);
+        drawItem(f.x, f.z, s[0], s[1], s[2], s[3], sel, f.rotY || 0);
     });
 
     // Meja agen + kursi (kursi di sisi atas meja = sisi agen duduk)
@@ -1547,6 +1578,11 @@ app._layoutHitTest = function (worldX, worldZ) {
     const ed = this._layoutEditor;
     if (!ed) return null;
     const d = ed.data;
+    const mt = d.meetingTable;
+    if (mt && mt.enabled !== false) {
+        const dist = Math.hypot(worldX - mt.x, worldZ - mt.z);
+        if (dist <= (mt.radius || 1.05) + 0.25) return { kind: 'meeting', index: 0 };
+    }
     for (let i = (d.desks || []).length - 1; i >= 0; i--) {
         if (Math.abs(worldX - d.desks[i][0]) <= 0.75 && Math.abs(worldZ - d.desks[i][1]) <= 0.6) {
             return { kind: 'desk', index: i };
@@ -1557,6 +1593,22 @@ app._layoutHitTest = function (worldX, worldZ) {
         if (Math.abs(worldX - f.x) <= 0.85 && Math.abs(worldZ - f.z) <= 0.85) {
             return { kind: 'furniture', index: i };
         }
+    }
+    const segs = (d.partitions && d.partitions.segments) || [];
+    for (let i = segs.length - 1; i >= 0; i--) {
+        const s = segs[i];
+        // Jarak titik ke segmen garis
+        const ax = s.axis === 'h' ? s.from : s.at;
+        const az = s.axis === 'h' ? s.at : s.from;
+        const bx = s.axis === 'h' ? s.to : s.at;
+        const bz = s.axis === 'h' ? s.at : s.to;
+        const dx = bx - ax;
+        const dz = bz - az;
+        const len2 = dx * dx + dz * dz || 1;
+        let tt = ((worldX - ax) * dx + (worldZ - az) * dz) / len2;
+        tt = Math.max(0, Math.min(1, tt));
+        const dist = Math.hypot(worldX - (ax + tt * dx), worldZ - (az + tt * dz));
+        if (dist <= 0.45) return { kind: 'partition', index: i };
     }
     return null;
 };
@@ -1581,10 +1633,21 @@ app.setupLayoutEditorEvents = function () {
         const hit = this._layoutHitTest(wx, wz);
         ed.selected = hit;
         if (hit) {
-            const item = hit.kind === 'desk' ? ed.data.desks[hit.index] : ed.data.furniture[hit.index];
-            const ix = hit.kind === 'desk' ? item[0] : item.x;
-            const iz = hit.kind === 'desk' ? item[1] : item.z;
-            ed.drag = { ...hit, dx: wx - ix, dz: wz - iz };
+            if (hit.kind === 'partition') {
+                const seg = ed.data.partitions.segments[hit.index];
+                ed.drag = {
+                    ...hit,
+                    startWX: wx, startWZ: wz,
+                    startAt: seg.at, startFrom: seg.from, startTo: seg.to, axis: seg.axis
+                };
+            } else if (hit.kind === 'meeting') {
+                ed.drag = { ...hit, dx: wx - ed.data.meetingTable.x, dz: wz - ed.data.meetingTable.z };
+            } else {
+                const item = hit.kind === 'desk' ? ed.data.desks[hit.index] : ed.data.furniture[hit.index];
+                const ix = hit.kind === 'desk' ? item[0] : item.x;
+                const iz = hit.kind === 'desk' ? item[1] : item.z;
+                ed.drag = { ...hit, dx: wx - ix, dz: wz - iz };
+            }
             canvas.setPointerCapture(evt.pointerId);
         }
         this._updateLayoutSelectedInfo();
@@ -1594,13 +1657,27 @@ app.setupLayoutEditorEvents = function () {
         const ed = this._layoutEditor;
         if (!ed || !ed.drag) return;
         const [wx, wz] = pos(evt);
-        const nx = Math.round((wx - ed.drag.dx) * 10) / 10;
-        const nz = Math.round((wz - ed.drag.dz) * 10) / 10;
-        if (ed.drag.kind === 'desk') {
-            ed.data.desks[ed.drag.index] = [nx, nz];
+        if (ed.drag.kind === 'partition') {
+            const seg = ed.data.partitions.segments[ed.drag.index];
+            if (seg) {
+                const along = ed.drag.axis === 'v' ? (wz - ed.drag.startWZ) : (wx - ed.drag.startWX);
+                const across = ed.drag.axis === 'v' ? (wx - ed.drag.startWX) : (wz - ed.drag.startWZ);
+                seg.at = Math.round((ed.drag.startAt + across) * 10) / 10;
+                seg.from = Math.round((ed.drag.startFrom + along) * 10) / 10;
+                seg.to = Math.round((ed.drag.startTo + along) * 10) / 10;
+            }
+        } else if (ed.drag.kind === 'meeting') {
+            ed.data.meetingTable.x = Math.round((wx - ed.drag.dx) * 10) / 10;
+            ed.data.meetingTable.z = Math.round((wz - ed.drag.dz) * 10) / 10;
         } else {
-            ed.data.furniture[ed.drag.index].x = nx;
-            ed.data.furniture[ed.drag.index].z = nz;
+            const nx = Math.round((wx - ed.drag.dx) * 10) / 10;
+            const nz = Math.round((wz - ed.drag.dz) * 10) / 10;
+            if (ed.drag.kind === 'desk') {
+                ed.data.desks[ed.drag.index] = [nx, nz];
+            } else {
+                ed.data.furniture[ed.drag.index].x = nx;
+                ed.data.furniture[ed.drag.index].z = nz;
+            }
         }
         this._updateLayoutSelectedInfo();
         this._drawLayoutCanvas();
@@ -1667,9 +1744,39 @@ app.setupLayoutEditorEvents = function () {
     if (rotateBtn) {
         rotateBtn.addEventListener('click', () => {
             const ed = this._layoutEditor;
-            if (!ed || !ed.selected || ed.selected.kind !== 'furniture') return;
-            const f = ed.data.furniture[ed.selected.index];
-            if (f) f.rotY = Math.round(((f.rotY || 0) + Math.PI / 4) * 100) / 100;
+            if (!ed || !ed.selected) return;
+            if (ed.selected.kind === 'partition') {
+                // Ganti arah vertikal <-> horizontal (pusat & panjang dipertahankan)
+                const seg = ed.data.partitions.segments[ed.selected.index];
+                if (seg) {
+                    const center = seg.axis === 'v' ? seg.at : (seg.from + seg.to) / 2;
+                    const mid = (seg.from + seg.to) / 2;
+                    const half = (seg.to - seg.from) / 2;
+                    if (seg.axis === 'v') {
+                        seg.axis = 'h';
+                        seg.at = Math.round(mid * 10) / 10;
+                        seg.from = Math.round((center - half) * 10) / 10;
+                        seg.to = Math.round((center + half) * 10) / 10;
+                    } else {
+                        seg.axis = 'v';
+                        seg.at = Math.round(mid * 10) / 10;
+                        seg.from = Math.round((center - half) * 10) / 10;
+                        seg.to = Math.round((center + half) * 10) / 10;
+                    }
+                }
+            } else if (ed.selected.kind === 'furniture') {
+                const f = ed.data.furniture[ed.selected.index];
+                if (f) {
+                    let next = (f.rotY || 0) + Math.PI / 4;
+                    if (next > Math.PI) next -= Math.PI * 2;
+                    f.rotY = Math.round(next * 100) / 100;
+                }
+            } else {
+                this.showToast('Item ini tidak bisa diputar.', 'yellow');
+                return;
+            }
+            this._updateLayoutSelectedInfo();
+            this._drawLayoutCanvas();
         });
     }
     const deleteBtn = document.getElementById('layout-delete-item');
@@ -1679,6 +1786,10 @@ app.setupLayoutEditorEvents = function () {
             if (!ed || !ed.selected) return;
             if (ed.selected.kind === 'furniture') {
                 ed.data.furniture.splice(ed.selected.index, 1);
+            } else if (ed.selected.kind === 'partition') {
+                ed.data.partitions.segments.splice(ed.selected.index, 1);
+            } else if (ed.selected.kind === 'meeting') {
+                ed.data.meetingTable.enabled = false;
             } else if (ed.data.desks.length > 1) {
                 ed.data.desks.splice(ed.selected.index, 1);
             } else {
@@ -1690,6 +1801,58 @@ app.setupLayoutEditorEvents = function () {
             this._drawLayoutCanvas();
         });
     }
+    const addPartitionBtn = document.getElementById('layout-add-partition');
+    if (addPartitionBtn) {
+        addPartitionBtn.addEventListener('click', () => {
+            const ed = this._layoutEditor;
+            if (!ed) return;
+            if (!ed.data.partitions) ed.data.partitions = { segments: [] };
+            if (ed.data.partitions.segments.length >= 12) {
+                this.showToast('Maksimal 12 segmen partisi.', 'yellow');
+                return;
+            }
+            ed.data.partitions.segments.push({ axis: 'v', at: 0, from: -2, to: 2 });
+            ed.selected = { kind: 'partition', index: ed.data.partitions.segments.length - 1 };
+            this._updateLayoutSelectedInfo();
+            this._drawLayoutCanvas();
+        });
+    }
+    const addMeetingBtn = document.getElementById('layout-add-meeting');
+    if (addMeetingBtn) {
+        addMeetingBtn.addEventListener('click', () => {
+            const ed = this._layoutEditor;
+            if (!ed) return;
+            if (!ed.data.meetingTable) {
+                ed.data.meetingTable = { x: 1.6, z: 0.2, radius: 1.05, enabled: true };
+            } else {
+                ed.data.meetingTable.enabled = true;
+            }
+            ed.selected = { kind: 'meeting', index: 0 };
+            this._updateLayoutSelectedInfo();
+            this._drawLayoutCanvas();
+        });
+    }
+    const resizePartition = (delta) => {
+        const ed = this._layoutEditor;
+        if (!ed || !ed.selected) return;
+        if (ed.selected.kind !== 'partition') {
+            this.showToast('Perpendek/Perpanjang hanya untuk partisi terpilih.', 'yellow');
+            return;
+        }
+        const seg = ed.data.partitions.segments[ed.selected.index];
+        if (!seg) return;
+        const mid = (seg.from + seg.to) / 2;
+        let half = (seg.to - seg.from) / 2 + delta / 2;
+        half = Math.max(0.25, half);
+        seg.from = Math.round((mid - half) * 10) / 10;
+        seg.to = Math.round((mid + half) * 10) / 10;
+        this._updateLayoutSelectedInfo();
+        this._drawLayoutCanvas();
+    };
+    const shortenBtn = document.getElementById('layout-shorten-item');
+    if (shortenBtn) shortenBtn.addEventListener('click', () => resizePartition(-1));
+    const lengthenBtn = document.getElementById('layout-lengthen-item');
+    if (lengthenBtn) lengthenBtn.addEventListener('click', () => resizePartition(1));
     const addDeskBtn = document.getElementById('layout-add-desk');
     if (addDeskBtn) {
         addDeskBtn.addEventListener('click', () => {
