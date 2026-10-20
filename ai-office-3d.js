@@ -96,10 +96,9 @@
             ],
             furniture: defaultFurniture(),
             partitions: {
-                segments: [
-                    { axis: 'v', at: 2.85, from: -5.0, to: -0.55 },
-                    { axis: 'v', at: 2.85, from: 1.15, to: 4.2 }
-                ]
+                /* Tanpa partisi tipis dekat kursi (dihapus atas permintaan).
+                   Partisi tetap bisa ditambahkan lagi lewat Layout Kantor. */
+                segments: []
             },
             meetingTable: { x: 1.6, z: 0.2, radius: 1.05, enabled: true }
         };
@@ -477,27 +476,6 @@
         return g;
     }
 
-    function addWindow(parent, x, y, z, width, rotY) {
-        var g = groupAt(parent, x, y, z, rotY || 0);
-        var w = width || 1.8;
-        box(g, 0, 0, 0, w + 0.12, 1.22, 0.12, 0x5a4636, 0.8);
-        var glass = new THREE.Mesh(
-            new THREE.PlaneGeometry(w, 1.1),
-            mat(0x9fd3ea, 0.05, 0.2, { emissive: 0x6fb6d6, emissiveIntensity: 0.35 })
-        );
-        glass.position.z = 0.065;
-        g.add(glass);
-        box(g, 0, 0, 0.08, 0.05, 1.1, 0.03, 0x5a4636, 0.8);
-        return g;
-    }
-
-    function addGlassX(parent, x, fromZ, toZ, bottom) {
-        var top = WALL_H - 0.2;
-        box(parent, x, (bottom + top) / 2, (fromZ + toZ) / 2,
-            0.05, top - bottom, Math.abs(toZ - fromZ),
-            0xcfe8ee, 0.05, 0.1, { opacity: 0.28 });
-    }
-
     function addPlant(parent, x, z, size) {
         var s = size || 1;
         var g = groupAt(parent, x, 0, z);
@@ -820,17 +798,10 @@
             }
         });
 
-        /* Left wall windows */
-        addWindow(roomRoot, b.minX + 0.12, 1.45, -2.6, 1.9, Math.PI / 2);
-        addWindow(roomRoot, b.minX + 0.12, 1.45, -0.4, 1.9, Math.PI / 2);
-        /* Back wall windows (game room) */
-        addWindow(roomRoot, 5.2, 1.45, b.minZ + 0.12, 1.9, 0);
-        addWindow(roomRoot, 7.3, 1.45, b.minZ + 0.12, 1.9, 0);
+        /* Tanpa jendela & ornamen dinding (dihapus atas permintaan):
+           dinding polos bersih, termasuk tanpa tulisan STARTUP & bingkai lukisan. */
 
-        /* STARTUP lettering on back wall */
-        addStartupSign(roomRoot, -2.4, 1.85, b.minZ + 0.14);
-
-        /* Low cabinet under windows */
+        /* Low cabinet against the wall */
         addLowCabinet(roomRoot, -4.6, -3.9, 2.4);
         addPlant(roomRoot, -5.4, -3.85, 0.55);
         addBookStack(roomRoot, -4.2, -3.85);
@@ -844,23 +815,11 @@
         if (LAYOUT.meetingTable && LAYOUT.meetingTable.enabled !== false) {
             addRoundMeetingTable(roomRoot, LAYOUT.meetingTable.x, LAYOUT.meetingTable.z, LAYOUT.meetingTable.radius);
         }
-        addWallArt(roomRoot, 6.9, 1.7, b.maxZ - 0.12);
-        /* Pembatas rendah zona game (tetap) */
-        box(roomRoot, 3.35, 0.5, -0.55, 0.06, 1.0, 2.6, 0xe2e8f0, 0.85);
-
         /* Semua mebel lain dari layout (bawaan atau custom dari Layout Kantor).
            Tanpa lampu gantung & gerobak (dihapus atas permintaan). */
         (LAYOUT.furniture || []).forEach(function (item) {
             addFurnitureItem(roomRoot, item);
         });
-    }
-
-    function addStartupSign(parent, x, y, z) {
-        var letters = 'STARTUP';
-        var i;
-        for (i = 0; i < letters.length; i += 1) {
-            box(parent, x + i * 0.38, y, z, 0.28, 0.36, 0.04, 0x111827, 0.55);
-        }
     }
 
     function addLowCabinet(parent, x, z, w) {
@@ -937,17 +896,6 @@
         cyl(parent, x - 0.12, 0.48, z, 0.05, 0.08, 0xffffff, 0.5);
         cyl(parent, x + 0.12, 0.48, z, 0.05, 0.08, 0xffffff, 0.5);
         addPlant(parent, x, z + 0.05, 0.28);
-    }
-
-    function addWallArt(parent, x, y, z) {
-        var colors = [0x67e8f9, 0xfde047, 0xfdba74, 0x86efac];
-        var i;
-        for (i = 0; i < 4; i += 1) {
-            var ox = (i % 2) * 0.55 - 0.25;
-            var oy = Math.floor(i / 2) * 0.55 - 0.2;
-            box(parent, x + ox, y + oy, z, 0.38, 0.38, 0.03, 0xffffff, 0.5);
-            box(parent, x + ox, y + oy, z + 0.02, 0.28, 0.28, 0.01, colors[i], 0.6);
-        }
     }
 
     /* ---------- Characters (stylized realistic — capsule/sphere, not boxes) ---------- */
