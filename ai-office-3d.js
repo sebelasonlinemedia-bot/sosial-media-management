@@ -56,10 +56,12 @@
 
     /* Layout default hasil rekonstruksi screenshot Layout Kantor
        (22.8 x 11.0 m, pusat gedung dipertahankan di (0.7,-0.4)):
-       AREA KERJA kiri, MEETING kiri-bawah, LOUNGE·GAME·DAPUR kanan.
+       AREA KERJA kiri (meja menyebar, beberapa terputar), MEETING
+       tengah-atas, lounge sofa-U tengah-kiri, GAME kanan-atas,
+       DAPUR/kopi kanan-bawah.
        Dideklarasikan SEBELUM buildLayout pertama agar tidak undefined. */
     var DEFAULT_BUILDING = { minX: -10.7, maxX: 12.1, minZ: -5.9, maxZ: 5.1 };
-    var DEFAULT_MEETING = { x: -5.6, z: 3.0, radius: 1.05, enabled: true };
+    var DEFAULT_MEETING = { x: 3.0, z: -3.1, radius: 1.05, enabled: true };
     /* Meja meeting MEMANJANG (elips sumbu-X): radius = skala lebar;
        setengah-panjang a = radius*1.6 (±3.2x lebar), setengah-lebar b. */
     var MEETING_LONG = 'elongated-meeting-v1';
@@ -74,37 +76,41 @@
     /** Mebel bawaan scene (posisi mengikuti denah screenshot). */
     function defaultFurniture() {
         return [
-            { id: 'sofa-1', type: 'sofa', x: 1.9, z: -3.6, rotY: Math.PI / 2 },
-            { id: 'sofa-2', type: 'sofa', x: 4.1, z: -3.6, rotY: Math.PI / 2 },
-            { id: 'coffee-table', type: 'coffeetable', x: 3.0, z: -3.6, rotY: Math.PI / 2 },
-            /* TV lounge di sisi timur sofa (layar menghadap -x ke sofa):
-               dasar stop idle sofa-TV — lihat deriveIdleStops. */
-            { id: 'tv-1', type: 'tv', x: 5.4, z: -4.2, rotY: -Math.PI / 2 },
-            { id: 'beanbag-1', type: 'beanbag', x: 6.8, z: 0.4, rotY: 0 },
-            { id: 'beanbag-2', type: 'beanbag', x: 8.6, z: 0.4, rotY: 0 },
-            { id: 'pingpong', type: 'pingpong', x: 7.6, z: -2.7, rotY: 0 },
-            { id: 'arcade-1', type: 'arcade', x: 10.9, z: -4.9, rotY: 0 },
-            { id: 'arcade-2', type: 'arcade', x: 9.8, z: -4.9, rotY: 0 },
-            { id: 'coffeebar', type: 'coffeebar', x: 6.0, z: 4.35, rotY: 0 },
-            { id: 'stool-1', type: 'stool', x: 5.4, z: 3.65, rotY: 0 },
-            { id: 'stool-2', type: 'stool', x: 6.1, z: 3.65, rotY: 0 },
-            { id: 'pantry', type: 'pantry', x: 9.4, z: 3.0, rotY: -Math.PI / 2 },
-            { id: 'fridge', type: 'fridge', x: 10.7, z: 4.3, rotY: -Math.PI / 2 },
-            { id: 'galon', type: 'galon', x: 10.7, z: 1.3, rotY: 0 },
-            { id: 'bookshelf', type: 'bookshelf', x: -10.15, z: 2.2, rotY: Math.PI / 2 },
-            { id: 'plant-1', type: 'plant', x: -10.0, z: -5.2, rotY: 0 },
-            { id: 'plant-2', type: 'plant', x: -0.1, z: -5.3, rotY: 0 },
-            { id: 'plant-3', type: 'plant', x: 11.5, z: 0.6, rotY: 0 },
-            { id: 'plant-4', type: 'plant', x: -10.0, z: 4.6, rotY: 0 },
-            { id: 'tree-1', type: 'tree', x: -8.0, z: -7.8, rotY: 0 },
-            { id: 'tree-2', type: 'tree', x: -3.0, z: -7.8, rotY: 0 },
-            { id: 'tree-3', type: 'tree', x: 3.0, z: -7.8, rotY: 0 },
-            { id: 'tree-4', type: 'tree', x: 8.0, z: -7.8, rotY: 0 },
-            { id: 'tree-5', type: 'tree', x: -12.6, z: -0.5, rotY: 0 },
-            { id: 'tree-6', type: 'tree', x: 14.0, z: -0.5, rotY: 0 },
-            { id: 'lamp-1', type: 'lamp', x: -9.0, z: 6.8, rotY: 0 },
-            { id: 'lamp-2', type: 'lamp', x: 0.7, z: 6.8, rotY: 0 },
-            { id: 'lamp-3', type: 'lamp', x: 9.0, z: 6.8, rotY: 0 }
+            /* Lounge sofa-U tengah-kiri: sofa horizontal di utara, dua sofa
+               vertikal mengapit meja kopi. */
+            { id: 'sofa-1', type: 'sofa', x: -3.1, z: -0.2, rotY: 0 },
+            { id: 'sofa-2', type: 'sofa', x: -5.0, z: 1.9, rotY: Math.PI / 2 },
+            { id: 'sofa-3', type: 'sofa', x: -1.2, z: 1.9, rotY: Math.PI / 2 },
+            { id: 'coffee-table', type: 'coffeetable', x: -3.1, z: 1.9, rotY: Math.PI / 2 },
+            /* TV di dinding belakang (utara) tengah, di antara dua rak buku:
+               stop idle sofa-TV menghadap TV ini — lihat deriveIdleStops. */
+            { id: 'tv-1', type: 'tv', x: 3.0, z: -5.7, rotY: 0 },
+            { id: 'bookshelf-1', type: 'bookshelf', x: 0.5, z: -5.7, rotY: 0 },
+            { id: 'bookshelf-2', type: 'bookshelf', x: 5.5, z: -5.7, rotY: 0 },
+            { id: 'arcade-1', type: 'arcade', x: 7.9, z: -5.6, rotY: 0 },
+            /* Pingpong vertikal (panjang meja sejajar sumbu Z) di kanan. */
+            { id: 'pingpong', type: 'pingpong', x: 10.0, z: -3.3, rotY: Math.PI / 2 },
+            { id: 'beanbag-1', type: 'beanbag', x: 9.0, z: -0.7, rotY: 0 },
+            { id: 'beanbag-2', type: 'beanbag', x: 11.1, z: -0.7, rotY: 0 },
+            { id: 'coffeebar', type: 'coffeebar', x: 8.1, z: 4.6, rotY: 0 },
+            { id: 'stool-1', type: 'stool', x: 7.4, z: 3.9, rotY: 0 },
+            { id: 'stool-2', type: 'stool', x: 8.8, z: 3.9, rotY: 0 },
+            /* Counter dapur vertikal di tepi kanan-bawah (sisi depan -x). */
+            { id: 'pantry', type: 'pantry', x: 11.9, z: 3.0, rotY: -Math.PI / 2 },
+            { id: 'fridge', type: 'fridge', x: 11.0, z: 4.4, rotY: -Math.PI / 2 },
+            { id: 'galon', type: 'galon', x: 10.6, z: 2.7, rotY: 0 },
+            { id: 'plant-1', type: 'plant', x: -10.4, z: -5.8, rotY: 0 },
+            { id: 'plant-2', type: 'plant', x: -10.5, z: 4.8, rotY: 0 },
+            { id: 'plant-3', type: 'plant', x: 11.8, z: -5.7, rotY: 0 },
+            { id: 'tree-1', type: 'tree', x: -8.2, z: -9.5, rotY: 0 },
+            { id: 'tree-2', type: 'tree', x: -2.9, z: -9.3, rotY: 0 },
+            { id: 'tree-3', type: 'tree', x: 3.0, z: -9.2, rotY: 0 },
+            { id: 'tree-4', type: 'tree', x: 8.2, z: -9.2, rotY: 0 },
+            { id: 'tree-5', type: 'tree', x: -14.0, z: -0.6, rotY: 0 },
+            { id: 'tree-6', type: 'tree', x: 15.2, z: -0.6, rotY: 0 },
+            { id: 'lamp-1', type: 'lamp', x: -13.5, z: 6.7, rotY: 0 },
+            { id: 'lamp-2', type: 'lamp', x: 14.7, z: 6.5, rotY: 0 },
+            { id: 'lamp-3', type: 'lamp', x: 13.2, z: -7.1, rotY: 0 }
         ];
     }
 
@@ -112,20 +118,28 @@
         return {
             wallHeight: 2.55,
             building: { minX: DEFAULT_BUILDING.minX, maxX: DEFAULT_BUILDING.maxX, minZ: DEFAULT_BUILDING.minZ, maxZ: DEFAULT_BUILDING.maxZ },
+            /* Urutan A1..A7 seperti label editor. Rotasi tersimpan mengikuti
+               konvensi deskSeatSpot (kursi di lokal (0,-0.78) yang diputar):
+               A1-A3 kursi di barat → +90°, A4 kursi di barat-laut → +45°
+               (di kanvas tampak miring -45° karena editor menggambar
+               rotate(-rotY)), A5-A6 kursi di utara → 0°, A7 kursi di
+               timur → -90° (sesuai info panel editor untuk meja #7). */
             desks: [
-                [-8.6, -3.7, 0], [-6.4, -3.7, 0], [-4.2, -3.7, 0], [-2.0, -3.7, 0],
-                [-7.5, -1.5, 0], [-5.3, -1.5, 0], [-3.1, -1.5, 0]
+                [-9.0, 3.6, Math.PI / 2], [-9.1, 1.1, Math.PI / 2], [-9.2, -1.5, Math.PI / 2],
+                [-8.5, -3.8, Math.PI / 4], [-5.9, -4.3, 0], [-3.1, -4.3, 0],
+                [3.7, 2.7, -Math.PI / 2]
             ],
             furniture: defaultFurniture(),
             partitions: {
-                /* Celah pintu sengaja dibiarkan: v x=0.7 celah z -1.0..0.8,
-                   h meeting celah x -2.0..0.7, h dapur celah x 0.7..3.5. */
+                /* Celah pintu sengaja dibiarkan: ujung selatan partisi
+                   x=-1.4 (z>-2.9), ujung selatan partisi x=7.2 (z>-1.8),
+                   barat partisi z=0.3 (x<7.4), dan ujung utara partisi
+                   x=5.3 (z<1.0) — semua zona tetap saling terjangkau. */
                 segments: [
-                    { axis: 'v', at: 0.7, from: -5.9, to: -1.0 },
-                    { axis: 'v', at: 0.7, from: 0.8, to: 1.8 },
-                    { axis: 'h', at: 1.2, from: -10.7, to: -2.0 },
-                    { axis: 'h', at: 1.8, from: 3.5, to: 12.1 },
-                    { axis: 'h', at: 0.3, from: -10.7, to: -7.8 }
+                    { axis: 'v', at: -1.4, from: -5.9, to: -2.9 },
+                    { axis: 'v', at: 7.2, from: -5.9, to: -1.8 },
+                    { axis: 'h', at: 0.3, from: 7.4, to: 12.1 },
+                    { axis: 'v', at: 5.3, from: 1.0, to: 5.1 }
                 ]
             },
             meetingTable: { x: DEFAULT_MEETING.x, z: DEFAULT_MEETING.z, radius: DEFAULT_MEETING.radius, enabled: true }
@@ -306,7 +320,9 @@
             spots: [
                 { x: -1.4, z: AISLE_Z, facing: 0, seated: false },
                 { x: 2.6, z: AISLE_Z, facing: Math.PI, seated: false },
-                { x: 5.2, z: 1.0, facing: 0, seated: false }
+                /* (5.2, 0.3): di celah utara ujung partisi x=5.3 (mulai z=1.0)
+                   denah bawaan — titik lama (5.2, 1.0) menempel ujung partisi. */
+                { x: 5.2, z: 0.3, facing: 0, seated: false }
             ]
         });
         return stops;
@@ -1335,8 +1351,10 @@
            di luar data layout (digambar selalu, tak bisa dihapus di editor)
            yang tampak menempel/menghalangi area meja meeting di screenshot
            dan footprint-nya menimpa meja agen A3. Tumpukan buku di atasnya
-           ikut dibersihkan agar tidak melayang tanpa kabinet. */
-        addPlant(roomRoot, -5.4, -3.85, 0.55);
+           ikut dibersihkan agar tidak melayang tanpa kabinet. Tanaman lantai
+           hard-coded di (-5.4,-3.85) juga dihapus: tidak ada di data layout
+           dan pada denah bawaan kini menimpa area meja agen A5 — semua
+           tanaman kini hanya dari daftar mebel layout. */
 
         /* Work desks + colorful chairs */
         var chairColors = [TEAL, YELLOW, TEAL, YELLOW, TEAL, YELLOW, TEAL];

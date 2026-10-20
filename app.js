@@ -1563,19 +1563,54 @@ app._layoutDefaultData = function () {
     if (typeof AiOffice3D !== 'undefined' && typeof AiOffice3D.getDefaultLayout === 'function') {
         return AiOffice3D.getDefaultLayout();
     }
+    // Salinan persis default pabrik ai-office-3d.js (defaultLayoutData) —
+    // hanya dipakai bila modul 3D gagal dimuat.
     return {
         wallHeight: 2.55,
         building: { minX: -10.7, maxX: 12.1, minZ: -5.9, maxZ: 5.1 },
-        desks: [[-8.6, -3.7, 0], [-6.4, -3.7, 0], [-4.2, -3.7, 0], [-2.0, -3.7, 0], [-7.5, -1.5, 0], [-5.3, -1.5, 0], [-3.1, -1.5, 0]],
+        desks: [
+            [-9.0, 3.6, Math.PI / 2], [-9.1, 1.1, Math.PI / 2], [-9.2, -1.5, Math.PI / 2],
+            [-8.5, -3.8, Math.PI / 4], [-5.9, -4.3, 0], [-3.1, -4.3, 0],
+            [3.7, 2.7, -Math.PI / 2]
+        ],
         partitions: { segments: [
-            { axis: 'v', at: 0.7, from: -5.9, to: -1.0 },
-            { axis: 'v', at: 0.7, from: 0.8, to: 1.8 },
-            { axis: 'h', at: 1.2, from: -10.7, to: -2.0 },
-            { axis: 'h', at: 1.8, from: 3.5, to: 12.1 },
-            { axis: 'h', at: 0.3, from: -10.7, to: -7.8 }
+            { axis: 'v', at: -1.4, from: -5.9, to: -2.9 },
+            { axis: 'v', at: 7.2, from: -5.9, to: -1.8 },
+            { axis: 'h', at: 0.3, from: 7.4, to: 12.1 },
+            { axis: 'v', at: 5.3, from: 1.0, to: 5.1 }
         ] },
-        meetingTable: { x: -5.6, z: 3.0, radius: 1.05, enabled: true },
-        furniture: []
+        meetingTable: { x: 3.0, z: -3.1, radius: 1.05, enabled: true },
+        furniture: [
+            { id: 'sofa-1', type: 'sofa', x: -3.1, z: -0.2, rotY: 0 },
+            { id: 'sofa-2', type: 'sofa', x: -5.0, z: 1.9, rotY: Math.PI / 2 },
+            { id: 'sofa-3', type: 'sofa', x: -1.2, z: 1.9, rotY: Math.PI / 2 },
+            { id: 'coffee-table', type: 'coffeetable', x: -3.1, z: 1.9, rotY: Math.PI / 2 },
+            { id: 'tv-1', type: 'tv', x: 3.0, z: -5.7, rotY: 0 },
+            { id: 'bookshelf-1', type: 'bookshelf', x: 0.5, z: -5.7, rotY: 0 },
+            { id: 'bookshelf-2', type: 'bookshelf', x: 5.5, z: -5.7, rotY: 0 },
+            { id: 'arcade-1', type: 'arcade', x: 7.9, z: -5.6, rotY: 0 },
+            { id: 'pingpong', type: 'pingpong', x: 10.0, z: -3.3, rotY: Math.PI / 2 },
+            { id: 'beanbag-1', type: 'beanbag', x: 9.0, z: -0.7, rotY: 0 },
+            { id: 'beanbag-2', type: 'beanbag', x: 11.1, z: -0.7, rotY: 0 },
+            { id: 'coffeebar', type: 'coffeebar', x: 8.1, z: 4.6, rotY: 0 },
+            { id: 'stool-1', type: 'stool', x: 7.4, z: 3.9, rotY: 0 },
+            { id: 'stool-2', type: 'stool', x: 8.8, z: 3.9, rotY: 0 },
+            { id: 'pantry', type: 'pantry', x: 11.9, z: 3.0, rotY: -Math.PI / 2 },
+            { id: 'fridge', type: 'fridge', x: 11.0, z: 4.4, rotY: -Math.PI / 2 },
+            { id: 'galon', type: 'galon', x: 10.6, z: 2.7, rotY: 0 },
+            { id: 'plant-1', type: 'plant', x: -10.4, z: -5.8, rotY: 0 },
+            { id: 'plant-2', type: 'plant', x: -10.5, z: 4.8, rotY: 0 },
+            { id: 'plant-3', type: 'plant', x: 11.8, z: -5.7, rotY: 0 },
+            { id: 'tree-1', type: 'tree', x: -8.2, z: -9.5, rotY: 0 },
+            { id: 'tree-2', type: 'tree', x: -2.9, z: -9.3, rotY: 0 },
+            { id: 'tree-3', type: 'tree', x: 3.0, z: -9.2, rotY: 0 },
+            { id: 'tree-4', type: 'tree', x: 8.2, z: -9.2, rotY: 0 },
+            { id: 'tree-5', type: 'tree', x: -14.0, z: -0.6, rotY: 0 },
+            { id: 'tree-6', type: 'tree', x: 15.2, z: -0.6, rotY: 0 },
+            { id: 'lamp-1', type: 'lamp', x: -13.5, z: 6.7, rotY: 0 },
+            { id: 'lamp-2', type: 'lamp', x: 14.7, z: 6.5, rotY: 0 },
+            { id: 'lamp-3', type: 'lamp', x: 13.2, z: -7.1, rotY: 0 }
+        ]
     };
 };
 
@@ -2069,7 +2104,7 @@ app.setupLayoutEditorEvents = function () {
             const ed = this._layoutEditor;
             if (!ed) return;
             if (!ed.data.meetingTable) {
-                ed.data.meetingTable = { x: -5.6, z: 3.0, radius: 1.05, enabled: true };
+                ed.data.meetingTable = { x: 3.0, z: -3.1, radius: 1.05, enabled: true };
             } else {
                 ed.data.meetingTable.enabled = true;
             }
