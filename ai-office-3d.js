@@ -39,6 +39,9 @@
     var PARTITION_X = 2.85;
     var AISLE_Z = 0.15;
     var WALL_H = 2.55;
+    /* Dinding belakang selalu tinggi penuh — slider layout hanya
+       berlaku untuk dinding kiri & kanan (dan partisi interior). */
+    var BACK_WALL_H = 2.55;
     var WALL = 0xffffff;
     var WALL_TOP = 0xf1f5f9;
     var TEAL = 0x2dd4bf;
@@ -512,27 +515,58 @@
         box(g, 0.7, 3.05, 0, 0.3, 0.12, 0.2, 0xf5e6b8, 0.5, 0, { emissive: 0xffd98a, emissiveIntensity: 0.25 });
     }
 
-    function addOfficeChair(parent, x, z, rotY, color) {
+    /* Kursi futuristik: cangkang putih glossy melengkung (sphere terpipih),
+       bantalan warna aksen, tiang krom, dan alas cakram melayang bercincin
+       cahaya cyan. Dipakai meja kerja, meja meeting, dan workdesk. */
+    function addFutureChair(parent, x, z, rotY, color) {
         var g = groupAt(parent, x, 0, z, rotY || 0);
-        var c = color || 0x2f3a44;
-        box(g, 0, 0.48, 0, 0.52, 0.09, 0.5, c, 0.9);
-        box(g, 0, 0.85, -0.23, 0.5, 0.6, 0.07, c, 0.9);
-        cyl(g, 0, 0.25, 0, 0.035, 0.42, 0x8b9297, 0.3, 0.6);
-        var spoke;
-        for (spoke = 0; spoke < 5; spoke += 1) {
-            var a = (spoke / 5) * Math.PI * 2;
-            var sb = box(g, Math.sin(a) * 0.2, 0.05, Math.cos(a) * 0.2, 0.05, 0.04, 0.42, 0x2a2f33, 0.6);
-            sb.rotation.y = a;
-        }
+        var c = color == null ? 0x2f3a44 : color;
+        /* Alas cakram + cincin cahaya */
+        cyl(g, 0, 0.045, 0, 0.27, 0.05, 0x1f2937, 0.35, 0.6);
+        cyl(g, 0, 0.075, 0, 0.275, 0.014, 0x22d3ee, 0.4, 0.1, {
+            emissive: 0x22d3ee, emissiveIntensity: 0.85
+        });
+        /* Tiang tengah krom */
+        cyl(g, 0, 0.26, 0, 0.035, 0.38, 0x9aa5b1, 0.25, 0.85);
+        /* Cangkang dudukan putih + bantalan aksen */
+        var shell = new THREE.Mesh(new THREE.SphereGeometry(0.29, 18, 12), mat(0xf8fafc, 0.22, 0.08));
+        shell.scale.set(1.02, 0.34, 0.98);
+        shell.position.y = 0.35;
+        g.add(shell);
+        var seat = new THREE.Mesh(new THREE.SphereGeometry(0.26, 18, 12), mat(c, 0.35, 0.05));
+        seat.scale.set(0.95, 0.36, 0.9);
+        seat.position.y = 0.385;
+        g.add(seat);
+        /* Sandaran: cangkang putih di belakang, bantalan aksen di depan */
+        var backShell = new THREE.Mesh(new THREE.SphereGeometry(0.27, 18, 12), mat(0xf8fafc, 0.22, 0.08));
+        backShell.scale.set(0.98, 1.18, 0.3);
+        backShell.position.set(0, 0.84, -0.215);
+        backShell.rotation.x = -0.1;
+        g.add(backShell);
+        var backPad = new THREE.Mesh(new THREE.SphereGeometry(0.24, 18, 12), mat(c, 0.35, 0.05));
+        backPad.scale.set(0.88, 1.05, 0.2);
+        backPad.position.set(0, 0.84, -0.175);
+        backPad.rotation.x = -0.1;
+        g.add(backPad);
+        return g;
+    }
+
+    function addOfficeChair(parent, x, z, rotY, color) {
+        return addFutureChair(parent, x, z, rotY, color);
     }
 
     function addWorkDesk(parent, x, z, active) {
         var g = groupAt(parent, x, 0, z);
-        box(g, 0, 0.74, 0, 1.9, 0.07, 0.95, 0xf2f0ea, 0.55);
-        box(g, -0.9, 0.37, 0, 0.06, 0.72, 0.85, 0xe7e2d8, 0.7);
-        box(g, 0.9, 0.37, 0, 0.06, 0.72, 0.85, 0xe7e2d8, 0.7);
-        box(g, 0.55, 0.52, 0.02, 0.42, 0.4, 0.8, 0xe7e2d8, 0.7);
-        box(g, 0, 1.13, 0.22, 0.86, 0.52, 0.05, 0x1c2024, 0.4);
+        /* Workdesk futuristik: top putih glossy melayang + tepi cahaya cyan */
+        box(g, 0, 0.74, 0, 1.9, 0.06, 0.95, 0xf8fafc, 0.22, 0.08);
+        box(g, 0, 0.715, -0.485, 1.9, 0.018, 0.018, 0x22d3ee, 0.4, 0.1, {
+            emissive: 0x22d3ee, emissiveIntensity: 0.85
+        });
+        var legL = box(g, -0.88, 0.36, 0, 0.06, 0.7, 0.7, 0x334155, 0.32, 0.65);
+        legL.rotation.z = 0.07;
+        var legR = box(g, 0.88, 0.36, 0, 0.06, 0.7, 0.7, 0x334155, 0.32, 0.65);
+        legR.rotation.z = -0.07;
+        box(g, 0, 1.13, 0.22, 0.86, 0.52, 0.03, 0x0f172a, 0.25, 0.4);
         var screen = new THREE.Mesh(
             new THREE.PlaneGeometry(0.8, 0.46),
             mat(active ? 0x1a3a42 : 0x0a1014, 0.3, 0.1, {
@@ -592,9 +626,13 @@
     function addRoundMeetingTable(parent, x, z, radius) {
         var g = groupAt(parent, x, 0, z);
         var r = radius || 1.05;
-        cyl(g, 0, 0.72, 0, r, 0.07, 0x6e4a30, 0.4, 0.05, { segments: 28 });
-        cyl(g, 0, 0.36, 0, 0.12, 0.68, 0x2a2f33, 0.5, 0.3);
-        cyl(g, 0, 0.06, 0, 0.55, 0.06, 0x2a2f33, 0.5);
+        /* Meja meeting futuristik: cakram putih glossy + tepi bercahaya cyan */
+        cyl(g, 0, 0.74, 0, r, 0.06, 0xf8fafc, 0.22, 0.08, { segments: 28 });
+        cyl(g, 0, 0.705, 0, r + 0.012, 0.02, 0x22d3ee, 0.4, 0.1, {
+            segments: 28, emissive: 0x22d3ee, emissiveIntensity: 0.7
+        });
+        cyl(g, 0, 0.37, 0, 0.11, 0.66, 0x334155, 0.3, 0.7);
+        cyl(g, 0, 0.045, 0, 0.55, 0.05, 0x1f2937, 0.35, 0.6);
         addOfficeChair(g, -r * 0.85, 0, Math.PI / 2);
         addOfficeChair(g, r * 0.85, 0, -Math.PI / 2);
         addOfficeChair(g, 0, r * 0.8, Math.PI);
@@ -783,8 +821,10 @@
             box(roomRoot, cx, 0.012, plankZ, b.maxX - b.minX - 0.1, 0.006, 0.025, 0xc9a876, 0.85);
         }
 
-        /* White room shell — front open for dollhouse */
-        addWall(roomRoot, b.minX, b.minZ, b.maxX, b.minZ);
+        /* White room shell — front open for dollhouse.
+           Belakang: selalu tinggi penuh (BACK_WALL_H).
+           Kiri & kanan: mengikuti slider tinggi dinding (WALL_H). */
+        addWall(roomRoot, b.minX, b.minZ, b.maxX, b.minZ, BACK_WALL_H);
         addWall(roomRoot, b.minX, b.minZ, b.minX, b.maxZ);
         addWall(roomRoot, b.maxX, b.minZ, b.maxX, b.maxZ);
         addWall(roomRoot, b.minX, b.maxZ, b.minX + 2.2, b.maxZ, 0.5);
@@ -834,25 +874,31 @@
     }
 
     function addStartupDesk(parent, x, z, seatColor) {
-        box(parent, x, 0.7, z, 1.25, 0.05, 0.65, 0xe8d5b5, 0.48);
-        box(parent, x - 0.52, 0.35, z - 0.22, 0.05, 0.7, 0.05, 0xf8fafc, 0.4);
-        box(parent, x + 0.52, 0.35, z - 0.22, 0.05, 0.7, 0.05, 0xf8fafc, 0.4);
-        box(parent, x - 0.52, 0.35, z + 0.22, 0.05, 0.7, 0.05, 0xf8fafc, 0.4);
-        box(parent, x + 0.52, 0.35, z + 0.22, 0.05, 0.7, 0.05, 0xf8fafc, 0.4);
-        /* Laptop / monitor */
-        box(parent, x, 0.88, z - 0.1, 0.38, 0.26, 0.02, 0x1e293b, 0.4);
-        box(parent, x, 0.88, z - 0.08, 0.32, 0.2, 0.01, 0x38bdf8, 0.35, 0.05, {
-            emissive: 0x0ea5e9,
-            emissiveIntensity: 0.3
+        var g = groupAt(parent, x, 0, z);
+        /* Meja futuristik: slab putih glossy melayang, kaki panel grafit
+           miring, dan strip cahaya cyan di tepi depan + bawah meja. */
+        box(g, 0, 0.72, 0, 1.35, 0.06, 0.72, 0xf8fafc, 0.22, 0.08);
+        box(g, 0, 0.7, 0.365, 1.35, 0.018, 0.018, 0x22d3ee, 0.4, 0.1, {
+            emissive: 0x22d3ee, emissiveIntensity: 0.9
         });
-        /* Chair — sisi yang sama dengan posisi duduk agen (z - 0.78) */
-        var ch = new THREE.Group();
-        ch.position.set(x, 0, z - 0.68);
-        box(ch, 0, 0.38, 0, 0.38, 0.08, 0.38, seatColor, 0.65);
-        box(ch, 0, 0.68, -0.14, 0.38, 0.48, 0.06, seatColor, 0.65);
-        box(ch, 0, 0.12, 0, 0.06, 0.24, 0.06, 0xf8fafc, 0.4);
-        parent.add(ch);
-        addPlant(parent, x + 0.45, z + 0.15, 0.35);
+        box(g, 0, 0.675, 0, 1.05, 0.014, 0.4, 0x164e63, 0.4, 0.1, {
+            emissive: 0x0e7490, emissiveIntensity: 0.5
+        });
+        var legL = box(g, -0.56, 0.35, 0, 0.06, 0.68, 0.56, 0x334155, 0.32, 0.65);
+        legL.rotation.z = 0.08;
+        var legR = box(g, 0.56, 0.35, 0, 0.06, 0.68, 0.56, 0x334155, 0.32, 0.65);
+        legR.rotation.z = -0.08;
+        /* Monitor ultra-tipis + layar menyala + keyboard slab */
+        cyl(g, 0, 0.8, -0.14, 0.025, 0.14, 0x64748b, 0.28, 0.85);
+        box(g, 0, 0.94, -0.13, 0.54, 0.35, 0.018, 0x0f172a, 0.25, 0.4);
+        box(g, 0, 0.94, -0.118, 0.5, 0.31, 0.006, 0x38bdf8, 0.3, 0.05, {
+            emissive: 0x38bdf8,
+            emissiveIntensity: 0.55
+        });
+        box(g, 0, 0.758, 0.13, 0.44, 0.014, 0.17, 0x1e293b, 0.4, 0.3);
+        /* Kursi futuristik — sisi yang sama dengan posisi duduk agen (z - 0.68) */
+        addFutureChair(g, 0, -0.68, 0, seatColor);
+        addPlant(g, 0.52, 0.18, 0.35);
     }
 
     function addCoffeeBar(parent, x, z) {
