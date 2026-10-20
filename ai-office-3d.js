@@ -1,9 +1,10 @@
 /**
  * PiK's Digital Lab — Kantor AI 3D viewport (vanilla Three.js CDN).
  *
- * Startup office matching the reference illustration: white walls, “STARTUP”
- * lettering, light blue-grey floor, wood desks, teal/yellow chairs, bean bags,
- * coffee bar. Crew are stylized humanoids (capsule + sphere, not boxes).
+ * Startup office matching the reference illustration: isometric cut-away on a
+ * green lot with sidewalk & street, wood-floor work area, round meeting table,
+ * lounge, game room (ping pong + arcade), kitchen corner, trees & street lamps.
+ * Crew are stylized humanoids (capsule + sphere, not boxes).
  *
  * Work board remains the primary UI; this stage is decorative + focus helper.
  */
@@ -53,7 +54,7 @@
             [-3.3, 1.55]
         ].slice(0, Math.max(1, agentCount));
 
-        var building = { minX: -6.2, maxX: 7.4, minZ: -4.6, maxZ: 3.8 };
+        var building = { minX: -7.2, maxX: 8.6, minZ: -5.0, maxZ: 4.2 };
 
         var meeting = [
             { x: 1.35, z: 0.25, facing: Math.PI / 2, seated: false },
@@ -67,17 +68,33 @@
                 key: 'lounge',
                 label: 'On the bean bag',
                 spots: [
-                    { x: 4.55, z: -2.35, facing: -0.5, seated: true },
-                    { x: 5.55, z: -1.65, facing: Math.PI, seated: true }
+                    { x: 5.9, z: -3.35, facing: -0.5, seated: true },
+                    { x: 6.7, z: -2.65, facing: Math.PI, seated: true }
                 ]
             },
             {
                 key: 'coffee',
                 label: 'At the coffee bar',
                 spots: [
-                    { x: 4.95, z: 2.1, facing: Math.PI / 2, seated: true },
-                    { x: 5.65, z: 2.1, facing: Math.PI / 2, seated: true },
-                    { x: 6.35, z: 1.45, facing: Math.PI, seated: false }
+                    { x: 4.55, z: 3.05, facing: 0, seated: true },
+                    { x: 5.25, z: 3.05, facing: 0, seated: true },
+                    { x: 6.1, z: 2.95, facing: Math.PI, seated: false }
+                ]
+            },
+            {
+                key: 'game',
+                label: 'Playing ping pong',
+                spots: [
+                    { x: 4.85, z: -0.55, facing: Math.PI / 2, seated: false },
+                    { x: 7.35, z: -0.55, facing: -Math.PI / 2, seated: false }
+                ]
+            },
+            {
+                key: 'kitchen',
+                label: 'In the kitchen',
+                spots: [
+                    { x: 5.35, z: 2.75, facing: 0, seated: false },
+                    { x: 6.45, z: 2.75, facing: Math.PI, seated: false }
                 ]
             },
             {
@@ -104,12 +121,12 @@
             desks: desks,
             building: building,
             meeting: meeting,
-            meetingTable: { x: 1.6, z: 0.2, radius: 0.35 },
-            cameraTarget: [0.55, 0.45, -0.15],
-            cameraOffset: [-5.2, 12.8, 13.8],
-            pan: { minX: -7, maxX: 8.5, minZ: -6, maxZ: 5 },
+            meetingTable: { x: 1.6, z: 0.2, radius: 1.05 },
+            cameraTarget: [0.7, 0.4, -0.3],
+            cameraOffset: [-6.5, 14.5, 15.5],
+            pan: { minX: -9, maxX: 10.5, minZ: -7.5, maxZ: 7 },
             idleStops: idleStops,
-            idleRoute: ['lounge', 'coffee', 'chat', 'jalan', 'lounge']
+            idleRoute: ['lounge', 'coffee', 'game', 'chat', 'kitchen', 'jalan', 'lounge']
         };
     }
 
@@ -142,8 +159,8 @@
     /* Orbit / pan / zoom (Ruang-like OrbitControls subset) */
     var orbit = {
         target: null,
-        spherical: { radius: 24, phi: 0.92, theta: 0.42 },
-        defaults: { radius: 24, phi: 0.92, theta: 0.42, target: [0, 0.6, 0.2] },
+        spherical: { radius: 27, phi: 0.95, theta: 0.42 },
+        defaults: { radius: 27, phi: 0.95, theta: 0.42, target: [0.7, 0.4, -0.3] },
         dragging: false,
         panning: false,
         moved: false,
@@ -667,13 +684,40 @@
 
         var b = LAYOUT.building;
 
-        /* Soft blue sky pad under cut-away */
-        addFloorPlane(roomRoot, (b.minX + b.maxX) / 2, -0.05, (b.minZ + b.maxZ) / 2,
-            36, 28, 0xa8d4ec, 1);
+        var cx = (b.minX + b.maxX) / 2;
+        var cz = (b.minZ + b.maxZ) / 2;
 
-        /* Light blue-grey floor (illustration) */
-        addFloorPlane(roomRoot, (b.minX + b.maxX) / 2, 0.004, (b.minZ + b.maxZ) / 2,
-            b.maxX - b.minX, b.maxZ - b.minZ, 0xd5e0ea, 0.55);
+        /* --- Lingkungan luar: rumput, trotoar, jalan (seperti referensi) --- */
+        addFloorPlane(roomRoot, cx, -0.09, cz, 64, 44, 0x79c25f, 1);
+        /* Trotoar keliling gedung */
+        addFloorPlane(roomRoot, cx, -0.045, cz,
+            (b.maxX - b.minX) + 3.6, (b.maxZ - b.minZ) + 3.6, 0xc9cdd1, 0.95);
+        /* Jalan aspal di depan (+z) + marka putus-putus */
+        var roadZ = b.maxZ + 4.6;
+        addFloorPlane(roomRoot, cx, -0.04, roadZ, 64, 5.4, 0x3c4147, 0.95);
+        var laneX;
+        for (laneX = -24; laneX <= 24; laneX += 4) {
+            box(roomRoot, laneX, -0.02, roadZ, 1.8, 0.012, 0.16, 0xf5f0dc, 0.8);
+        }
+        addStreetLamp(roomRoot, b.minX + 1.2, b.maxZ + 1.55);
+        addStreetLamp(roomRoot, cx, b.maxZ + 1.55);
+        addStreetLamp(roomRoot, b.maxX - 1.2, b.maxZ + 1.55);
+        addTree(roomRoot, b.minX - 3.4, -3.2, 1.25);
+        addTree(roomRoot, b.minX - 3.8, 1.8, 1.05);
+        addTree(roomRoot, b.maxX + 3.4, -3.6, 1.3);
+        addTree(roomRoot, b.maxX + 3.8, 1.2, 1.05);
+        addTree(roomRoot, -3.5, b.maxZ + 2.6, 0.9);
+        addTree(roomRoot, 5.5, b.maxZ + 2.6, 0.95);
+        /* Gerobak merah di luar kiri depan */
+        addFoodStall(roomRoot, b.minX - 2.2, b.maxZ - 0.6);
+
+        /* --- Lantai kayu kantor (papan-papan) --- */
+        addFloorPlane(roomRoot, cx, 0.004, cz,
+            b.maxX - b.minX, b.maxZ - b.minZ, 0xdcbc90, 0.8);
+        var plankZ;
+        for (plankZ = b.minZ + 0.55; plankZ < b.maxZ - 0.2; plankZ += 0.55) {
+            box(roomRoot, cx, 0.012, plankZ, b.maxX - b.minX - 0.1, 0.006, 0.025, 0xc9a876, 0.85);
+        }
 
         /* White room shell — front open for dollhouse */
         addWall(roomRoot, b.minX, b.minZ, b.maxX, b.minZ);
@@ -688,6 +732,9 @@
         /* Left wall windows */
         addWindow(roomRoot, b.minX + 0.12, 1.45, -2.6, 1.9, Math.PI / 2);
         addWindow(roomRoot, b.minX + 0.12, 1.45, -0.4, 1.9, Math.PI / 2);
+        /* Back wall windows (game room) */
+        addWindow(roomRoot, 5.2, 1.45, b.minZ + 0.12, 1.9, 0);
+        addWindow(roomRoot, 7.3, 1.45, b.minZ + 0.12, 1.9, 0);
 
         /* STARTUP lettering on back wall */
         addStartupSign(roomRoot, -2.4, 1.85, b.minZ + 0.14);
@@ -696,33 +743,56 @@
         addLowCabinet(roomRoot, -4.6, -3.9, 2.4);
         addPlant(roomRoot, -5.4, -3.85, 0.55);
         addBookStack(roomRoot, -4.2, -3.85);
+        addBookshelf(roomRoot, 0.6, b.minZ + 0.45, 0);
 
         /* Work desks + colorful chairs */
         var chairColors = [TEAL, YELLOW, TEAL, YELLOW, TEAL, YELLOW, TEAL];
         LAYOUT.desks.forEach(function (d, i) {
             addStartupDesk(roomRoot, d[0], d[1], chairColors[i % chairColors.length]);
         });
+        /* Meja kerja ekstra (visual) di tengah */
+        addWorkDesk(roomRoot, 0.9, -3.1, false);
+        addWorkDesk(roomRoot, 0.9, -1.15, false);
 
-        /* Break room: coffee bar, stools, bean bags, round table */
-        addCoffeeBar(roomRoot, 5.8, 2.35);
-        addColorStool(roomRoot, 4.95, 1.95, YELLOW);
-        addColorStool(roomRoot, 5.65, 1.95, TEAL);
-        addBeanBag(roomRoot, 4.55, -2.35, ORANGE);
-        addBeanBag(roomRoot, 5.55, -1.65, YELLOW);
-        addRoundLoungeTable(roomRoot, 5.1, -0.85);
+        /* Meja meeting bundar (furnitur untuk spot meeting) */
+        addRoundMeetingTable(roomRoot, LAYOUT.meetingTable.x, LAYOUT.meetingTable.z, LAYOUT.meetingTable.radius);
+
+        /* --- Lounge: sofa, TV, bean bags --- */
+        addSofa(roomRoot, 4.4, -3.35, 0);
+        addTelevision(roomRoot, 4.4, 1.55, b.minZ + 0.18);
+        addCoffeeTable(roomRoot, 4.4, -2.45);
+        addBeanBag(roomRoot, 5.9, -3.5, ORANGE);
+        addBeanBag(roomRoot, 6.7, -2.8, YELLOW);
+        addRoundLoungeTable(roomRoot, 6.15, -1.85);
         addWallArt(roomRoot, 6.9, 1.7, b.maxZ - 0.12);
+
+        /* --- Game room: ping pong + arcade --- */
+        addPingPong(roomRoot, 6.1, -0.55);
+        addArcade(roomRoot, 7.55, b.minZ + 0.55, 0xb54b45);
+        addArcade(roomRoot, 6.65, b.minZ + 0.55, 0x2f6f8f);
+        box(roomRoot, 3.35, 0.5, -0.55, 0.06, 1.0, 2.6, 0xe2e8f0, 0.85);
+
+        /* --- Dapur / coffee bar depan kanan --- */
+        addCoffeeBar(roomRoot, 5.15, 3.55);
+        addColorStool(roomRoot, 4.55, 3.1, YELLOW);
+        addColorStool(roomRoot, 5.25, 3.1, TEAL);
+        addPantryCounter(roomRoot, 7.35, 3.35, -Math.PI / 2);
+        addFridge(roomRoot, 8.05, 2.35, -Math.PI / 2);
+        addGalon(roomRoot, 7.55, 1.65, 0);
 
         /* Plants */
         addPlant(roomRoot, -0.8, 3.2, 0.7);
         addPlant(roomRoot, 3.4, -3.9, 0.75);
         addPlant(roomRoot, 6.6, -3.5, 0.65);
-        addPlant(roomRoot, 6.5, 3.2, 0.55);
+        addPlant(roomRoot, 3.35, 3.6, 0.55);
+        addPlant(roomRoot, -6.6, 3.6, 0.6);
 
         LAYOUT.desks.forEach(function (d) {
             addOfficeLight(roomRoot, d[0], 2.4, d[1]);
         });
         addOfficeLight(roomRoot, 5.5, 2.4, 1.5);
         addOfficeLight(roomRoot, 5.0, 2.4, -1.5);
+        addOfficeLight(roomRoot, 6.1, 2.4, -0.55);
     }
 
     function addStartupSign(parent, x, y, z) {
