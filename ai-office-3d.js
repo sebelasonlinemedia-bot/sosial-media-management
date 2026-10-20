@@ -42,8 +42,8 @@
     };
 
     /* Startup office — match illustration (y-up, +z toward front). */
-    var PARTITION_X = 2.85;
-    var AISLE_Z = 0.15;
+    var PARTITION_X = 0.7;
+    var AISLE_Z = -0.1;
     var WALL_H = 2.55;
     /* Dinding belakang selalu tinggi penuh — slider layout hanya
        berlaku untuk dinding kiri & kanan (dan partisi interior). */
@@ -54,74 +54,100 @@
     var YELLOW = 0xfbbf24;
     var ORANGE = 0xfb923c;
 
+    /* Layout default hasil rekonstruksi screenshot Layout Kantor
+       (22.8 x 11.0 m, pusat gedung dipertahankan di (0.7,-0.4)):
+       AREA KERJA kiri, MEETING kiri-bawah, LOUNGE·GAME·DAPUR kanan.
+       Dideklarasikan SEBELUM buildLayout pertama agar tidak undefined. */
+    var DEFAULT_BUILDING = { minX: -10.7, maxX: 12.1, minZ: -5.9, maxZ: 5.1 };
+    var DEFAULT_MEETING = { x: -5.6, z: 3.0, radius: 1.05, enabled: true };
+    /* Meja meeting MEMANJANG (elips sumbu-X): radius = skala lebar;
+       setengah-panjang a = radius*1.6 (±3.2x lebar), setengah-lebar b. */
+    var MEETING_LONG = 'elongated-meeting-v1';
+    function meetingDims(table) {
+        var r = (table && Number(table.radius)) || 1.05;
+        return { r: r, a: r * 1.6, b: r * 0.62 };
+    }
+
     var LAYOUT = buildLayout(7, null);
     var CUSTOM_LAYOUT = null;
 
-    /** Mebel bawaan scene (posisi = tata letak referensi saat ini). */
+    /** Mebel bawaan scene (posisi mengikuti denah screenshot). */
     function defaultFurniture() {
         return [
-            { id: 'extra-desk-1', type: 'workdesk', x: 0.9, z: -3.1, rotY: 0 },
-            { id: 'extra-desk-2', type: 'workdesk', x: 0.9, z: -1.15, rotY: 0 },
-            { id: 'sofa', type: 'sofa', x: 4.4, z: -3.35, rotY: 0 },
-            { id: 'tv', type: 'tv', x: 4.4, z: -4.7, rotY: 0 },
-            { id: 'coffee-table', type: 'coffeetable', x: 4.4, z: -2.45, rotY: 0 },
-            { id: 'beanbag-1', type: 'beanbag', x: 5.9, z: -3.5, rotY: 0 },
-            { id: 'beanbag-2', type: 'beanbag', x: 6.7, z: -2.8, rotY: 0 },
-            { id: 'lounge-table', type: 'roundtable', x: 6.15, z: -1.85, rotY: 0 },
-            { id: 'pingpong', type: 'pingpong', x: 6.1, z: -0.55, rotY: 0 },
-            { id: 'arcade-1', type: 'arcade', x: 7.55, z: -4.45, rotY: 0 },
-            { id: 'arcade-2', type: 'arcade', x: 6.65, z: -4.45, rotY: 0 },
-            { id: 'coffeebar', type: 'coffeebar', x: 5.15, z: 3.55, rotY: 0 },
-            { id: 'stool-1', type: 'stool', x: 4.55, z: 3.1, rotY: 0 },
-            { id: 'stool-2', type: 'stool', x: 5.25, z: 3.1, rotY: 0 },
-            { id: 'pantry', type: 'pantry', x: 7.35, z: 3.35, rotY: -Math.PI / 2 },
-            { id: 'fridge', type: 'fridge', x: 8.05, z: 2.35, rotY: -Math.PI / 2 },
-            { id: 'galon', type: 'galon', x: 7.55, z: 1.65, rotY: 0 },
-            { id: 'bookshelf', type: 'bookshelf', x: 0.6, z: -4.55, rotY: 0 },
-            { id: 'plant-1', type: 'plant', x: -0.8, z: 3.2, rotY: 0 },
-            { id: 'plant-2', type: 'plant', x: 3.4, z: -3.9, rotY: 0 },
-            { id: 'plant-3', type: 'plant', x: 3.35, z: 3.6, rotY: 0 },
-            { id: 'plant-4', type: 'plant', x: -6.6, z: 3.6, rotY: 0 },
-            { id: 'tree-1', type: 'tree', x: -10.6, z: -3.2, rotY: 0 },
-            { id: 'tree-2', type: 'tree', x: -11.0, z: 1.8, rotY: 0 },
-            { id: 'tree-3', type: 'tree', x: 11.0, z: -3.6, rotY: 0 },
-            { id: 'tree-4', type: 'tree', x: 11.4, z: 1.2, rotY: 0 },
-            { id: 'tree-5', type: 'tree', x: -3.5, z: 6.9, rotY: 0 },
-            { id: 'tree-6', type: 'tree', x: 5.5, z: 6.9, rotY: 0 },
-            { id: 'lamp-1', type: 'lamp', x: -6.0, z: 5.75, rotY: 0 },
-            { id: 'lamp-2', type: 'lamp', x: 0.7, z: 5.75, rotY: 0 },
-            { id: 'lamp-3', type: 'lamp', x: 7.4, z: 5.75, rotY: 0 }
+            { id: 'sofa-1', type: 'sofa', x: 1.9, z: -3.6, rotY: Math.PI / 2 },
+            { id: 'sofa-2', type: 'sofa', x: 4.1, z: -3.6, rotY: Math.PI / 2 },
+            { id: 'coffee-table', type: 'coffeetable', x: 3.0, z: -3.6, rotY: Math.PI / 2 },
+            { id: 'beanbag-1', type: 'beanbag', x: 6.8, z: 0.4, rotY: 0 },
+            { id: 'beanbag-2', type: 'beanbag', x: 8.6, z: 0.4, rotY: 0 },
+            { id: 'pingpong', type: 'pingpong', x: 7.6, z: -2.7, rotY: 0 },
+            { id: 'arcade-1', type: 'arcade', x: 10.9, z: -4.9, rotY: 0 },
+            { id: 'arcade-2', type: 'arcade', x: 9.8, z: -4.9, rotY: 0 },
+            { id: 'coffeebar', type: 'coffeebar', x: 6.0, z: 4.35, rotY: 0 },
+            { id: 'stool-1', type: 'stool', x: 5.4, z: 3.65, rotY: 0 },
+            { id: 'stool-2', type: 'stool', x: 6.1, z: 3.65, rotY: 0 },
+            { id: 'pantry', type: 'pantry', x: 9.4, z: 3.0, rotY: -Math.PI / 2 },
+            { id: 'fridge', type: 'fridge', x: 10.7, z: 4.3, rotY: -Math.PI / 2 },
+            { id: 'galon', type: 'galon', x: 10.7, z: 1.3, rotY: 0 },
+            { id: 'bookshelf', type: 'bookshelf', x: -10.15, z: 2.2, rotY: Math.PI / 2 },
+            { id: 'plant-1', type: 'plant', x: -10.0, z: -5.2, rotY: 0 },
+            { id: 'plant-2', type: 'plant', x: -0.1, z: -5.3, rotY: 0 },
+            { id: 'plant-3', type: 'plant', x: 11.5, z: 0.6, rotY: 0 },
+            { id: 'plant-4', type: 'plant', x: -10.0, z: 4.6, rotY: 0 },
+            { id: 'tree-1', type: 'tree', x: -8.0, z: -7.8, rotY: 0 },
+            { id: 'tree-2', type: 'tree', x: -3.0, z: -7.8, rotY: 0 },
+            { id: 'tree-3', type: 'tree', x: 3.0, z: -7.8, rotY: 0 },
+            { id: 'tree-4', type: 'tree', x: 8.0, z: -7.8, rotY: 0 },
+            { id: 'tree-5', type: 'tree', x: -12.6, z: -0.5, rotY: 0 },
+            { id: 'tree-6', type: 'tree', x: 14.0, z: -0.5, rotY: 0 },
+            { id: 'lamp-1', type: 'lamp', x: -9.0, z: 6.8, rotY: 0 },
+            { id: 'lamp-2', type: 'lamp', x: 0.7, z: 6.8, rotY: 0 },
+            { id: 'lamp-3', type: 'lamp', x: 9.0, z: 6.8, rotY: 0 }
         ];
     }
 
     function defaultLayoutData() {
         return {
             wallHeight: 2.55,
-            building: { minX: -7.2, maxX: 8.6, minZ: -5.0, maxZ: 4.2 },
+            building: { minX: DEFAULT_BUILDING.minX, maxX: DEFAULT_BUILDING.maxX, minZ: DEFAULT_BUILDING.minZ, maxZ: DEFAULT_BUILDING.maxZ },
             desks: [
-                [-4.2, -2.8], [-2.4, -2.8], [-0.5, -2.8],
-                [-4.2, -0.55], [-2.4, -0.55], [-0.5, -0.55],
-                [-3.3, 1.55]
+                [-8.6, -3.7], [-6.4, -3.7], [-4.2, -3.7], [-2.0, -3.7],
+                [-7.5, -1.5], [-5.3, -1.5], [-3.1, -1.5]
             ],
             furniture: defaultFurniture(),
             partitions: {
-                /* Tanpa partisi tipis dekat kursi (dihapus atas permintaan).
-                   Partisi tetap bisa ditambahkan lagi lewat Layout Kantor. */
-                segments: []
+                /* Celah pintu sengaja dibiarkan: v x=0.7 celah z -1.0..0.8,
+                   h meeting celah x -2.0..0.7, h dapur celah x 0.7..3.5. */
+                segments: [
+                    { axis: 'v', at: 0.7, from: -5.9, to: -1.0 },
+                    { axis: 'v', at: 0.7, from: 0.8, to: 1.8 },
+                    { axis: 'h', at: 1.2, from: -10.7, to: -2.0 },
+                    { axis: 'h', at: 1.8, from: 3.5, to: 12.1 },
+                    { axis: 'h', at: 0.3, from: -10.7, to: -7.8 }
+                ]
             },
-            meetingTable: { x: 1.6, z: 0.2, radius: 1.05, enabled: true }
+            meetingTable: { x: DEFAULT_MEETING.x, z: DEFAULT_MEETING.z, radius: DEFAULT_MEETING.radius, enabled: true }
         };
     }
 
-    /** Spot berdiri mengelilingi meja meeting (mengikuti posisi meja). */
-    function meetingSpotsAround(table) {
-        var r = (table.radius || 1.05) + 0.55;
-        return [
-            { x: table.x - r, z: table.z, facing: Math.PI / 2, seated: false },
-            { x: table.x + r, z: table.z, facing: -Math.PI / 2, seated: false },
-            { x: table.x, z: table.z - r, facing: 0, seated: false },
-            { x: table.x, z: table.z + r, facing: Math.PI, seated: false }
-        ];
+    /** Spot DUDUK mengelilingi meja meeting memanjang — sejumlah agen.
+     *  Posisi spot persis = posisi kursi yang digambar (addElongatedMeetingTable). */
+    function meetingSpotsAround(table, agentCount) {
+        var dims = meetingDims(table);
+        var n = Math.max(1, Math.min(12, Math.round(agentCount) || 7));
+        var spots = [];
+        var i;
+        for (i = 0; i < n; i += 1) {
+            var th = -Math.PI / 2 + (i * Math.PI * 2) / n;
+            var ox = (dims.a + 0.52) * Math.cos(th);
+            var oz = (dims.b + 0.52) * Math.sin(th);
+            spots.push({
+                x: Math.round((table.x + ox) * 100) / 100,
+                z: Math.round((table.z + oz) * 100) / 100,
+                facing: Math.round(Math.atan2(-ox, -oz) * 1000) / 1000,
+                seated: true
+            });
+        }
+        return spots;
     }
 
     function buildLayout(agentCount, custom) {
@@ -135,70 +161,71 @@
 
         var building = cfg && cfg.building
             ? {
-                minX: Number(cfg.building.minX) || -7.2,
-                maxX: Number(cfg.building.maxX) || 8.6,
-                minZ: Number(cfg.building.minZ) || -5.0,
-                maxZ: Number(cfg.building.maxZ) || 4.2
+                minX: Number(cfg.building.minX) || DEFAULT_BUILDING.minX,
+                maxX: Number(cfg.building.maxX) || DEFAULT_BUILDING.maxX,
+                minZ: Number(cfg.building.minZ) || DEFAULT_BUILDING.minZ,
+                maxZ: Number(cfg.building.maxZ) || DEFAULT_BUILDING.maxZ
             }
-            : { minX: -7.2, maxX: 8.6, minZ: -5.0, maxZ: 4.2 };
+            : { minX: DEFAULT_BUILDING.minX, maxX: DEFAULT_BUILDING.maxX, minZ: DEFAULT_BUILDING.minZ, maxZ: DEFAULT_BUILDING.maxZ };
 
         var furniture = cfg && Array.isArray(cfg.furniture) ? cfg.furniture : defaultFurniture();
         var wallHeight = cfg && Number(cfg.wallHeight) ? Number(cfg.wallHeight) : 2.55;
 
         var meetingTable = cfg && cfg.meetingTable && typeof cfg.meetingTable === 'object'
             ? {
-                x: Number(cfg.meetingTable.x) || 1.6,
-                z: Number(cfg.meetingTable.z) || 0.2,
-                radius: Number(cfg.meetingTable.radius) || 1.05,
+                x: Number(cfg.meetingTable.x) || DEFAULT_MEETING.x,
+                z: Number(cfg.meetingTable.z) || DEFAULT_MEETING.z,
+                radius: Number(cfg.meetingTable.radius) || DEFAULT_MEETING.radius,
                 enabled: cfg.meetingTable.enabled !== false
             }
-            : { x: 1.6, z: 0.2, radius: 1.05, enabled: true };
-        var meeting = meetingSpotsAround(meetingTable);
+            : { x: DEFAULT_MEETING.x, z: DEFAULT_MEETING.z, radius: DEFAULT_MEETING.radius, enabled: true };
+        var meeting = meetingSpotsAround(meetingTable, agentCount);
 
         var partitions = cfg && cfg.partitions && Array.isArray(cfg.partitions.segments)
             ? cfg.partitions
             : defaultLayoutData().partitions;
 
+        /* Spot idle menempel furnitur layout baru (beanbag/pingpong/stool/dapur/sofa). */
         var idleStops = [
             {
                 key: 'lounge',
                 label: 'On the bean bag',
                 spots: [
-                    { x: 5.9, z: -3.35, facing: -0.5, seated: true },
-                    { x: 6.7, z: -2.65, facing: Math.PI, seated: true }
+                    { x: 6.8, z: 0.4, facing: -0.5, seated: true },
+                    { x: 8.6, z: 0.4, facing: Math.PI, seated: true }
                 ]
             },
             {
                 key: 'coffee',
                 label: 'At the coffee bar',
                 spots: [
-                    { x: 4.55, z: 3.05, facing: 0, seated: true },
-                    { x: 5.25, z: 3.05, facing: 0, seated: true },
-                    { x: 6.1, z: 2.95, facing: Math.PI, seated: false }
+                    { x: 5.4, z: 3.65, facing: 0, seated: true },
+                    { x: 6.1, z: 3.65, facing: 0, seated: true },
+                    { x: 7.1, z: 3.9, facing: Math.PI, seated: false }
                 ]
             },
             {
                 key: 'game',
                 label: 'Playing ping pong',
                 spots: [
-                    { x: 4.5, z: -0.55, facing: Math.PI / 2, seated: false },
-                    { x: 7.7, z: -0.55, facing: -Math.PI / 2, seated: false }
+                    { x: 5.8, z: -2.7, facing: Math.PI / 2, seated: false },
+                    { x: 9.4, z: -2.7, facing: -Math.PI / 2, seated: false }
                 ]
             },
             {
                 key: 'kitchen',
                 label: 'In the kitchen',
                 spots: [
-                    { x: 5.35, z: 2.75, facing: 0, seated: false },
-                    { x: 6.45, z: 2.75, facing: Math.PI, seated: false }
+                    { x: 8.5, z: 3.0, facing: Math.PI / 2, seated: false },
+                    { x: 7.4, z: 4.0, facing: Math.PI, seated: false }
                 ]
             },
             {
                 key: 'chat',
                 label: 'Chatting in the aisle',
                 spots: [
-                    { x: 0.55, z: 0.25, facing: Math.PI / 2, seated: false },
-                    { x: 1.25, z: -0.2, facing: -Math.PI / 2, seated: false }
+                    { x: -0.1, z: -0.1, facing: Math.PI / 2, seated: false },
+                    { x: 1.5, z: -0.1, facing: -Math.PI / 2, seated: false }
                 ]
             },
             {
@@ -206,8 +233,8 @@
                 label: 'Walking the aisle',
                 spots: [
                     { x: -1.4, z: AISLE_Z, facing: 0, seated: false },
-                    { x: 0.15, z: AISLE_Z, facing: Math.PI, seated: false },
-                    { x: 3.35, z: 0.75, facing: 0, seated: false }
+                    { x: 2.6, z: AISLE_Z, facing: Math.PI, seated: false },
+                    { x: 5.2, z: 1.0, facing: 0, seated: false }
                 ]
             }
         ];
@@ -221,9 +248,9 @@
             partitions: partitions,
             meeting: meeting,
             meetingTable: meetingTable,
-            cameraTarget: [0.7, 0.4, -0.3],
-            cameraOffset: [-6.5, 14.5, 15.5],
-            pan: { minX: -9, maxX: 10.5, minZ: -7.5, maxZ: 7 },
+            cameraTarget: [0.7, 0.4, -0.4],
+            cameraOffset: [-8, 18, 19],
+            pan: { minX: -12.5, maxX: 13.5, minZ: -8, maxZ: 8 },
             idleStops: idleStops,
             idleRoute: ['lounge', 'coffee', 'game', 'chat', 'kitchen', 'jalan', 'lounge']
         };
@@ -258,8 +285,8 @@
     /* Orbit / pan / zoom (Ruang-like OrbitControls subset) */
     var orbit = {
         target: null,
-        spherical: { radius: 27, phi: 0.95, theta: 0.42 },
-        defaults: { radius: 27, phi: 0.95, theta: 0.42, target: [0.7, 0.4, -0.3] },
+        spherical: { radius: 34, phi: 0.95, theta: 0.42 },
+        defaults: { radius: 34, phi: 0.95, theta: 0.42, target: [0.7, 0.4, -0.4] },
         dragging: false,
         panning: false,
         moved: false,
@@ -350,9 +377,10 @@
         sofa: [2.45, 1.0], armchair: [0.95, 0.9], coffeetable: [1.35, 0.75],
         pantry: [2.05, 0.7], fridge: [0.85, 0.8], galon: [0.5, 0.5],
         bookshelf: [1.45, 0.45], tv: [2.05, 0.25], stool: [0.4, 0.4],
-        arcade: [0.8, 0.7], coffeebar: [2.25, 0.65], pingpong: [2.8, 1.58]
+        arcade: [0.8, 0.7], coffeebar: [2.25, 0.65], pingpong: [2.8, 1.58],
+        meetingtable: [3.4, 1.3]
     };
-    var FURNITURE_CIRCLE = { beanbag: 0.44, roundtable: 0.52, meetingtable: 1.08, plant: 0.3, tree: 0.35, lamp: 0.18 };
+    var FURNITURE_CIRCLE = { beanbag: 0.44, roundtable: 0.52, plant: 0.3, tree: 0.35, lamp: 0.18 };
 
     var navCache = null;
 
@@ -380,7 +408,13 @@
             }
         });
         if (LAYOUT.meetingTable && LAYOUT.meetingTable.enabled !== false) {
-            circles.push({ x: LAYOUT.meetingTable.x, z: LAYOUT.meetingTable.z, r: (LAYOUT.meetingTable.radius || 1.05) + 0.03 });
+            /* Meja memanjang didekati 3 lingkaran sepanjang sumbu-X agar
+               kursi diagonal di sudut elips tidak dianggap menabrak. */
+            var md = meetingDims(LAYOUT.meetingTable);
+            var mOff = Math.max(0, md.a - md.b);
+            [-mOff, 0, mOff].forEach(function (off) {
+                circles.push({ x: LAYOUT.meetingTable.x + off, z: LAYOUT.meetingTable.z, r: md.b + 0.03 });
+            });
         }
         (LAYOUT.partitions && LAYOUT.partitions.segments || []).forEach(function (seg) {
             if (seg.axis === 'h') addBox((seg.from + seg.to) / 2, seg.at, Math.abs(seg.to - seg.from), 0.26, 0);
@@ -947,20 +981,35 @@
         g.add(screen);
     }
 
-    function addRoundMeetingTable(parent, x, z, radius) {
+    /* Meja meeting MEMANJANG (elongated-meeting-v1): top elips glossy sumbu-X
+       + tepi cahaya cyan. Kursi digambar dari spot yang SAMA dengan spot
+       duduk robot (meetingSpotsAround) agar sinkron jumlah & posisinya. */
+    function addElongatedMeetingTable(parent, x, z, radius, spots, spotsLocal) {
         var g = groupAt(parent, x, 0, z);
-        var r = radius || 1.05;
-        /* Meja meeting futuristik: cakram putih glossy + tepi bercahaya cyan */
-        cyl(g, 0, 0.74, 0, r, 0.06, 0xf8fafc, 0.22, 0.08, { segments: 28 });
-        cyl(g, 0, 0.705, 0, r + 0.012, 0.02, 0x22d3ee, 0.4, 0.1, {
-            segments: 28, emissive: 0x22d3ee, emissiveIntensity: 0.7
+        var dims = meetingDims({ radius: radius });
+        var top = cyl(g, 0, 0.74, 0, 1, 0.06, 0xf8fafc, 0.22, 0.08, { segments: 36 });
+        top.scale.set(dims.a, 1, dims.b);
+        var rim = cyl(g, 0, 0.705, 0, 1, 0.02, 0x22d3ee, 0.4, 0.1, {
+            segments: 36, emissive: 0x22d3ee, emissiveIntensity: 0.7
         });
-        cyl(g, 0, 0.37, 0, 0.11, 0.66, 0x334155, 0.3, 0.7);
-        cyl(g, 0, 0.045, 0, 0.55, 0.05, 0x1f2937, 0.35, 0.6);
-        addOfficeChair(g, -r * 0.85, 0, Math.PI / 2);
-        addOfficeChair(g, r * 0.85, 0, -Math.PI / 2);
-        addOfficeChair(g, 0, r * 0.8, Math.PI);
-        addOfficeChair(g, 0, -r * 0.8, 0);
+        rim.scale.set(dims.a + 0.015, 1, dims.b + 0.015);
+        cyl(g, -dims.a * 0.55, 0.37, 0, 0.09, 0.66, 0x334155, 0.3, 0.7);
+        cyl(g, dims.a * 0.55, 0.37, 0, 0.09, 0.66, 0x334155, 0.3, 0.7);
+        box(g, 0, 0.06, 0, dims.a * 1.25, 0.05, 0.42, 0x1f2937, 0.35, 0.6);
+        var chairColors = [TEAL, YELLOW, TEAL, YELLOW, TEAL, YELLOW, TEAL];
+        var useSpots = (spots && spots.length)
+            ? spots
+            : meetingSpotsAround({ x: 0, z: 0, radius: radius }, (LAYOUT.meeting || []).length || 7);
+        useSpots.forEach(function (s, i) {
+            /* Spot meja utama absolut -> lokal; spot furnitur editor sudah lokal. */
+            var lx = spotsLocal ? s.x : s.x - x;
+            var lz = spotsLocal ? s.z : s.z - z;
+            addOfficeChair(g, lx, lz, s.facing, chairColors[i % chairColors.length]);
+        });
+        return g;
+    }
+    function addRoundMeetingTable(parent, x, z, radius) {
+        return addElongatedMeetingTable(parent, x, z, radius);
     }
 
     function addPantryCounter(parent, x, z, rotY) {
@@ -1075,7 +1124,7 @@
             case 'beanbag': addBeanBag(g, 0, 0, ORANGE); break;
             case 'coffeetable': addCoffeeTable(g, 0, 0); break;
             case 'roundtable': addRoundLoungeTable(g, 0, 0); break;
-            case 'meetingtable': addRoundMeetingTable(g, 0, 0, 1.05); break;
+            case 'meetingtable': addElongatedMeetingTable(g, 0, 0, 1.05, meetingSpotsAround({ x: 0, z: 0, radius: 1.05 }, (LAYOUT.meeting || []).length || 7), true); break;
             case 'pingpong': addPingPong(g, 0, 0); break;
             case 'arcade': addArcade(g, 0, 0, 0xb54b45); break;
             case 'coffeebar': addCoffeeBar(g, 0, 0); break;
@@ -1097,12 +1146,13 @@
         furnitureDeskIndex = 0;
         scene = new THREE.Scene();
         scene.background = new THREE.Color(0xa8d4ec);
-        scene.fog = new THREE.Fog(0xa8d4ec, 26, 48);
+        scene.fog = new THREE.Fog(0xa8d4ec, 40, 75);
 
         var ct = LAYOUT.cameraTarget;
         camera = new THREE.PerspectiveCamera(40, 1, 0.4, 120);
         orbit.target = new THREE.Vector3(ct[0], ct[1], ct[2]);
         orbit.defaults.target = [ct[0], ct[1], ct[2]];
+        orbit.spherical.radius = orbit.defaults.radius;
         applyOrbitToCamera();
 
         scene.add(new THREE.AmbientLight(0xffffff, 0.72));
@@ -1175,9 +1225,9 @@
         LAYOUT.desks.forEach(function (d, i) {
             addStartupDesk(roomRoot, d[0], d[1], chairColors[i % chairColors.length]);
         });
-        /* Meja meeting bundar — hanya bila belum dihapus dari layout */
+        /* Meja meeting memanjang — hanya bila belum dihapus dari layout */
         if (LAYOUT.meetingTable && LAYOUT.meetingTable.enabled !== false) {
-            addRoundMeetingTable(roomRoot, LAYOUT.meetingTable.x, LAYOUT.meetingTable.z, LAYOUT.meetingTable.radius);
+            addElongatedMeetingTable(roomRoot, LAYOUT.meetingTable.x, LAYOUT.meetingTable.z, LAYOUT.meetingTable.radius, LAYOUT.meeting);
         }
         /* Semua mebel lain dari layout (bawaan atau custom dari Layout Kantor).
            Tanpa lampu gantung & gerobak (dihapus atas permintaan). */
@@ -1994,7 +2044,7 @@
         function onWheel(e) {
             e.preventDefault();
             var factor = e.deltaY > 0 ? 1.08 : 0.92;
-            orbit.spherical.radius = Math.min(48, Math.max(8, orbit.spherical.radius * factor));
+            orbit.spherical.radius = Math.min(64, Math.max(8, orbit.spherical.radius * factor));
             applyOrbitToCamera();
         }
         function onContext(e) { e.preventDefault(); }
@@ -2105,7 +2155,7 @@
             desks: LAYOUT.desks,
             furniture: LAYOUT.furniture || [],
             partitions: LAYOUT.partitions || { segments: [] },
-            meetingTable: LAYOUT.meetingTable || { x: 1.6, z: 0.2, radius: 1.05, enabled: true }
+            meetingTable: LAYOUT.meetingTable || { x: DEFAULT_MEETING.x, z: DEFAULT_MEETING.z, radius: 1.05, enabled: true }
         }));
     }
 

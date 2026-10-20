@@ -1347,8 +1347,16 @@ app._layoutDefaultData = function () {
     }
     return {
         wallHeight: 2.55,
-        building: { minX: -7.2, maxX: 8.6, minZ: -5, maxZ: 4.2 },
-        desks: [[-4.2, -2.8], [-2.4, -2.8], [-0.5, -2.8], [-4.2, -0.55], [-2.4, -0.55], [-0.5, -0.55], [-3.3, 1.55]],
+        building: { minX: -10.7, maxX: 12.1, minZ: -5.9, maxZ: 5.1 },
+        desks: [[-8.6, -3.7], [-6.4, -3.7], [-4.2, -3.7], [-2.0, -3.7], [-7.5, -1.5], [-5.3, -1.5], [-3.1, -1.5]],
+        partitions: { segments: [
+            { axis: 'v', at: 0.7, from: -5.9, to: -1.0 },
+            { axis: 'v', at: 0.7, from: 0.8, to: 1.8 },
+            { axis: 'h', at: 1.2, from: -10.7, to: -2.0 },
+            { axis: 'h', at: 1.8, from: 3.5, to: 12.1 },
+            { axis: 'h', at: 0.3, from: -10.7, to: -7.8 }
+        ] },
+        meetingTable: { x: -5.6, z: 3.0, radius: 1.05, enabled: true },
         furniture: []
     };
 };
@@ -1498,14 +1506,14 @@ app._drawLayoutCanvas = function () {
         ctx.stroke();
         ctx.lineCap = 'butt';
     });
-    // Meja meeting bundar (dari layout — bisa diseret/dihapus)
+    // Meja meeting MEMANJANG elips sumbu-X (elongated-meeting-v1)
     const mt = d.meetingTable;
     if (mt && mt.enabled !== false) {
         const [mtX, mtY] = toPx(mt.x, mt.z);
         const sel = ed.selected && ed.selected.kind === 'meeting';
         ctx.fillStyle = '#6e4a30';
         ctx.beginPath();
-        ctx.arc(mtX, mtY, (mt.radius || 1.05) * scale, 0, Math.PI * 2);
+        ctx.ellipse(mtX, mtY, (mt.radius || 1.05) * 1.6 * scale, (mt.radius || 1.05) * 0.62 * scale, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.strokeStyle = sel ? '#facc15' : 'rgba(15,23,42,0.55)';
         ctx.lineWidth = sel ? 3 : 1;
@@ -1545,7 +1553,7 @@ app._drawLayoutCanvas = function () {
             chair: [0.5, 0.5, '#2f3a44', 'kursi'], sofa: [2.4, 0.9, '#5b6f8c', 'sofa'],
             armchair: [0.9, 0.85, '#7a6a9a', 'kursi'], beanbag: [0.8, 0.8, '#fb923c', 'bean'],
             coffeetable: [1.3, 0.7, '#8a5a3a', 'meja'], roundtable: [0.85, 0.85, '#6e4a30', 'bundar'],
-            meetingtable: [2.1, 2.1, '#6e4a30', 'meeting'], pingpong: [2.74, 1.52, '#1f5f8b', 'pingpong'],
+            meetingtable: [3.4, 1.3, '#6e4a30', 'meeting'], pingpong: [2.74, 1.52, '#1f5f8b', 'pingpong'],
             arcade: [0.72, 0.62, '#b54b45', 'arcade'], coffeebar: [2.2, 0.55, '#c9a876', 'kopi'],
             pantry: [2.0, 0.6, '#e7e2d8', 'dapur'], fridge: [0.75, 0.7, '#dfe3e4', 'kulkas'],
             galon: [0.42, 0.42, '#5fb4f2', 'galon'], bookshelf: [1.4, 0.4, '#6b4a32', 'rak'],
@@ -1580,8 +1588,10 @@ app._layoutHitTest = function (worldX, worldZ) {
     const d = ed.data;
     const mt = d.meetingTable;
     if (mt && mt.enabled !== false) {
-        const dist = Math.hypot(worldX - mt.x, worldZ - mt.z);
-        if (dist <= (mt.radius || 1.05) + 0.25) return { kind: 'meeting', index: 0 };
+        const ea = (mt.radius || 1.05) * 1.6 + 0.25;
+        const eb = (mt.radius || 1.05) * 0.62 + 0.25;
+        const en = ((worldX - mt.x) / ea) ** 2 + ((worldZ - mt.z) / eb) ** 2;
+        if (en <= 1) return { kind: 'meeting', index: 0 };
     }
     for (let i = (d.desks || []).length - 1; i >= 0; i--) {
         if (Math.abs(worldX - d.desks[i][0]) <= 0.75 && Math.abs(worldZ - d.desks[i][1]) <= 0.6) {
@@ -1823,7 +1833,7 @@ app.setupLayoutEditorEvents = function () {
             const ed = this._layoutEditor;
             if (!ed) return;
             if (!ed.data.meetingTable) {
-                ed.data.meetingTable = { x: 1.6, z: 0.2, radius: 1.05, enabled: true };
+                ed.data.meetingTable = { x: -5.6, z: 3.0, radius: 1.05, enabled: true };
             } else {
                 ed.data.meetingTable.enabled = true;
             }
