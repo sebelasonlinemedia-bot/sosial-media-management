@@ -2960,6 +2960,16 @@ body.is-mission-mode .app-shell-app-only {
     gap: 8px;
 }
 
+/* Halaman Pengaturan — panel Otonomi & Pengamanan yang dulu di sidebar Work Board */
+.settings-layout {
+    max-width: 860px;
+    margin: 0 auto;
+}
+
+.settings-layout .office-settings-form {
+    max-width: 640px;
+}
+
 .office-nextup-card .office-nextup-body {
     display: flex;
     flex-direction: column;
@@ -4140,6 +4150,101 @@ body.is-mission-mode #app-login-gate:not(.hidden) ~ .mission-shell {
 .mission-activity .office-activity-live li strong,
 .mission-activity .office-activity-head h3 {
     color: var(--mc-text);
+}
+
+/* Work Board — panel bawah Mission Control (tampil / minimize) */
+.mission-workboard {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    max-height: 48vh;
+    border-top: 1px solid var(--mc-border);
+    background: rgba(8, 11, 16, 0.92);
+    backdrop-filter: blur(8px);
+    color: var(--mc-text);
+}
+
+.mission-workboard-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 6px 14px;
+    min-height: 38px;
+}
+
+.mission-workboard-toggle {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid var(--mc-border);
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--mc-text);
+    border-radius: 7px;
+    padding: 5px 11px;
+    font: inherit;
+    font-size: 0.72rem;
+    font-weight: 650;
+    cursor: pointer;
+}
+
+.mission-workboard-toggle:hover {
+    border-color: rgba(20, 184, 166, 0.55);
+    color: #5eead4;
+}
+
+.mission-workboard-toggle svg {
+    width: 14px;
+    height: 14px;
+}
+
+.mission-workboard-chevron {
+    transition: transform 0.2s ease;
+}
+
+.mission-workboard:not(.is-collapsed) .mission-workboard-chevron {
+    transform: rotate(180deg);
+}
+
+.mission-workboard-counts {
+    font-size: 0.7rem;
+    color: var(--mc-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.mission-workboard-hint {
+    margin-left: auto;
+    font-size: 0.68rem;
+    color: var(--mc-muted);
+}
+
+.mission-workboard-body {
+    overflow-y: auto;
+    padding: 2px 14px 12px;
+}
+
+.mission-workboard .office-board {
+    grid-template-columns: repeat(6, minmax(150px, 1fr));
+}
+
+.mission-workboard .office-column {
+    min-height: 110px;
+}
+
+.mission-workboard .office-column-list {
+    max-height: 200px;
+}
+
+@media (max-width: 900px) {
+    .mission-workboard-hint {
+        display: none;
+    }
+
+    .mission-workboard .office-board {
+        grid-template-columns: repeat(2, minmax(150px, 1fr));
+    }
 }
 
 .mission-footer {

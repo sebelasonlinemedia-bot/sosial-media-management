@@ -34,6 +34,7 @@ const appState = {
     },
     mission: {
         panelOpen: true,
+        workboardOpen: false,
         tab: 'crew',
         syncedAt: null
     },
@@ -141,6 +142,7 @@ const app = {
             try {
                 await this.loadOfficeFromServer();
                 this.renderOfficeEmployees();
+                this.renderOfficeBoard();
                 if (typeof this.renderMissionCrew === 'function') this.renderMissionCrew();
                 if (typeof this.updateMissionPills === 'function') this.updateMissionPills();
                 this.syncOffice3DEmployees();
@@ -176,7 +178,7 @@ const app = {
 
         // Render pertama — Mission Control sebagai halaman depan
         const hashView = (location.hash || '').replace(/^#/, '').trim();
-        const allowed = ['mission', 'dashboard', 'composer', 'queue', 'office', 'accounts', 'analytics'];
+        const allowed = ['mission', 'dashboard', 'composer', 'queue', 'office', 'accounts', 'analytics', 'settings'];
         this.switchView(allowed.includes(hashView) ? hashView : 'mission');
         lucide.createIcons();
     },
@@ -419,7 +421,8 @@ const app = {
                 queue: 'JADWAL',
                 office: 'WORK BOARD',
                 accounts: 'AKUN',
-                analytics: 'ANALISIS'
+                analytics: 'ANALISIS',
+                settings: 'PENGATURAN'
             };
             sectionLabel.textContent = labels[viewName] || 'APP';
         }
@@ -447,9 +450,10 @@ const app = {
             dashboard: { title: 'Dasbor Utama', subtitle: 'Ikhtisar saluran terhubung dan antrean postingan terjadwal Anda.' },
             composer: { title: 'Buat Postingan Baru', subtitle: 'Tulis, unggah media, dan kirim postingan secara bersamaan ke berbagai sosmed.' },
             queue: { title: 'Jadwal & Kalender', subtitle: 'Atur kalender konten Anda di masa mendatang secara presisi.' },
-            office: { title: 'Kantor AI', subtitle: 'Ruang kerja karyawan AI — brief, work board, dan publish otomatis.' },
+            office: { title: 'Kantor AI', subtitle: 'Ruang kerja karyawan AI — brief, detail job, approval, dan publish otomatis. Work Board ada di panel bawah Mission Control.' },
             accounts: { title: 'Akun Terhubung', subtitle: 'Tautkan profil, halaman, dan channel sosial media Anda.' },
-            analytics: { title: 'Analisis Konten', subtitle: 'Analisis jangkauan, impresi, interaksi, dan rasio keberhasilan postingan.' }
+            analytics: { title: 'Analisis Konten', subtitle: 'Analisis jangkauan, impresi, interaksi, dan rasio keberhasilan postingan.' },
+            settings: { title: 'Pengaturan', subtitle: 'Otonomi & pengamanan karyawan AI — tingkat otonomi, notifikasi, izin platform per peran, dan LLM / Chat CEO.' }
         };
 
         const titleEl = document.getElementById('view-title');
@@ -476,6 +480,7 @@ const app = {
         else if (viewName === 'office') this.renderOffice();
         else if (viewName === 'accounts') this.renderAccounts();
         else if (viewName === 'analytics') this.renderAnalytics();
+        else if (viewName === 'settings') this.renderSettings();
 
         lucide.createIcons();
     },
@@ -501,6 +506,8 @@ const app = {
         if (shellCreate) shellCreate.addEventListener('click', goComposer);
         const queueBtn = document.getElementById('dashboard-view-queue-btn');
         if (queueBtn) queueBtn.addEventListener('click', () => this.switchView('queue'));
+        const settingsBtn = document.getElementById('open-settings-btn');
+        if (settingsBtn) settingsBtn.addEventListener('click', () => this.switchView('settings'));
     },
 
     updateActiveAccountsCounter() {
@@ -786,8 +793,13 @@ app.setupMissionEvents = function () {
     }
     const tasksBtn = document.getElementById('mission-tasks-btn');
     if (tasksBtn) {
-        tasksBtn.addEventListener('click', () => this.switchView('office'));
+        tasksBtn.addEventListener('click', () => this.setMissionWorkboardOpen(!appState.mission.workboardOpen));
     }
+    const workboardToggle = document.getElementById('mission-workboard-toggle');
+    if (workboardToggle) {
+        workboardToggle.addEventListener('click', () => this.setMissionWorkboardOpen(!appState.mission.workboardOpen));
+    }
+    this.setMissionWorkboardOpen(this.loadMissionWorkboardPref(), false);
     const calendarBtn = document.getElementById('mission-calendar-btn');
     if (calendarBtn) {
         calendarBtn.addEventListener('click', () => this.switchView('queue'));
@@ -826,7 +838,7 @@ app.setupMissionEvents = function () {
     window.addEventListener('hashchange', () => {
         if (!appState.user) return;
         const hashView = (location.hash || '').replace(/^#/, '').trim();
-        const allowed = ['mission', 'dashboard', 'composer', 'queue', 'office', 'accounts', 'analytics'];
+        const allowed = ['mission', 'dashboard', 'composer', 'queue', 'office', 'accounts', 'analytics', 'settings'];
         if (allowed.includes(hashView) && hashView !== appState.currentView) {
             this.switchView(hashView);
         }
@@ -838,6 +850,34 @@ app.closeMissionNavMenu = function () {
     const menuBtn = document.getElementById('mission-menu-btn');
     if (navMenu) navMenu.classList.add('hidden');
     if (menuBtn) menuBtn.setAttribute('aria-expanded', 'false');
+};
+
+/** Panel Work Board di bawah Mission Control — tampil / minimize (state diingat). */
+app.setMissionWorkboardOpen = function (open, persist = true) {
+    appState.mission.workboardOpen = !!open;
+    const panel = document.getElementById('mission-workboard');
+    const body = document.getElementById('mission-workboard-body');
+    const toggle = document.getElementById('mission-workboard-toggle');
+    const tasksBtn = document.getElementById('mission-tasks-btn');
+    if (panel) panel.classList.toggle('is-collapsed', !appState.mission.workboardOpen);
+    if (body) body.hidden = !appState.mission.workboardOpen;
+    if (toggle) toggle.setAttribute('aria-expanded', appState.mission.workboardOpen ? 'true' : 'false');
+    if (tasksBtn) tasksBtn.classList.toggle('is-active', appState.mission.workboardOpen);
+    if (persist) {
+        try { localStorage.setItem('piks-workboard-open', appState.mission.workboardOpen ? '1' : '0'); } catch (_) { /* ignore */ }
+    }
+    if (appState.mission.workboardOpen) this.renderOfficeBoard();
+    if (typeof AiOffice3D !== 'undefined' && appState.office.stageReady) {
+        requestAnimationFrame(() => AiOffice3D.resize());
+    }
+};
+
+app.loadMissionWorkboardPref = function () {
+    try {
+        return localStorage.getItem('piks-workboard-open') === '1';
+    } catch (_) {
+        return false;
+    }
 };
 
 app.setMissionPanelOpen = function (open) {
@@ -990,8 +1030,10 @@ app.renderMissionCrew = function () {
 
 app.renderMission = async function () {
     this.setMissionPanelOpen(appState.mission.panelOpen);
+    this.setMissionWorkboardOpen(appState.mission.workboardOpen, false);
     this.setMissionTab(appState.mission.tab || 'crew');
     await this.loadOfficeFromServer();
+    this.renderOfficeBoard();
     this.renderMissionCrew();
     this.updateMissionPills();
     await this.loadAndRenderInsights('mission-insights-body');
@@ -1029,6 +1071,13 @@ app.loadOfficeFromServer = async function () {
     } catch (e) {
         console.error('[APP] Gagal memuat Kantor AI:', e);
     }
+};
+
+/** Halaman Pengaturan — panel Otonomi & Pengamanan (dulu sidebar Work Board). */
+app.renderSettings = async function () {
+    await this.loadOfficeFromServer();
+    this.renderOfficeSettings();
+    lucide.createIcons();
 };
 
 app.renderOffice = async function () {
@@ -1274,14 +1323,14 @@ app._syncCeoChatLlmHint = function (llm) {
     const hint = document.getElementById('ceo-chat-llm-hint');
     if (!hint) return;
     if (llm && llm.decryptFailed) {
-        hint.textContent = 'Key rusak/enkripsi — simpan ulang di Kantor AI → LLM.';
+        hint.textContent = 'Key rusak/enkripsi — simpan ulang di Pengaturan → LLM.';
         hint.classList.remove('is-ready');
     } else if (llm && llm.configured) {
         const src = llm.keySource === 'env' ? 'env' : (llm.apiKeyMasked || 'key ok');
         hint.textContent = `LLM siap · ${llm.provider} · ${src}`;
         hint.classList.add('is-ready');
     } else {
-        hint.textContent = 'Atur API key di Kantor AI → LLM (atau GEMINI_API_KEY di Vercel).';
+        hint.textContent = 'Atur API key di Pengaturan → LLM (atau GEMINI_API_KEY di Vercel).';
         hint.classList.remove('is-ready');
     }
 };
@@ -1597,9 +1646,8 @@ app.focusOfficeEmployee = function (roleId) {
     this.renderOfficeBoard();
     this.renderOfficeAnswerPanel();
 
-    if (appState.currentView === 'office') {
-        const boardCard = document.querySelector('.office-board-card');
-        if (boardCard) boardCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    if (appState.currentView === 'mission') {
+        this.setMissionWorkboardOpen(true);
     }
 
     if (emp) {
@@ -1743,6 +1791,11 @@ app.renderOfficeBoard = function () {
                 ${errHint}`;
             item.addEventListener('click', () => {
                 appState.office.selectedJobId = job.id;
+                // Board kini di Mission Control; detail & approval ada di Kantor AI
+                if (appState.currentView === 'mission') {
+                    this.switchView('office');
+                    return;
+                }
                 this.renderOfficeBoard();
                 this.renderOfficeAnswerPanel();
             });

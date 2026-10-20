@@ -96,9 +96,10 @@
             <button type="button" data-mission-nav="dashboard">Dasbor</button>
             <button type="button" data-mission-nav="composer">Buat Postingan</button>
             <button type="button" data-mission-nav="queue">Jadwal &amp; Kalender</button>
-            <button type="button" data-mission-nav="office">Work Board Kantor AI</button>
+            <button type="button" data-mission-nav="office">Kantor AI</button>
             <button type="button" data-mission-nav="accounts">Akun Terhubung</button>
             <button type="button" data-mission-nav="analytics">Analisis Konten</button>
+            <button type="button" data-mission-nav="settings">Pengaturan</button>
             <hr>
             <button type="button" id="mission-logout-btn" class="mission-nav-logout">Keluar</button>
         </nav>
@@ -177,7 +178,7 @@
                                 </select>
                                 <button type="button" class="btn btn-sm btn-secondary" id="ceo-chat-clear" title="Hapus riwayat">Clear</button>
                             </div>
-                            <div class="ceo-chat-llm-hint" id="ceo-chat-llm-hint">Atur API key di Kantor AI → LLM.</div>
+                            <div class="ceo-chat-llm-hint" id="ceo-chat-llm-hint">Atur API key di Pengaturan → LLM.</div>
                             <ul class="ceo-chat-messages" id="ceo-chat-messages" aria-live="polite"></ul>
                             <form class="ceo-chat-compose" id="ceo-chat-form">
                                 <textarea id="ceo-chat-input" class="form-control" rows="3" placeholder="Perintah CEO, mis. Suruh Dimas buat caption promo soft opening IG…" required></textarea>
@@ -191,6 +192,65 @@
                 </div>
             </aside>
         </div>
+
+        <!-- Work Board — panel bawah Mission Control (bisa ditampilkan / diminimalkan) -->
+        <section class="mission-workboard is-collapsed" id="mission-workboard" aria-label="Work Board Tim Konten AI">
+            <div class="mission-workboard-head">
+                <button type="button" class="mission-workboard-toggle" id="mission-workboard-toggle" aria-expanded="false" aria-controls="mission-workboard-body" title="Tampilkan / minimize Work Board">
+                    <i data-lucide="list-checks"></i>
+                    <span>Work Board</span>
+                    <i data-lucide="chevron-up" class="mission-workboard-chevron"></i>
+                </button>
+                <span class="mission-workboard-counts" id="office-board-counts">Belum ada job</span>
+                <span class="mission-workboard-hint">Klik job untuk detail &amp; approval di Kantor AI</span>
+            </div>
+            <div class="mission-workboard-body" id="mission-workboard-body" hidden>
+                <div class="office-board" id="office-board">
+                    <div class="office-column" data-status="queued">
+                        <div class="office-column-head">
+                            <span class="badge badge-indigo">Antri</span>
+                            <span class="office-column-count" id="office-count-queued">0</span>
+                        </div>
+                        <div class="office-column-list" id="office-col-queued"></div>
+                    </div>
+                    <div class="office-column" data-status="needs_info">
+                        <div class="office-column-head">
+                            <span class="badge badge-yellow">Perlu info</span>
+                            <span class="office-column-count" id="office-count-needs_info">0</span>
+                        </div>
+                        <div class="office-column-list" id="office-col-needs_info"></div>
+                    </div>
+                    <div class="office-column" data-status="awaiting_approval">
+                        <div class="office-column-head">
+                            <span class="badge badge-orange">Approval</span>
+                            <span class="office-column-count" id="office-count-awaiting_approval">0</span>
+                        </div>
+                        <div class="office-column-list" id="office-col-awaiting_approval"></div>
+                    </div>
+                    <div class="office-column" data-status="publishing">
+                        <div class="office-column-head">
+                            <span class="badge badge-violet">Publish…</span>
+                            <span class="office-column-count" id="office-count-publishing">0</span>
+                        </div>
+                        <div class="office-column-list" id="office-col-publishing"></div>
+                    </div>
+                    <div class="office-column" data-status="done">
+                        <div class="office-column-head">
+                            <span class="badge badge-emerald">Selesai</span>
+                            <span class="office-column-count" id="office-count-done">0</span>
+                        </div>
+                        <div class="office-column-list" id="office-col-done"></div>
+                    </div>
+                    <div class="office-column" data-status="failed">
+                        <div class="office-column-head">
+                            <span class="badge badge-red">Gagal</span>
+                            <span class="office-column-count" id="office-count-failed">0</span>
+                        </div>
+                        <div class="office-column-list" id="office-col-failed"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
 
         <footer class="mission-footer">
             <p class="mission-footer-hint">Drag to rotate · right-drag, two fingers or Geser to pan · scroll to zoom · click an agent for details.</p>
@@ -230,6 +290,7 @@
                         </a>
                     </li>
                     <li data-view="analytics"><a href="#analytics"><span>Analisis Konten</span></a></li>
+                    <li data-view="settings"><a href="#settings"><span>Pengaturan</span></a></li>
                 </ul>
             </nav>
             <div class="sidebar-footer">
@@ -832,57 +893,6 @@
                 <section id="view-office" class="view-panel">
                     <div class="office-layout">
                         <div class="office-main">
-                            <div class="card office-board-card office-board-primary">
-                                <div class="card-header">
-                                    <h2>Work Board</h2>
-                                    <span class="text-secondary font-sm" id="office-board-counts"></span>
-                                </div>
-                                <div class="office-board" id="office-board">
-                                    <div class="office-column" data-status="queued">
-                                        <div class="office-column-head">
-                                            <span class="badge badge-indigo">Antri</span>
-                                            <span class="office-column-count" id="office-count-queued">0</span>
-                                        </div>
-                                        <div class="office-column-list" id="office-col-queued"></div>
-                                    </div>
-                                    <div class="office-column" data-status="needs_info">
-                                        <div class="office-column-head">
-                                            <span class="badge badge-yellow">Perlu info</span>
-                                            <span class="office-column-count" id="office-count-needs_info">0</span>
-                                        </div>
-                                        <div class="office-column-list" id="office-col-needs_info"></div>
-                                    </div>
-                                    <div class="office-column" data-status="awaiting_approval">
-                                        <div class="office-column-head">
-                                            <span class="badge badge-orange">Approval</span>
-                                            <span class="office-column-count" id="office-count-awaiting_approval">0</span>
-                                        </div>
-                                        <div class="office-column-list" id="office-col-awaiting_approval"></div>
-                                    </div>
-                                    <div class="office-column" data-status="publishing">
-                                        <div class="office-column-head">
-                                            <span class="badge badge-violet">Publish…</span>
-                                            <span class="office-column-count" id="office-count-publishing">0</span>
-                                        </div>
-                                        <div class="office-column-list" id="office-col-publishing"></div>
-                                    </div>
-                                    <div class="office-column" data-status="done">
-                                        <div class="office-column-head">
-                                            <span class="badge badge-emerald">Selesai</span>
-                                            <span class="office-column-count" id="office-count-done">0</span>
-                                        </div>
-                                        <div class="office-column-list" id="office-col-done"></div>
-                                    </div>
-                                    <div class="office-column" data-status="failed">
-                                        <div class="office-column-head">
-                                            <span class="badge badge-red">Gagal</span>
-                                            <span class="office-column-count" id="office-count-failed">0</span>
-                                        </div>
-                                        <div class="office-column-list" id="office-col-failed"></div>
-                                    </div>
-                                </div>
-                            </div>
-
                             <div class="card office-employees-card">
                                 <div class="card-header">
                                     <h2>Tim Konten AI</h2>
@@ -904,7 +914,7 @@
                                     <h2>Ruang Kantor AI</h2>
                                     <span class="badge badge-emerald">Mission Control</span>
                                 </div>
-                                <p class="text-secondary font-sm mb-3">Scene 3D full-bleed ada di halaman depan Mission Control. Work board di sini tetap ruang kerja utama untuk brief &amp; approval.</p>
+                                <p class="text-secondary font-sm mb-3">Scene 3D full-bleed ada di halaman depan Mission Control. Work Board kini menjadi panel bawah di sana — bisa ditampilkan atau diminimalkan. Halaman ini tetap untuk brief, detail job, &amp; approval.</p>
                                 <button type="button" class="btn btn-secondary" id="office-open-mission-btn">
                                     <i data-lucide="radar"></i>
                                     <span>Buka Ruang / Office</span>
@@ -923,78 +933,6 @@
                         </div>
 
                         <aside class="office-side">
-                            <div class="card office-settings-card">
-                                <div class="card-header">
-                                    <h2>Otonomi &amp; Pengaman</h2>
-                                </div>
-                                <div class="office-settings-form" id="office-settings-form">
-                                    <div class="form-group">
-                                        <label for="office-autonomy-select">Tingkat otonomi</label>
-                                        <select id="office-autonomy-select" class="form-control">
-                                            <option value="suggest_only">Suggest only — draft saja</option>
-                                            <option value="require_approval">Require approval</option>
-                                            <option value="limited_autonomous">Limited autonomous</option>
-                                        </select>
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="office-daily-cap">Daily post cap</label>
-                                        <input type="number" id="office-daily-cap" class="form-control" min="0" max="100" value="10">
-                                    </div>
-                                    <div class="form-group">
-                                        <label class="office-3d-toggle">
-                                            <input type="checkbox" id="office-notify-enabled">
-                                            <span>Notifikasi aktif</span>
-                                        </label>
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="office-notify-email">Email notifikasi</label>
-                                        <input type="email" id="office-notify-email" class="form-control" placeholder="tim@brand.com">
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="office-notify-webhook">Webhook WhatsApp (URL)</label>
-                                        <input type="url" id="office-notify-webhook" class="form-control" placeholder="https://…">
-                                        <span class="input-hint">POST JSON saat needs_info / awaiting_approval. Gagal kirim tidak memblokir job.</span>
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Izin platform per peran</label>
-                                        <div id="office-role-permissions" class="office-role-permissions"></div>
-                                        <span class="input-hint">Kosongkan semua centang pada suatu peran = tidak dibatasi. Centang sebagian = hanya platform itu.</span>
-                                    </div>
-                                    <hr class="office-settings-divider">
-                                    <h3 class="office-settings-subhead">LLM / Chat CEO</h3>
-                                    <div class="form-group">
-                                        <label for="office-llm-provider">Provider</label>
-                                        <select id="office-llm-provider" class="form-control">
-                                            <option value="gemini">Google Gemini (gratis cloud)</option>
-                                            <option value="groq">Groq (gratis cloud)</option>
-                                            <option value="cursor">Cursor (SDK / API key)</option>
-                                            <option value="openai">OpenAI</option>
-                                            <option value="anthropic">Anthropic (Claude)</option>
-                                        </select>
-                                        <span class="input-hint" id="office-llm-provider-hint">Gemini &amp; Groq: free tier. Cursor: CURSOR_API_KEY dari dashboard Cursor.</span>
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="office-llm-model">Model</label>
-                                        <input type="text" id="office-llm-model" class="form-control" list="office-llm-model-list" placeholder="gemini-2.5-flash-lite / llama-3.3-70b-versatile">
-                                        <datalist id="office-llm-model-list"></datalist>
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="office-llm-api-key">API Key</label>
-                                        <input type="password" id="office-llm-api-key" class="form-control" placeholder="AIza… / gsk_… / key_… / sk-…" autocomplete="off">
-                                        <span class="input-hint" id="office-llm-key-hint">Disimpan terenkripsi di server. Kosongkan untuk tidak mengubah key.</span>
-                                    </div>
-                                    <label class="office-3d-toggle">
-                                        <input type="checkbox" id="office-llm-clear-key">
-                                        <span>Hapus API key tersimpan</span>
-                                    </label>
-                                    <div class="office-settings-actions">
-                                        <button type="button" class="btn btn-sm btn-secondary" id="office-settings-save">Simpan</button>
-                                        <button type="button" class="btn btn-sm btn-danger" id="office-emergency-pause-btn">Jeda darurat</button>
-                                    </div>
-                                    <p class="input-hint mt-2" id="office-settings-status">Memuat settings…</p>
-                                </div>
-                            </div>
-
                             <div class="card">
                                 <div class="card-header">
                                     <h2>Brief Cepat</h2>
@@ -1096,6 +1034,83 @@
                                 </button>
                             </div>
                         </aside>
+                    </div>
+                </section>
+
+                <!-- VIEW: PENGATURAN — Otonomi & Pengamanan Tim Konten AI -->
+                <section id="view-settings" class="view-panel">
+                    <div class="settings-layout">
+                        <div class="card office-settings-card">
+                            <div class="card-header">
+                                <h2>Otonomi &amp; Pengamanan</h2>
+                            </div>
+                            <div class="office-settings-form" id="office-settings-form">
+                                <div class="form-group">
+                                    <label for="office-autonomy-select">Tingkat otonomi</label>
+                                    <select id="office-autonomy-select" class="form-control">
+                                        <option value="suggest_only">Suggest only — draft saja</option>
+                                        <option value="require_approval">Require approval</option>
+                                        <option value="limited_autonomous">Limited autonomous</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="office-daily-cap">Daily post cap</label>
+                                    <input type="number" id="office-daily-cap" class="form-control" min="0" max="100" value="10">
+                                </div>
+                                <div class="form-group">
+                                    <label class="office-3d-toggle">
+                                        <input type="checkbox" id="office-notify-enabled">
+                                        <span>Notifikasi aktif</span>
+                                    </label>
+                                </div>
+                                <div class="form-group">
+                                    <label for="office-notify-email">Email notifikasi</label>
+                                    <input type="email" id="office-notify-email" class="form-control" placeholder="tim@brand.com">
+                                </div>
+                                <div class="form-group">
+                                    <label for="office-notify-webhook">Webhook WhatsApp (URL)</label>
+                                    <input type="url" id="office-notify-webhook" class="form-control" placeholder="https://…">
+                                    <span class="input-hint">POST JSON saat needs_info / awaiting_approval. Gagal kirim tidak memblokir job.</span>
+                                </div>
+                                <div class="form-group">
+                                    <label>Izin platform per peran</label>
+                                    <div id="office-role-permissions" class="office-role-permissions"></div>
+                                    <span class="input-hint">Kosongkan semua centang pada suatu peran = tidak dibatasi. Centang sebagian = hanya platform itu.</span>
+                                </div>
+                                <hr class="office-settings-divider">
+                                <h3 class="office-settings-subhead">LLM / Chat CEO</h3>
+                                <div class="form-group">
+                                    <label for="office-llm-provider">Provider</label>
+                                    <select id="office-llm-provider" class="form-control">
+                                        <option value="gemini">Google Gemini (gratis cloud)</option>
+                                        <option value="groq">Groq (gratis cloud)</option>
+                                        <option value="cursor">Cursor (SDK / API key)</option>
+                                        <option value="openai">OpenAI</option>
+                                        <option value="anthropic">Anthropic (Claude)</option>
+                                    </select>
+                                    <span class="input-hint" id="office-llm-provider-hint">Gemini &amp; Groq: free tier. Cursor: CURSOR_API_KEY dari dashboard Cursor.</span>
+                                </div>
+                                <div class="form-group">
+                                    <label for="office-llm-model">Model</label>
+                                    <input type="text" id="office-llm-model" class="form-control" list="office-llm-model-list" placeholder="gemini-2.5-flash-lite / llama-3.3-70b-versatile">
+                                    <datalist id="office-llm-model-list"></datalist>
+                                </div>
+                                <div class="form-group">
+                                    <label for="office-llm-api-key">API Key</label>
+                                    <input type="password" id="office-llm-api-key" class="form-control" placeholder="AIza… / gsk_… / key_… / sk-…" autocomplete="off">
+                                    <span class="input-hint" id="office-llm-key-hint">Disimpan terenkripsi di server. Kosongkan untuk tidak mengubah key.</span>
+                                </div>
+                                <label class="office-3d-toggle">
+                                    <input type="checkbox" id="office-llm-clear-key">
+                                    <span>Hapus API key tersimpan</span>
+                                </label>
+                                <div class="office-settings-actions">
+                                    <button type="button" class="btn btn-sm btn-secondary" id="office-settings-save">Simpan</button>
+                                    <button type="button" class="btn btn-sm btn-danger" id="office-emergency-pause-btn">Jeda darurat</button>
+                                </div>
+                                <p class="input-hint mt-2" id="office-settings-status">Memuat settings…</p>
+                            </div>
+                        </div>
                     </div>
                 </section>
 
