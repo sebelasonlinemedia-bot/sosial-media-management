@@ -179,6 +179,7 @@ const app = {
             openOfficeBtn.addEventListener('click', () => this.switchView('office'));
         }
         this.setupOfficeEvents();
+        this.setupLayoutEditorEvents();
         this.setupMissionEvents();
 
         // Periksa jika ada callback OAuth dari server di URL
@@ -186,7 +187,7 @@ const app = {
 
         // Render pertama — Mission Control sebagai halaman depan
         const hashView = (location.hash || '').replace(/^#/, '').trim();
-        const allowed = ['mission', 'dashboard', 'composer', 'queue', 'office', 'accounts', 'analytics', 'settings'];
+        const allowed = ['mission', 'dashboard', 'composer', 'queue', 'office', 'accounts', 'analytics', 'settings', 'layout'];
         this.switchView(allowed.includes(hashView) ? hashView : 'mission');
         lucide.createIcons();
     },
@@ -430,7 +431,8 @@ const app = {
                 office: 'WORK BOARD',
                 accounts: 'AKUN',
                 analytics: 'ANALISIS',
-                settings: 'PENGATURAN'
+                settings: 'PENGATURAN',
+                layout: 'LAYOUT KANTOR'
             };
             sectionLabel.textContent = labels[viewName] || 'APP';
         }
@@ -461,7 +463,8 @@ const app = {
             office: { title: 'Kantor AI', subtitle: 'Ruang kerja karyawan AI — brief cepat, brand memory, detail job, approval, dan insight apa berikutnya.' },
             accounts: { title: 'Akun Terhubung', subtitle: 'Tautkan profil, halaman, dan channel sosial media Anda.' },
             analytics: { title: 'Analisis Konten', subtitle: 'Analisis jangkauan, impresi, interaksi, dan rasio keberhasilan postingan.' },
-            settings: { title: 'Pengaturan', subtitle: 'Otonomi & pengamanan karyawan AI — tingkat otonomi, notifikasi, izin platform per peran, dan LLM / Chat CEO.' }
+            settings: { title: 'Pengaturan', subtitle: 'Otonomi & pengamanan karyawan AI — tingkat otonomi, notifikasi, izin platform per peran, dan LLM / Chat CEO.' },
+            layout: { title: 'Layout Kantor', subtitle: 'Atur denah kantor 3D — tinggi dinding, ukuran gedung, meja agen, dan tata letak mebel.' }
         };
 
         const titleEl = document.getElementById('view-title');
@@ -489,6 +492,7 @@ const app = {
         else if (viewName === 'accounts') this.renderAccounts();
         else if (viewName === 'analytics') this.renderAnalytics();
         else if (viewName === 'settings') this.renderSettings();
+        else if (viewName === 'layout') this.renderLayoutEditor();
 
         lucide.createIcons();
     },
@@ -865,7 +869,7 @@ app.setupMissionEvents = function () {
     window.addEventListener('hashchange', () => {
         if (!appState.user) return;
         const hashView = (location.hash || '').replace(/^#/, '').trim();
-        const allowed = ['mission', 'dashboard', 'composer', 'queue', 'office', 'accounts', 'analytics', 'settings'];
+        const allowed = ['mission', 'dashboard', 'composer', 'queue', 'office', 'accounts', 'analytics', 'settings', 'layout'];
         if (allowed.includes(hashView) && hashView !== appState.currentView) {
             this.switchView(hashView);
         }
@@ -1283,6 +1287,7 @@ app.renderMission = async function () {
     this.setMissionWorkboardOpen(appState.mission.workboardOpen, false);
     this.setMissionTab(appState.mission.tab || 'crew');
     await this.loadOfficeFromServer();
+    this.applySavedOfficeLayout();
     this.renderOfficeBoard();
     this.renderMissionCrew();
     this.updateMissionPills();
@@ -1329,6 +1334,429 @@ app.renderSettings = async function () {
     await this.loadOfficeFromServer();
     this.renderOfficeSettings();
     lucide.createIcons();
+};
+
+// ============================================================
+// Layout Kantor — editor denah 2D (tampak atas) untuk kantor 3D
+// ============================================================
+app._layoutEditor = null;
+
+app._layoutDefaultData = function () {
+    if (typeof AiOffice3D !== 'undefined' && typeof AiOffice3D.getDefaultLayout === 'function') {
+        return AiOffice3D.getDefaultLayout();
+    }
+    return {
+        wallHeight: 2.55,
+        building: { minX: -7.2, maxX: 8.6, minZ: -5, maxZ: 4.2 },
+        desks: [[-4.2, -2.8], [-2.4, -2.8], [-0.5, -2.8], [-4.2, -0.55], [-2.4, -0.55], [-0.5, -0.55], [-3.3, 1.55]],
+        furniture: []
+    };
+};
+
+app.renderLayoutEditor = async function () {
+    if (!appState.office.settings) {
+        await this.loadOfficeFromServer();
+    }
+    const saved = appState.office.settings && appState.office.settings.officeLayout;
+    const base = saved ? JSON.parse(JSON.stringify(saved)) : this._layoutDefaultData();
+    if (!base.furniture || !base.furniture.length) {
+        // Layout lama tanpa daftar mebel → pakai mebel bawaan agar denah lengkap
+        const def = this._layoutDefaultData();
+        if (!base.furniture || !base.furniture.length) base.furniture = def.furniture;
+        if (!base.desks || !base.desks.length) base.desks = def.desks;
+    }
+    this._layoutEditor = { data: base, selected: null, drag: null };
+    this._syncLayoutEditorControls();
+    this._drawLayoutCanvas();
+    const status = document.getElementById('layout-editor-status');
+    if (status) {
+        status.textContent = saved
+            ? 'Layout custom tersimpan sedang dipakai. Seret item lalu Simpan Layout.'
+            : 'Masih layout bawaan. Atur denah lalu Simpan Layout untuk memakai layout custom.';
+    }
+    lucide.createIcons();
+};
+
+app._syncLayoutEditorControls = function () {
+    const ed = this._layoutEditor;
+    if (!ed) return;
+    const d = ed.data;
+    const wh = document.getElementById('layout-wall-height');
+    const whVal = document.getElementById('layout-wall-height-val');
+    const bw = document.getElementById('layout-building-width');
+    const bwVal = document.getElementById('layout-building-width-val');
+    const bd = document.getElementById('layout-building-depth');
+    const bdVal = document.getElementById('layout-building-depth-val');
+    if (wh) wh.value = d.wallHeight;
+    if (whVal) whVal.textContent = Number(d.wallHeight).toFixed(2);
+    const width = d.building.maxX - d.building.minX;
+    const depth = d.building.maxZ - d.building.minZ;
+    if (bw) bw.value = width;
+    if (bwVal) bwVal.textContent = width.toFixed(1);
+    if (bd) bd.value = depth;
+    if (bdVal) bdVal.textContent = depth.toFixed(1);
+    this._updateLayoutSelectedInfo();
+};
+
+app._updateLayoutSelectedInfo = function () {
+    const info = document.getElementById('layout-selected-info');
+    if (!info) return;
+    const ed = this._layoutEditor;
+    if (!ed || !ed.selected) {
+        info.textContent = 'Belum ada item dipilih.';
+        return;
+    }
+    const sel = ed.selected;
+    if (sel.kind === 'desk') {
+        const d = ed.data.desks[sel.index];
+        info.textContent = d ? `Meja agen #${sel.index + 1} — posisi (${d[0].toFixed(1)}, ${d[1].toFixed(1)})` : 'Meja agen';
+    } else {
+        const f = ed.data.furniture[sel.index];
+        info.textContent = f ? `Mebel: ${f.type} — posisi (${f.x.toFixed(1)}, ${f.z.toFixed(1)})` : 'Mebel';
+    }
+};
+
+/** Transformasi dunia (meter) ↔ kanvas denah. */
+app._layoutTransform = function () {
+    const canvas = document.getElementById('layout-canvas');
+    const ed = this._layoutEditor;
+    if (!canvas || !ed) return null;
+    const b = ed.data.building;
+    const marginWorld = 4.5;
+    const spanX = (b.maxX - b.minX) + marginWorld * 2;
+    const spanZ = (b.maxZ - b.minZ) + marginWorld * 2 + 3; // ruang jalan di depan
+    const scale = Math.min(canvas.width / spanX, canvas.height / spanZ);
+    const cx = (b.minX + b.maxX) / 2;
+    const cz = (b.minZ + b.maxZ) / 2;
+    return {
+        canvas,
+        scale,
+        toPx: (x, z) => [canvas.width / 2 + (x - cx) * scale, canvas.height / 2 + (z - cz) * scale],
+        toWorld: (px, py) => [cx + (px - canvas.width / 2) / scale, cz + (py - canvas.height / 2) / scale]
+    };
+};
+
+app._drawLayoutCanvas = function () {
+    const t = this._layoutTransform();
+    if (!t) return;
+    const { canvas, scale, toPx } = t;
+    const ctx = canvas.getContext('2d');
+    const ed = this._layoutEditor;
+    const d = ed.data;
+    const b = d.building;
+
+    // Rumput
+    ctx.fillStyle = '#79c25f';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // Jalan di depan (z besar = bawah)
+    const [roadX, roadY] = toPx(b.minX - 4, b.maxZ + 2.2);
+    const [roadX2, roadY2] = toPx(b.maxX + 4, b.maxZ + 7.2);
+    ctx.fillStyle = '#3c4147';
+    ctx.fillRect(roadX, roadY, roadX2 - roadX, roadY2 - roadY);
+    ctx.strokeStyle = '#f5f0dc';
+    ctx.setLineDash([10, 8]);
+    ctx.beginPath();
+    const [, laneY] = toPx(0, b.maxZ + 4.7);
+    ctx.moveTo(roadX, laneY);
+    ctx.lineTo(roadX2, laneY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    // Trotoar
+    const [swX, swY] = toPx(b.minX - 1.8, b.minZ - 1.8);
+    const [swX2, swY2] = toPx(b.maxX + 1.8, b.maxZ + 1.8);
+    ctx.fillStyle = '#c9cdd1';
+    ctx.fillRect(swX, swY, swX2 - swX, swY2 - swY);
+    // Lantai gedung
+    const [bx, by] = toPx(b.minX, b.minZ);
+    const [bx2, by2] = toPx(b.maxX, b.maxZ);
+    ctx.fillStyle = '#dcbc90';
+    ctx.fillRect(bx, by, bx2 - bx, by2 - by);
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(bx, by, bx2 - bx, by2 - by);
+    // Partisi kerja/break (x tetap 2.85)
+    const [partX] = toPx(2.85, 0);
+    ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(partX, by);
+    ctx.lineTo(partX, by2);
+    ctx.stroke();
+    // Meja meeting bundar (tetap)
+    const [mtX, mtY] = toPx(1.6, 0.2);
+    ctx.fillStyle = '#6e4a30';
+    ctx.beginPath();
+    ctx.arc(mtX, mtY, 1.05 * scale, 0, Math.PI * 2);
+    ctx.fill();
+
+    const drawItem = (x, z, w, h, color, label, selected) => {
+        const [px, py] = toPx(x, z);
+        const pw = Math.max(8, w * scale);
+        const ph = Math.max(8, h * scale);
+        ctx.fillStyle = color;
+        ctx.fillRect(px - pw / 2, py - ph / 2, pw, ph);
+        ctx.strokeStyle = selected ? '#facc15' : 'rgba(15,23,42,0.55)';
+        ctx.lineWidth = selected ? 3 : 1;
+        ctx.strokeRect(px - pw / 2, py - ph / 2, pw, ph);
+        if (label) {
+            ctx.fillStyle = '#0f172a';
+            ctx.font = '600 9px system-ui, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(label, px, py + 3);
+        }
+    };
+
+    // Mebel
+    (d.furniture || []).forEach((f, i) => {
+        const sel = ed.selected && ed.selected.kind === 'furniture' && ed.selected.index === i;
+        const shapes = {
+            desk: [1.3, 0.7, '#b08954', 'meja'], workdesk: [1.9, 0.95, '#d6d3cd', 'meja'],
+            chair: [0.5, 0.5, '#2f3a44', 'kursi'], sofa: [2.4, 0.9, '#5b6f8c', 'sofa'],
+            armchair: [0.9, 0.85, '#7a6a9a', 'kursi'], beanbag: [0.8, 0.8, '#fb923c', 'bean'],
+            coffeetable: [1.3, 0.7, '#8a5a3a', 'meja'], roundtable: [0.85, 0.85, '#6e4a30', 'bundar'],
+            meetingtable: [2.1, 2.1, '#6e4a30', 'meeting'], pingpong: [2.74, 1.52, '#1f5f8b', 'pingpong'],
+            arcade: [0.72, 0.62, '#b54b45', 'arcade'], coffeebar: [2.2, 0.55, '#c9a876', 'kopi'],
+            pantry: [2.0, 0.6, '#e7e2d8', 'dapur'], fridge: [0.75, 0.7, '#dfe3e4', 'kulkas'],
+            galon: [0.42, 0.42, '#5fb4f2', 'galon'], bookshelf: [1.4, 0.4, '#6b4a32', 'rak'],
+            tv: [2.0, 0.15, '#111416', 'TV'], plant: [0.5, 0.5, '#4f8a4a', 'tanaman'],
+            stool: [0.34, 0.34, '#2dd4bf', 'stool'], foodstall: [1.9, 1.0, '#c62828', 'gerobak'],
+            tree: [1.2, 1.2, '#3f7a3c', 'pohon'], lamp: [0.3, 0.3, '#2f3336', 'lampu']
+        };
+        const s = shapes[f.type] || [0.6, 0.6, '#94a3b8', f.type];
+        drawItem(f.x, f.z, s[0], s[1], s[2], s[3], sel);
+    });
+
+    // Meja agen + kursi (kursi di sisi atas meja = sisi agen duduk)
+    (d.desks || []).forEach((desk, i) => {
+        const sel = ed.selected && ed.selected.kind === 'desk' && ed.selected.index === i;
+        drawItem(desk[0], desk[1] - 0.68, 0.42, 0.42, '#1f6f6b', '', sel);
+        drawItem(desk[0], desk[1], 1.25, 0.65, '#e8d5b5', `A${i + 1}`, sel);
+    });
+
+    // Label zona
+    ctx.fillStyle = 'rgba(15,23,42,0.65)';
+    ctx.font = '700 11px system-ui, sans-serif';
+    ctx.textAlign = 'left';
+    const [lzX, lzY] = toPx(b.minX + 0.3, b.minZ + 0.6);
+    ctx.fillText('AREA KERJA', lzX, lzY);
+    const [rzX, rzY] = toPx(3.2, b.minZ + 0.6);
+    ctx.fillText('LOUNGE · GAME · DAPUR', rzX, rzY);
+};
+
+app._layoutHitTest = function (worldX, worldZ) {
+    const ed = this._layoutEditor;
+    if (!ed) return null;
+    const d = ed.data;
+    for (let i = (d.desks || []).length - 1; i >= 0; i--) {
+        if (Math.abs(worldX - d.desks[i][0]) <= 0.75 && Math.abs(worldZ - d.desks[i][1]) <= 0.6) {
+            return { kind: 'desk', index: i };
+        }
+    }
+    for (let i = (d.furniture || []).length - 1; i >= 0; i--) {
+        const f = d.furniture[i];
+        if (Math.abs(worldX - f.x) <= 0.85 && Math.abs(worldZ - f.z) <= 0.85) {
+            return { kind: 'furniture', index: i };
+        }
+    }
+    return null;
+};
+
+app.setupLayoutEditorEvents = function () {
+    const canvas = document.getElementById('layout-canvas');
+    if (!canvas || canvas.dataset.bound) return;
+    canvas.dataset.bound = '1';
+
+    const pos = (evt) => {
+        const rect = canvas.getBoundingClientRect();
+        const px = (evt.clientX - rect.left) * (canvas.width / rect.width);
+        const py = (evt.clientY - rect.top) * (canvas.height / rect.height);
+        const t = this._layoutTransform();
+        return t ? t.toWorld(px, py) : [0, 0];
+    };
+
+    canvas.addEventListener('pointerdown', (evt) => {
+        const ed = this._layoutEditor;
+        if (!ed) return;
+        const [wx, wz] = pos(evt);
+        const hit = this._layoutHitTest(wx, wz);
+        ed.selected = hit;
+        if (hit) {
+            const item = hit.kind === 'desk' ? ed.data.desks[hit.index] : ed.data.furniture[hit.index];
+            const ix = hit.kind === 'desk' ? item[0] : item.x;
+            const iz = hit.kind === 'desk' ? item[1] : item.z;
+            ed.drag = { ...hit, dx: wx - ix, dz: wz - iz };
+            canvas.setPointerCapture(evt.pointerId);
+        }
+        this._updateLayoutSelectedInfo();
+        this._drawLayoutCanvas();
+    });
+    canvas.addEventListener('pointermove', (evt) => {
+        const ed = this._layoutEditor;
+        if (!ed || !ed.drag) return;
+        const [wx, wz] = pos(evt);
+        const nx = Math.round((wx - ed.drag.dx) * 10) / 10;
+        const nz = Math.round((wz - ed.drag.dz) * 10) / 10;
+        if (ed.drag.kind === 'desk') {
+            ed.data.desks[ed.drag.index] = [nx, nz];
+        } else {
+            ed.data.furniture[ed.drag.index].x = nx;
+            ed.data.furniture[ed.drag.index].z = nz;
+        }
+        this._updateLayoutSelectedInfo();
+        this._drawLayoutCanvas();
+    });
+    const endDrag = () => {
+        if (this._layoutEditor) this._layoutEditor.drag = null;
+    };
+    canvas.addEventListener('pointerup', endDrag);
+    canvas.addEventListener('pointercancel', endDrag);
+
+    const wh = document.getElementById('layout-wall-height');
+    if (wh) {
+        wh.addEventListener('input', () => {
+            const ed = this._layoutEditor;
+            if (!ed) return;
+            ed.data.wallHeight = Number(wh.value);
+            const val = document.getElementById('layout-wall-height-val');
+            if (val) val.textContent = Number(wh.value).toFixed(2);
+        });
+    }
+    const resizeBuilding = () => {
+        const ed = this._layoutEditor;
+        if (!ed) return;
+        const bw = document.getElementById('layout-building-width');
+        const bd = document.getElementById('layout-building-depth');
+        const width = Number(bw ? bw.value : 15.8);
+        const depth = Number(bd ? bd.value : 9.2);
+        const cx = (ed.data.building.minX + ed.data.building.maxX) / 2;
+        const cz = (ed.data.building.minZ + ed.data.building.maxZ) / 2;
+        ed.data.building = {
+            minX: Math.round((cx - width / 2) * 100) / 100,
+            maxX: Math.round((cx + width / 2) * 100) / 100,
+            minZ: Math.round((cz - depth / 2) * 100) / 100,
+            maxZ: Math.round((cz + depth / 2) * 100) / 100
+        };
+        this._syncLayoutEditorControls();
+        this._drawLayoutCanvas();
+    };
+    const bwEl = document.getElementById('layout-building-width');
+    const bdEl = document.getElementById('layout-building-depth');
+    if (bwEl) bwEl.addEventListener('input', resizeBuilding);
+    if (bdEl) bdEl.addEventListener('input', resizeBuilding);
+
+    const addBtn = document.getElementById('layout-add-furniture');
+    if (addBtn) {
+        addBtn.addEventListener('click', () => {
+            const ed = this._layoutEditor;
+            if (!ed) return;
+            const type = (document.getElementById('layout-furniture-type') || {}).value || 'plant';
+            ed.data.furniture = ed.data.furniture || [];
+            ed.data.furniture.push({
+                id: 'f' + Date.now().toString(36),
+                type,
+                x: 0,
+                z: 0,
+                rotY: 0
+            });
+            ed.selected = { kind: 'furniture', index: ed.data.furniture.length - 1 };
+            this._updateLayoutSelectedInfo();
+            this._drawLayoutCanvas();
+        });
+    }
+    const rotateBtn = document.getElementById('layout-rotate-item');
+    if (rotateBtn) {
+        rotateBtn.addEventListener('click', () => {
+            const ed = this._layoutEditor;
+            if (!ed || !ed.selected || ed.selected.kind !== 'furniture') return;
+            const f = ed.data.furniture[ed.selected.index];
+            if (f) f.rotY = Math.round(((f.rotY || 0) + Math.PI / 4) * 100) / 100;
+        });
+    }
+    const deleteBtn = document.getElementById('layout-delete-item');
+    if (deleteBtn) {
+        deleteBtn.addEventListener('click', () => {
+            const ed = this._layoutEditor;
+            if (!ed || !ed.selected) return;
+            if (ed.selected.kind === 'furniture') {
+                ed.data.furniture.splice(ed.selected.index, 1);
+            } else if (ed.data.desks.length > 1) {
+                ed.data.desks.splice(ed.selected.index, 1);
+            } else {
+                this.showToast('Minimal satu meja agen harus ada.', 'yellow');
+                return;
+            }
+            ed.selected = null;
+            this._updateLayoutSelectedInfo();
+            this._drawLayoutCanvas();
+        });
+    }
+    const addDeskBtn = document.getElementById('layout-add-desk');
+    if (addDeskBtn) {
+        addDeskBtn.addEventListener('click', () => {
+            const ed = this._layoutEditor;
+            if (!ed) return;
+            if (ed.data.desks.length >= 12) {
+                this.showToast('Maksimal 12 meja agen.', 'yellow');
+                return;
+            }
+            ed.data.desks.push([-1, 1.8]);
+            ed.selected = { kind: 'desk', index: ed.data.desks.length - 1 };
+            this._updateLayoutSelectedInfo();
+            this._drawLayoutCanvas();
+        });
+    }
+    const removeDeskBtn = document.getElementById('layout-remove-desk');
+    if (removeDeskBtn) {
+        removeDeskBtn.addEventListener('click', () => {
+            const ed = this._layoutEditor;
+            if (!ed) return;
+            if (ed.data.desks.length <= 1) {
+                this.showToast('Minimal satu meja agen harus ada.', 'yellow');
+                return;
+            }
+            ed.data.desks.pop();
+            ed.selected = null;
+            this._updateLayoutSelectedInfo();
+            this._drawLayoutCanvas();
+        });
+    }
+    const resetBtn = document.getElementById('layout-reset');
+    if (resetBtn) {
+        resetBtn.addEventListener('click', () => {
+            this._layoutEditor = { data: this._layoutDefaultData(), selected: null, drag: null };
+            this._syncLayoutEditorControls();
+            this._drawLayoutCanvas();
+            this.showToast('Layout dikembalikan ke bawaan — klik Simpan Layout untuk memakai.', 'indigo');
+        });
+    }
+    const saveBtn = document.getElementById('layout-save');
+    if (saveBtn) {
+        saveBtn.addEventListener('click', () => this.saveOfficeLayout());
+    }
+    const openBtn = document.getElementById('layout-open-office');
+    if (openBtn) {
+        openBtn.addEventListener('click', () => this.switchView('mission'));
+    }
+};
+
+app.saveOfficeLayout = async function () {
+    const ed = this._layoutEditor;
+    if (!ed) return;
+    try {
+        const data = await api.put('/api/ai/settings', { officeLayout: ed.data });
+        if (!data.success) {
+            this.showToast(data.message || 'Gagal menyimpan layout.', 'red');
+            return;
+        }
+        if (!appState.office.settings) appState.office.settings = {};
+        appState.office.settings.officeLayout = data.settings.officeLayout;
+        this.applySavedOfficeLayout(true);
+        const status = document.getElementById('layout-editor-status');
+        if (status) status.textContent = 'Layout tersimpan dan sudah diterapkan ke kantor 3D.';
+        this.showToast('Layout kantor disimpan & diterapkan.', 'emerald');
+    } catch (e) {
+        this.showToast('Gagal menyimpan layout.', 'red');
+    }
 };
 
 app.renderOffice = async function () {
@@ -1826,6 +2254,17 @@ app.saveOfficeBrandMemory = async function () {
     }
 };
 
+/** Terapkan officeLayout tersimpan ke scene 3D (sekali per perubahan data). */
+app.applySavedOfficeLayout = function (force) {
+    if (typeof AiOffice3D === 'undefined' || typeof AiOffice3D.setLayout !== 'function') return;
+    const saved = appState.office.settings && appState.office.settings.officeLayout;
+    if (!saved) return;
+    const key = JSON.stringify(saved);
+    if (!force && appState.office.appliedLayoutJson === key) return;
+    appState.office.appliedLayoutJson = key;
+    AiOffice3D.setLayout(saved);
+};
+
 app.initOffice3D = function () {
     const viewport = document.getElementById('office-3d-viewport');
     const canvas = document.getElementById('office-3d-canvas');
@@ -1842,6 +2281,8 @@ app.initOffice3D = function () {
     }
     const enabled = toggle ? toggle.checked : AiOffice3D.loadPreference();
     if (toggle) toggle.checked = enabled;
+    // Terapkan layout kantor custom tersimpan (bila ada) sebelum scene dibangun
+    this.applySavedOfficeLayout();
     const ok = AiOffice3D.init(viewport, {
         canvas,
         labelsRoot: labels,

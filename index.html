@@ -100,6 +100,7 @@
             <button type="button" data-mission-nav="accounts">Akun Terhubung</button>
             <button type="button" data-mission-nav="analytics">Analisis Konten</button>
             <button type="button" data-mission-nav="settings">Pengaturan</button>
+            <button type="button" data-mission-nav="layout">Layout Kantor</button>
             <hr>
             <button type="button" id="mission-logout-btn" class="mission-nav-logout">Keluar</button>
         </nav>
@@ -332,6 +333,7 @@
                     </li>
                     <li data-view="analytics"><a href="#analytics"><span>Analisis Konten</span></a></li>
                     <li data-view="settings"><a href="#settings"><span>Pengaturan</span></a></li>
+                    <li data-view="layout"><a href="#layout"><span>Layout Kantor</span></a></li>
                 </ul>
             </nav>
             <div class="sidebar-footer">
@@ -1129,6 +1131,85 @@
                                 <p class="input-hint mt-2" id="office-settings-status">Memuat settings…</p>
                             </div>
                         </div>
+                    </div>
+                </section>
+
+                <!-- VIEW: LAYOUT KANTOR — editor denah 2D untuk kantor 3D -->
+                <section id="view-layout" class="view-panel">
+                    <div class="layout-editor">
+                        <div class="card layout-editor-main">
+                            <div class="card-header">
+                                <h2>Denah Kantor (tampak atas)</h2>
+                                <span class="text-secondary font-sm">Seret item untuk memindah · klik untuk memilih</span>
+                            </div>
+                            <canvas id="layout-canvas" width="860" height="560" aria-label="Denah kantor 2D"></canvas>
+                            <p class="input-hint mt-2" id="layout-editor-status">Memuat layout…</p>
+                        </div>
+                        <aside class="card layout-editor-side">
+                            <div class="card-header">
+                                <h2>Pengaturan Layout</h2>
+                            </div>
+                            <div class="form-group">
+                                <label for="layout-wall-height">Tinggi dinding: <span id="layout-wall-height-val">2.55</span> m</label>
+                                <input type="range" id="layout-wall-height" class="form-control" min="1.8" max="3.6" step="0.05" value="2.55">
+                            </div>
+                            <div class="form-group">
+                                <label for="layout-building-width">Lebar gedung (sumbu X): <span id="layout-building-width-val">15.8</span> m</label>
+                                <input type="range" id="layout-building-width" class="form-control" min="10" max="24" step="0.2" value="15.8">
+                            </div>
+                            <div class="form-group">
+                                <label for="layout-building-depth">Kedalaman gedung (sumbu Z): <span id="layout-building-depth-val">9.2</span> m</label>
+                                <input type="range" id="layout-building-depth" class="form-control" min="6" max="14" step="0.2" value="9.2">
+                            </div>
+                            <hr class="office-settings-divider">
+                            <h3 class="office-settings-subhead">Tambah Mebel</h3>
+                            <div class="form-group">
+                                <label for="layout-furniture-type">Jenis mebel</label>
+                                <select id="layout-furniture-type" class="form-control">
+                                    <option value="desk">Meja kerja (dengan kursi)</option>
+                                    <option value="workdesk">Meja kantor</option>
+                                    <option value="chair">Kursi</option>
+                                    <option value="sofa">Sofa</option>
+                                    <option value="armchair">Kursi santai</option>
+                                    <option value="beanbag">Bean bag</option>
+                                    <option value="coffeetable">Meja kopi</option>
+                                    <option value="roundtable">Meja bundar kecil</option>
+                                    <option value="meetingtable">Meja meeting bundar</option>
+                                    <option value="pingpong">Meja ping pong</option>
+                                    <option value="arcade">Mesin arcade</option>
+                                    <option value="coffeebar">Coffee bar</option>
+                                    <option value="pantry">Counter dapur</option>
+                                    <option value="fridge">Kulkas</option>
+                                    <option value="galon">Galon air</option>
+                                    <option value="bookshelf">Rak buku</option>
+                                    <option value="tv">TV dinding</option>
+                                    <option value="plant">Tanaman</option>
+                                    <option value="stool">Stool</option>
+                                    <option value="tree">Pohon (luar)</option>
+                                    <option value="lamp">Lampu jalan (luar)</option>
+                                    <option value="foodstall">Gerobak (luar)</option>
+                                </select>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-secondary width-full" id="layout-add-furniture">+ Tambah ke denah</button>
+                            <hr class="office-settings-divider">
+                            <h3 class="office-settings-subhead">Item Terpilih</h3>
+                            <p class="font-sm text-secondary" id="layout-selected-info">Belum ada item dipilih.</p>
+                            <div class="office-settings-actions">
+                                <button type="button" class="btn btn-sm btn-secondary" id="layout-rotate-item">Putar 45°</button>
+                                <button type="button" class="btn btn-sm btn-danger" id="layout-delete-item">Hapus item</button>
+                            </div>
+                            <div class="office-settings-actions mt-2">
+                                <button type="button" class="btn btn-sm btn-secondary" id="layout-add-desk">+ Meja agen</button>
+                                <button type="button" class="btn btn-sm btn-secondary" id="layout-remove-desk">− Meja agen</button>
+                            </div>
+                            <hr class="office-settings-divider">
+                            <div class="office-settings-actions">
+                                <button type="button" class="btn btn-sm btn-primary" id="layout-save">Simpan Layout</button>
+                                <button type="button" class="btn btn-sm btn-secondary" id="layout-reset">Reset bawaan</button>
+                                <button type="button" class="btn btn-sm btn-secondary" id="layout-open-office">Lihat di Kantor 3D</button>
+                            </div>
+                            <p class="input-hint mt-2">Meja agen menentukan posisi duduk karyawan. Kursi meja otomatis di sisi agen duduk. Layout tersimpan di server dan langsung dipakai kantor 3D.</p>
+                        </aside>
                     </div>
                 </section>
 

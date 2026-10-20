@@ -44,6 +44,7 @@ const {
     enforceRolePlatforms,
     enforceRoleSkill,
     KNOWN_SKILLS,
+    FURNITURE_TYPES,
     ALL_PLATFORMS,
     AUTONOMY_LEVELS
 } = require('./lib/ai-policy');
@@ -1771,6 +1772,7 @@ app.put('/api/ai/settings', async (req, res) => {
         if (body.notifications != null) patch.notifications = body.notifications;
         if (body.rolePermissions != null) patch.rolePermissions = body.rolePermissions;
         if (body.roleSkills != null) patch.roleSkills = body.roleSkills;
+        if (body.officeLayout !== undefined) patch.officeLayout = body.officeLayout;
         if (body.insightsEnabled != null) patch.insightsEnabled = !!body.insightsEnabled;
 
         // LLM: provider/model + apiKey (plain dari client → encrypt at-rest)
@@ -2251,9 +2253,11 @@ app.get('/api/ai/office', async (req, res) => {
                 notifications: settings.notifications,
                 rolePermissions: settings.rolePermissions,
                 roleSkills: settings.roleSkills || {},
+                officeLayout: settings.officeLayout || null,
                 insightsEnabled: settings.insightsEnabled !== false
             },
             knownSkills: KNOWN_SKILLS,
+            furnitureTypes: FURNITURE_TYPES,
             platforms: ALL_PLATFORMS,
             tokenEncryption: isEncryptionEnabled(),
             employees,

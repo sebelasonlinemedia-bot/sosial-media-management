@@ -45,16 +45,80 @@
     var YELLOW = 0xfbbf24;
     var ORANGE = 0xfb923c;
 
-    var LAYOUT = buildLayout(7);
+    var LAYOUT = buildLayout(7, null);
+    var CUSTOM_LAYOUT = null;
 
-    function buildLayout(agentCount) {
-        var desks = [
-            [-4.2, -2.8], [-2.4, -2.8], [-0.5, -2.8],
-            [-4.2, -0.55], [-2.4, -0.55], [-0.5, -0.55],
-            [-3.3, 1.55]
-        ].slice(0, Math.max(1, agentCount));
+    /** Mebel bawaan scene (posisi = tata letak referensi saat ini). */
+    function defaultFurniture() {
+        return [
+            { id: 'extra-desk-1', type: 'workdesk', x: 0.9, z: -3.1, rotY: 0 },
+            { id: 'extra-desk-2', type: 'workdesk', x: 0.9, z: -1.15, rotY: 0 },
+            { id: 'sofa', type: 'sofa', x: 4.4, z: -3.35, rotY: 0 },
+            { id: 'tv', type: 'tv', x: 4.4, z: -4.7, rotY: 0 },
+            { id: 'coffee-table', type: 'coffeetable', x: 4.4, z: -2.45, rotY: 0 },
+            { id: 'beanbag-1', type: 'beanbag', x: 5.9, z: -3.5, rotY: 0 },
+            { id: 'beanbag-2', type: 'beanbag', x: 6.7, z: -2.8, rotY: 0 },
+            { id: 'lounge-table', type: 'roundtable', x: 6.15, z: -1.85, rotY: 0 },
+            { id: 'pingpong', type: 'pingpong', x: 6.1, z: -0.55, rotY: 0 },
+            { id: 'arcade-1', type: 'arcade', x: 7.55, z: -4.45, rotY: 0 },
+            { id: 'arcade-2', type: 'arcade', x: 6.65, z: -4.45, rotY: 0 },
+            { id: 'coffeebar', type: 'coffeebar', x: 5.15, z: 3.55, rotY: 0 },
+            { id: 'stool-1', type: 'stool', x: 4.55, z: 3.1, rotY: 0 },
+            { id: 'stool-2', type: 'stool', x: 5.25, z: 3.1, rotY: 0 },
+            { id: 'pantry', type: 'pantry', x: 7.35, z: 3.35, rotY: -Math.PI / 2 },
+            { id: 'fridge', type: 'fridge', x: 8.05, z: 2.35, rotY: -Math.PI / 2 },
+            { id: 'galon', type: 'galon', x: 7.55, z: 1.65, rotY: 0 },
+            { id: 'bookshelf', type: 'bookshelf', x: 0.6, z: -4.55, rotY: 0 },
+            { id: 'plant-1', type: 'plant', x: -0.8, z: 3.2, rotY: 0 },
+            { id: 'plant-2', type: 'plant', x: 3.4, z: -3.9, rotY: 0 },
+            { id: 'plant-3', type: 'plant', x: 3.35, z: 3.6, rotY: 0 },
+            { id: 'plant-4', type: 'plant', x: -6.6, z: 3.6, rotY: 0 },
+            { id: 'tree-1', type: 'tree', x: -10.6, z: -3.2, rotY: 0 },
+            { id: 'tree-2', type: 'tree', x: -11.0, z: 1.8, rotY: 0 },
+            { id: 'tree-3', type: 'tree', x: 11.0, z: -3.6, rotY: 0 },
+            { id: 'tree-4', type: 'tree', x: 11.4, z: 1.2, rotY: 0 },
+            { id: 'tree-5', type: 'tree', x: -3.5, z: 6.9, rotY: 0 },
+            { id: 'tree-6', type: 'tree', x: 5.5, z: 6.9, rotY: 0 },
+            { id: 'lamp-1', type: 'lamp', x: -6.0, z: 5.75, rotY: 0 },
+            { id: 'lamp-2', type: 'lamp', x: 0.7, z: 5.75, rotY: 0 },
+            { id: 'lamp-3', type: 'lamp', x: 7.4, z: 5.75, rotY: 0 },
+            { id: 'foodstall', type: 'foodstall', x: -9.4, z: 3.6, rotY: 0 }
+        ];
+    }
 
-        var building = { minX: -7.2, maxX: 8.6, minZ: -5.0, maxZ: 4.2 };
+    function defaultLayoutData() {
+        return {
+            wallHeight: 2.55,
+            building: { minX: -7.2, maxX: 8.6, minZ: -5.0, maxZ: 4.2 },
+            desks: [
+                [-4.2, -2.8], [-2.4, -2.8], [-0.5, -2.8],
+                [-4.2, -0.55], [-2.4, -0.55], [-0.5, -0.55],
+                [-3.3, 1.55]
+            ],
+            furniture: defaultFurniture()
+        };
+    }
+
+    function buildLayout(agentCount, custom) {
+        var cfg = custom && typeof custom === 'object' ? custom : null;
+        var desks = (cfg && Array.isArray(cfg.desks) && cfg.desks.length
+            ? cfg.desks.map(function (d) {
+                return Array.isArray(d) ? [Number(d[0]) || 0, Number(d[1]) || 0] : [Number(d.x) || 0, Number(d.z) || 0];
+            })
+            : defaultLayoutData().desks
+        ).slice(0, Math.max(1, agentCount));
+
+        var building = cfg && cfg.building
+            ? {
+                minX: Number(cfg.building.minX) || -7.2,
+                maxX: Number(cfg.building.maxX) || 8.6,
+                minZ: Number(cfg.building.minZ) || -5.0,
+                maxZ: Number(cfg.building.maxZ) || 4.2
+            }
+            : { minX: -7.2, maxX: 8.6, minZ: -5.0, maxZ: 4.2 };
+
+        var furniture = cfg && Array.isArray(cfg.furniture) ? cfg.furniture : defaultFurniture();
+        var wallHeight = cfg && Number(cfg.wallHeight) ? Number(cfg.wallHeight) : 2.55;
 
         var meeting = [
             { x: 1.35, z: 0.25, facing: Math.PI / 2, seated: false },
@@ -120,6 +184,8 @@
             aisleZ: AISLE_Z,
             desks: desks,
             building: building,
+            wallHeight: wallHeight,
+            furniture: furniture,
             meeting: meeting,
             meetingTable: { x: 1.6, z: 0.2, radius: 1.05 },
             cameraTarget: [0.7, 0.4, -0.3],
@@ -658,7 +724,47 @@
 
     /* ---------- Scene ---------- */
 
+    /** Gambar satu item mebel dari layout (dipakai bawaan & custom). */
+    var furnitureDeskIndex = 0;
+    function addFurnitureItem(parent, item) {
+        if (!item || !item.type) return;
+        var x = Number(item.x) || 0;
+        var z = Number(item.z) || 0;
+        var rot = Number(item.rotY) || 0;
+        switch (item.type) {
+            case 'desk': {
+                var colors = [TEAL, YELLOW];
+                addStartupDesk(parent, x, z, colors[furnitureDeskIndex++ % colors.length]);
+                break;
+            }
+            case 'workdesk': addWorkDesk(parent, x, z, false); break;
+            case 'chair': addOfficeChair(parent, x, z, rot); break;
+            case 'sofa': addSofa(parent, x, z, rot); break;
+            case 'armchair': addArmchair(parent, x, z, rot, 0x7a6a9a); break;
+            case 'beanbag': addBeanBag(parent, x, z, ORANGE); break;
+            case 'coffeetable': addCoffeeTable(parent, x, z); break;
+            case 'roundtable': addRoundLoungeTable(parent, x, z); break;
+            case 'meetingtable': addRoundMeetingTable(parent, x, z, 1.05); break;
+            case 'pingpong': addPingPong(parent, x, z); break;
+            case 'arcade': addArcade(parent, x, z, 0xb54b45); break;
+            case 'coffeebar': addCoffeeBar(parent, x, z); break;
+            case 'pantry': addPantryCounter(parent, x, z, rot); break;
+            case 'fridge': addFridge(parent, x, z, rot); break;
+            case 'galon': addGalon(parent, x, z, rot); break;
+            case 'bookshelf': addBookshelf(parent, x, z, rot); break;
+            case 'tv': addTelevision(parent, x, 1.55, z); break;
+            case 'plant': addPlant(parent, x, z, 0.7); break;
+            case 'stool': addColorStool(parent, x, z, TEAL); break;
+            case 'foodstall': addFoodStall(parent, x, z); break;
+            case 'tree': addTree(parent, x, z, 1.1); break;
+            case 'lamp': addStreetLamp(parent, x, z); break;
+            default: break;
+        }
+    }
+
     function buildScene() {
+        WALL_H = LAYOUT.wallHeight || 2.55;
+        furnitureDeskIndex = 0;
         scene = new THREE.Scene();
         scene.background = new THREE.Color(0xa8d4ec);
         scene.fog = new THREE.Fog(0xa8d4ec, 26, 48);
@@ -699,17 +805,7 @@
         for (laneX = -24; laneX <= 24; laneX += 4) {
             box(roomRoot, laneX, -0.02, roadZ, 1.8, 0.012, 0.16, 0xf5f0dc, 0.8);
         }
-        addStreetLamp(roomRoot, b.minX + 1.2, b.maxZ + 1.55);
-        addStreetLamp(roomRoot, cx, b.maxZ + 1.55);
-        addStreetLamp(roomRoot, b.maxX - 1.2, b.maxZ + 1.55);
-        addTree(roomRoot, b.minX - 3.4, -3.2, 1.25);
-        addTree(roomRoot, b.minX - 3.8, 1.8, 1.05);
-        addTree(roomRoot, b.maxX + 3.4, -3.6, 1.3);
-        addTree(roomRoot, b.maxX + 3.8, 1.2, 1.05);
-        addTree(roomRoot, -3.5, b.maxZ + 2.6, 0.9);
-        addTree(roomRoot, 5.5, b.maxZ + 2.6, 0.95);
-        /* Gerobak merah di luar kiri depan */
-        addFoodStall(roomRoot, b.minX - 2.2, b.maxZ - 0.6);
+        /* Pohon, lampu jalan & gerobak digambar dari daftar mebel layout (bisa custom). */
 
         /* --- Lantai kayu kantor (papan-papan) --- */
         addFloorPlane(roomRoot, cx, 0.004, cz,
@@ -743,49 +839,22 @@
         addLowCabinet(roomRoot, -4.6, -3.9, 2.4);
         addPlant(roomRoot, -5.4, -3.85, 0.55);
         addBookStack(roomRoot, -4.2, -3.85);
-        addBookshelf(roomRoot, 0.6, b.minZ + 0.45, 0);
 
         /* Work desks + colorful chairs */
         var chairColors = [TEAL, YELLOW, TEAL, YELLOW, TEAL, YELLOW, TEAL];
         LAYOUT.desks.forEach(function (d, i) {
             addStartupDesk(roomRoot, d[0], d[1], chairColors[i % chairColors.length]);
         });
-        /* Meja kerja ekstra (visual) di tengah */
-        addWorkDesk(roomRoot, 0.9, -3.1, false);
-        addWorkDesk(roomRoot, 0.9, -1.15, false);
-
         /* Meja meeting bundar (furnitur untuk spot meeting) */
         addRoundMeetingTable(roomRoot, LAYOUT.meetingTable.x, LAYOUT.meetingTable.z, LAYOUT.meetingTable.radius);
-
-        /* --- Lounge: sofa, TV, bean bags --- */
-        addSofa(roomRoot, 4.4, -3.35, 0);
-        addTelevision(roomRoot, 4.4, 1.55, b.minZ + 0.18);
-        addCoffeeTable(roomRoot, 4.4, -2.45);
-        addBeanBag(roomRoot, 5.9, -3.5, ORANGE);
-        addBeanBag(roomRoot, 6.7, -2.8, YELLOW);
-        addRoundLoungeTable(roomRoot, 6.15, -1.85);
         addWallArt(roomRoot, 6.9, 1.7, b.maxZ - 0.12);
-
-        /* --- Game room: ping pong + arcade --- */
-        addPingPong(roomRoot, 6.1, -0.55);
-        addArcade(roomRoot, 7.55, b.minZ + 0.55, 0xb54b45);
-        addArcade(roomRoot, 6.65, b.minZ + 0.55, 0x2f6f8f);
+        /* Pembatas rendah zona game (tetap) */
         box(roomRoot, 3.35, 0.5, -0.55, 0.06, 1.0, 2.6, 0xe2e8f0, 0.85);
 
-        /* --- Dapur / coffee bar depan kanan --- */
-        addCoffeeBar(roomRoot, 5.15, 3.55);
-        addColorStool(roomRoot, 4.55, 3.1, YELLOW);
-        addColorStool(roomRoot, 5.25, 3.1, TEAL);
-        addPantryCounter(roomRoot, 7.35, 3.35, -Math.PI / 2);
-        addFridge(roomRoot, 8.05, 2.35, -Math.PI / 2);
-        addGalon(roomRoot, 7.55, 1.65, 0);
-
-        /* Plants */
-        addPlant(roomRoot, -0.8, 3.2, 0.7);
-        addPlant(roomRoot, 3.4, -3.9, 0.75);
-        addPlant(roomRoot, 6.6, -3.5, 0.65);
-        addPlant(roomRoot, 3.35, 3.6, 0.55);
-        addPlant(roomRoot, -6.6, 3.6, 0.6);
+        /* Semua mebel lain dari layout (bawaan atau custom dari Layout Kantor) */
+        (LAYOUT.furniture || []).forEach(function (item) {
+            addFurnitureItem(roomRoot, item);
+        });
 
         LAYOUT.desks.forEach(function (d) {
             addOfficeLight(roomRoot, d[0], 2.4, d[1]);
@@ -826,9 +895,9 @@
             emissive: 0x0ea5e9,
             emissiveIntensity: 0.3
         });
-        /* Chair */
+        /* Chair — sisi yang sama dengan posisi duduk agen (z - 0.78) */
         var ch = new THREE.Group();
-        ch.position.set(x, 0, z + 0.68);
+        ch.position.set(x, 0, z - 0.68);
         box(ch, 0, 0.38, 0, 0.38, 0.08, 0.38, seatColor, 0.65);
         box(ch, 0, 0.68, -0.14, 0.38, 0.48, 0.06, seatColor, 0.65);
         box(ch, 0, 0.12, 0, 0.06, 0.24, 0.06, 0xf8fafc, 0.4);
@@ -1574,8 +1643,35 @@
         return obj && obj.userData.roleId ? obj.userData.roleId : null;
     }
 
+    var lastInitEl = null;
+    var lastInitOptions = null;
+
+    /** Terapkan layout kantor custom (dari halaman Layout Kantor); rebuild scene bila sedang tampil. */
+    function setLayout(cfg) {
+        CUSTOM_LAYOUT = cfg && typeof cfg === 'object' ? cfg : null;
+        LAYOUT = buildLayout(Math.max(1, employeesCache.length || 7), CUSTOM_LAYOUT);
+        if (!scene || !lastInitEl) return false;
+        var emps = employeesCache.slice();
+        var el = lastInitEl;
+        var opts = lastInitOptions;
+        init(el, opts);
+        if (emps.length) updateEmployees(emps);
+        return true;
+    }
+
+    function getLayout() {
+        return JSON.parse(JSON.stringify({
+            wallHeight: LAYOUT.wallHeight || 2.55,
+            building: LAYOUT.building,
+            desks: LAYOUT.desks,
+            furniture: LAYOUT.furniture || []
+        }));
+    }
+
     function init(el, options) {
         options = options || {};
+        lastInitEl = el;
+        lastInitOptions = options;
         THREE = global.THREE;
         if (!THREE) {
             console.warn('[AiOffice3D] THREE belum dimuat');
@@ -1749,6 +1845,9 @@
         resize: handleResize,
         resetView: resetView,
         setPanMode: setPanMode,
-        isPanMode: isPanMode
+        isPanMode: isPanMode,
+        setLayout: setLayout,
+        getLayout: getLayout,
+        getDefaultLayout: defaultLayoutData
     };
 })(typeof window !== 'undefined' ? window : globalThis);
