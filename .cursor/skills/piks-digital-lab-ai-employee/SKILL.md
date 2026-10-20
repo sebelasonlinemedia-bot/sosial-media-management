@@ -27,6 +27,53 @@ Registry: `lib/ai-roles.js` · `GET /api/ai/office/roles`
 
 Alias lama masih jalan: `social-media`→strategist, `content-writer`→copywriter, `customer-service`→community-manager, `ads-analyst`→analyst.
 
+## Trigger
+
+Frasa di bawah ini adalah kontrak trigger → gerakan avatar di Kantor AI 3D. `movement.target` adalah zona konten di `lib/office-places.js` (`desk`, `meeting`, `review`, `analyst-board`, `lounge`) yang dipetakan ke zona existing 3D — bukan ruangan baru. Parser: `lib/skill-triggers.js`; resolusi intent: `lib/office-intent.js`. Bila `skipIfAlreadyThere: true`, jangan kirim gerakan bila peran sudah di zona itu. Nama peran yang disebut di kalimat (mis. "Salsa …") membatasi gerakan hanya ke peran itu.
+
+```json
+{
+  "skillId": "piks-digital-lab-ai-employee",
+  "activation": {
+    "anyPhrases": [
+      "semua duduk",
+      "semua ke meja",
+      "kembali ke meja",
+      "rapat tim",
+      "rapat sekarang",
+      "mulai standup",
+      "standup konten",
+      "cek compliance",
+      "review dulu",
+      "cek papan analitik",
+      "lihat papan analitik",
+      "istirahat dulu",
+      "ke lounge",
+      "santai dulu"
+    ]
+  },
+  "movement": {
+    "target": "desk",
+    "skipIfAlreadyThere": true,
+    "targetsByPhrase": {
+      "rapat tim": "meeting",
+      "rapat sekarang": "meeting",
+      "mulai standup": "meeting",
+      "standup konten": "meeting",
+      "cek compliance": "review",
+      "review dulu": "review",
+      "cek papan analitik": "analyst-board",
+      "lihat papan analitik": "analyst-board",
+      "istirahat dulu": "lounge",
+      "ke lounge": "lounge",
+      "santai dulu": "lounge"
+    }
+  }
+}
+```
+
+Catatan: `movement.target` adalah target baku; `targetsByPhrase` (ekstensi lokal) memetakan frasa khusus ke zona lain. Lapisan intent (`lib/office-intent.js`) juga memprioritaskan heuristik frasa eksplisit dan peran yang disebut, jadi "rapat tim" tetap ke `meeting`, "ke lounge" tetap ke `lounge`, "review dulu" ke zona review Nadira, dan "cek papan analitik" ke zona analyst-board Bimo.
+
 ## Alur berjenjang (wajib)
 
 1. **Brief** masuk (teks atau `structuredBrief` JSON: goal, platforms, date, tone, cta, assets).

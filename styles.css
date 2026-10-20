@@ -2920,17 +2920,16 @@ body.is-mission-mode .app-shell-app-only {
    ========================================================================== */
 .office-layout {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 320px;
-    gap: 24px;
+    /* Setelah card Tim Konten AI & Ruang Kantor AI dihapus, kolom sisi
+       (Brief Cepat / Brand Memory / Detail Job) dibuat sedikit lebih lebar
+       agar form tidak sempit, sementara kolom utama berisi Apa berikutnya. */
+    grid-template-columns: minmax(0, 1fr) 380px;
+    gap: 20px;
     align-items: start;
 }
 
 .office-board-primary .card-header h2 {
     font-size: 1.15rem;
-}
-
-.office-stage-optional {
-    opacity: 0.92;
 }
 
 .office-employee-workload {
@@ -3068,10 +3067,6 @@ body.is-mission-mode .app-shell-app-only {
 
 .office-ab-row .mb-1 {
     margin-bottom: 6px;
-}
-
-.office-stage-card .card-header {
-    align-items: center;
 }
 
 .office-3d-toggle {
@@ -3414,14 +3409,23 @@ body.is-mission-mode .app-shell-app-only {
 .office-main {
     display: flex;
     flex-direction: column;
-    gap: 24px;
+    gap: 20px;
     min-width: 0;
+    min-height: 0;
+}
+
+/* Satu-satunya card di kolom utama kini Apa berikutnya — biarkan melebar
+   penuh mengikuti kolom dan tidak tertarik tinggi kolom sisi. */
+.office-main > .office-nextup-card {
+    width: 100%;
+    align-self: start;
 }
 
 .office-side {
     display: flex;
     flex-direction: column;
     gap: 20px;
+    min-width: 0;
     position: sticky;
     top: 0;
 }
@@ -4218,6 +4222,44 @@ body.is-mission-mode #app-login-gate:not(.hidden) ~ .mission-shell {
     margin-left: auto;
     font-size: 0.68rem;
     color: var(--mc-muted);
+}
+
+.mission-standup {
+    border-top: 1px solid var(--mc-border);
+    padding: 8px 14px 10px;
+}
+
+.mission-standup-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.mission-standup-phase {
+    font-size: 0.72rem;
+    font-weight: 650;
+    color: #5eead4;
+}
+
+.mission-standup-actions {
+    display: inline-flex;
+    gap: 8px;
+}
+
+.mission-standup-card {
+    margin-top: 8px;
+    border: 1px solid var(--mc-border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.03);
+    font-size: 0.72rem;
+    color: var(--mc-text);
+}
+
+.mission-standup-card p {
+    margin: 2px 0;
 }
 
 .mission-workboard-body {

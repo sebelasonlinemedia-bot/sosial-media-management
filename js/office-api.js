@@ -17,6 +17,7 @@
                     appState.office.settings = data.settings || null;
                     appState.office.briefTemplates = data.briefTemplates || [];
                     appState.office.crewPresence = data.crewPresence || null;
+                    if (data.knownSkills) appState.office.knownSkills = data.knownSkills;
                     if (data.platforms) appState.office.platforms = data.platforms;
                 } else if (data.authRequired) {
                     console.warn('[APP] Kantor AI butuh sesi login:', data.message);

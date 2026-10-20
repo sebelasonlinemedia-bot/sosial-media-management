@@ -42,6 +42,8 @@ const {
     assessStructuredBrief,
     appendDecision,
     enforceRolePlatforms,
+    enforceRoleSkill,
+    KNOWN_SKILLS,
     ALL_PLATFORMS,
     AUTONOMY_LEVELS
 } = require('./lib/ai-policy');
@@ -55,9 +57,23 @@ const {
     normalizeSchedules,
     applyDueCrewPresenceSchedules,
     summarizePresenceAction,
-    summarizeSchedule
+    summarizeSchedule,
+    mergeCrewPresence
 } = require('./lib/crew-presence');
 const { buildInsights } = require('./lib/ai-insights');
+const { deriveRoleAnimation, updateThinkingLatch } = require('./lib/office-animation');
+const {
+    createStandupSession,
+    normalizeStandupSession,
+    advanceStandupSession,
+    finishStandupSession,
+    collectFollowUps,
+    currentSpeaker
+} = require('./lib/standup');
+
+// Latch "thinking" avatar (#3): status job teramati per peran (in-memory).
+const officeAnimObserved = new Map();
+const officeAnimLatch = new Map();
 const { notifyJobAttention } = require('./lib/ai-notify');
 const auth = require('./lib/auth');
 const { createOAuthState, verifyOAuthState } = require('./lib/oauth-state');
@@ -1754,6 +1770,7 @@ app.put('/api/ai/settings', async (req, res) => {
         if (body.accountOverrides != null) patch.accountOverrides = body.accountOverrides;
         if (body.notifications != null) patch.notifications = body.notifications;
         if (body.rolePermissions != null) patch.rolePermissions = body.rolePermissions;
+        if (body.roleSkills != null) patch.roleSkills = body.roleSkills;
         if (body.insightsEnabled != null) patch.insightsEnabled = !!body.insightsEnabled;
 
         // LLM: provider/model + apiKey (plain dari client → encrypt at-rest)
@@ -2146,6 +2163,23 @@ app.get('/api/ai/office', async (req, res) => {
             const latestJob = roleJobs[0] || null;
             const jobStatus = deriveEmployeeStatus(roleJobs);
             const applied = applyPresenceToStatus(jobStatus, crewPresence, role.id);
+            // State animasi tersuling (#3) + latch thinking queued→publishing.
+            const nowMs = Date.now();
+            const observed = roleJobs.some(j => j.status === 'publishing')
+                ? 'publishing'
+                : (roleJobs.some(j => j.status === 'queued') ? 'queued' : jobStatus);
+            const latch = updateThinkingLatch(
+                officeAnimLatch, role.id, officeAnimObserved.get(role.id), observed, nowMs
+            );
+            officeAnimObserved.set(role.id, observed);
+            const animation = deriveRoleAnimation({
+                status: applied.status,
+                jobs: roleJobs,
+                workload,
+                presenceMode: crewPresence.byRole[role.id]?.mode || null,
+                latch,
+                now: nowMs
+            });
             return {
                 id: role.id,
                 name: role.name,
@@ -2156,6 +2190,8 @@ app.get('/api/ai/office', async (req, res) => {
                 defaultPlatforms: role.defaultPlatforms || [],
                 systemBrief: role.systemBrief,
                 status: applied.status,
+                animation,
+                animationState: animation.state,
                 fromPresence: !!applied.fromPresence,
                 presenceNote: applied.note || crewPresence.note || '',
                 activeCount: workload.activeCount,
@@ -2214,8 +2250,10 @@ app.get('/api/ai/office', async (req, res) => {
                 dailyPostCap: settings.dailyPostCap,
                 notifications: settings.notifications,
                 rolePermissions: settings.rolePermissions,
+                roleSkills: settings.roleSkills || {},
                 insightsEnabled: settings.insightsEnabled !== false
             },
+            knownSkills: KNOWN_SKILLS,
             platforms: ALL_PLATFORMS,
             tokenEncryption: isEncryptionEnabled(),
             employees,
@@ -2233,6 +2271,103 @@ app.get('/api/ai/office', async (req, res) => {
                 failed: sorted.filter(j => j.status === 'failed').length
             }
         });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// ============================================================
+// Standup Konten Terstruktur (#4) — sesi disimpan di aiSettings.standupSession
+// ============================================================
+app.post('/api/ai/standup/start', async (req, res) => {
+    try {
+        const settings = await db.getAiSettings();
+        const jobs = await db.getAiJobs();
+        const posts = await db.getPosts({ workspaceId: resolveWorkspaceId(req) }).catch(() => []);
+        let insights = null;
+        try { insights = buildInsights(posts || [], { days: 30 }); } catch { insights = null; }
+        const session = createStandupSession({ jobs, insights });
+        // Gerakkan semua ke area rapat lewat presence existing.
+        const crewPresence = mergeCrewPresence(settings.crewPresence, {
+            mode: 'meeting',
+            roleIds: null,
+            note: 'Standup konten'
+        });
+        await db.updateAiSettings({ standupSession: session, crewPresence });
+        await db.appendAuditLog({
+            actor: req.user?.email || 'user', action: 'ai_standup_start', target: session.id, detail: { phase: session.phase }
+        });
+        res.json({ success: true, session, speaker: currentSpeaker(session), crewPresence });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+app.get('/api/ai/standup', async (req, res) => {
+    try {
+        const settings = await db.getAiSettings();
+        const session = normalizeStandupSession(settings.standupSession);
+        res.json({
+            success: true,
+            session,
+            speaker: session ? currentSpeaker(session) : null,
+            cards: session ? session.cards : []
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+app.post('/api/ai/standup/advance', async (req, res) => {
+    try {
+        const settings = await db.getAiSettings();
+        const current = normalizeStandupSession(settings.standupSession);
+        if (!current) return res.status(404).json({ success: false, message: 'Belum ada sesi standup. Mulai dulu lewat POST /api/ai/standup/start.' });
+        const session = advanceStandupSession(current);
+        await db.updateAiSettings({ standupSession: session });
+        res.json({ success: true, session, speaker: currentSpeaker(session) });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+app.post('/api/ai/standup/finish', async (req, res) => {
+    try {
+        const settings = await db.getAiSettings();
+        const current = normalizeStandupSession(settings.standupSession);
+        if (!current) return res.status(404).json({ success: false, message: 'Belum ada sesi standup.' });
+        const session = finishStandupSession(current);
+        const followUps = collectFollowUps(session);
+        const createdJobs = [];
+        for (const fu of followUps) {
+            const role = getRoleById(fu.roleId);
+            const assessment = assessStructuredBrief(fu.brief);
+            const status = assessment.thin ? 'needs_info' : 'queued';
+            const job = await db.addAiJob({
+                brief: assessment.text || fu.brief,
+                structuredBrief: assessment.structured || null,
+                status,
+                questions: assessment.questions || [],
+                needsInfo: !!assessment.thin,
+                platforms: role?.defaultPlatforms || [],
+                employeeName: role?.name || 'Karyawan AI',
+                employeeRole: role?.title || '',
+                roleId: role?.id || fu.roleId,
+                decisionLog: appendDecision([], {
+                    actor: role?.name || 'AI', reason: `Follow-up standup (${fu.source})`, status
+                }),
+                createdBy: 'standup',
+                workspaceId: resolveWorkspaceId(req)
+            });
+            createdJobs.push(job);
+        }
+        session.createdJobIds = createdJobs.map(j => j.id);
+        await db.updateAiSettings({ standupSession: session });
+        await db.appendAuditLog({
+            actor: req.user?.email || 'user', action: 'ai_standup_finish', target: session.id,
+            detail: { createdJobIds: session.createdJobIds }
+        });
+        res.json({ success: true, session, speaker: currentSpeaker(session), createdJobs, jobs: createdJobs });
     } catch (err) {
         res.status(500).json({ success: false, message: err.message });
     }
@@ -2268,7 +2403,8 @@ app.post('/api/ai/jobs', async (req, res) => {
             templateId,
             variantA,
             variantB,
-            abWinner
+            abWinner,
+            skillId
         } = req.body || {};
 
         let briefInput = structuredBrief || brief;
@@ -2320,6 +2456,19 @@ app.post('/api/ai/jobs', async (req, res) => {
             resolvedPlatforms = perm.platforms;
         }
 
+        // Allowlist skill per peran (#5) — hanya bila request menyebut skillId.
+        if (skillId) {
+            const skillCheck = enforceRoleSkill(settings, resolvedRoleId, skillId);
+            if (!skillCheck.ok) {
+                return res.status(403).json({
+                    success: false,
+                    message: skillCheck.message,
+                    allowed: skillCheck.allowed,
+                    skillId: String(skillId)
+                });
+            }
+        }
+
         let decisionLog = appendDecision([], {
             actor: role?.name || 'system',
             reason: assessment.thin ? 'Brief tipis — needs_info' : 'Brief cukup — queued',
@@ -2369,6 +2518,7 @@ app.post('/api/ai/jobs', async (req, res) => {
             employeeName: (employeeName || role?.name || 'Karyawan AI').trim(),
             employeeRole: (employeeRole || role?.id || 'content').trim(),
             roleId: resolvedRoleId,
+            skillId: skillId ? String(skillId).trim() : null,
             variantA: abVariants.A || '',
             variantB: abVariants.B || '',
             abWinner: (abWinner === 'A' || abWinner === 'B') ? abWinner : null,

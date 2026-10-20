@@ -181,6 +181,11 @@
 
     function statusSpeech(emp) {
         var st = emp.status || 'idle';
+        var anim = emp.animationState || (emp.animation && emp.animation.state) || '';
+        if (anim === 'thinking') return 'Thinking…';
+        if (anim === 'waiting') return 'Waiting — needs human';
+        if (anim === 'overloaded') return 'Overloaded — too many jobs';
+        if (anim === 'blocked') return 'Blocked — job failed';
         var brief = (emp.latestJob && emp.latestJob.brief) ? String(emp.latestJob.brief).slice(0, 42) : '';
         if (st === 'standby') return emp.presenceNote || 'At desk — awaiting orders';
         if (st === 'working') return brief ? ('Building: ' + brief) : 'Working on brief…';
@@ -233,6 +238,26 @@
 
     function placementFor(emp, seatIndex, idleAssignment, meetingIndex) {
         var st = emp.status || 'idle';
+        var anim = emp.animationState || (emp.animation && emp.animation.state) || '';
+        // Pose baru tersuling (#3): berpikir & kelebihan beban selalu di meja.
+        if (anim === 'thinking' || anim === 'overloaded') {
+            var deskAnim = LAYOUT.desks[seatIndex % LAYOUT.desks.length];
+            return {
+                x: deskAnim[0], z: deskAnim[1] - 0.78, facing: 0, seated: true,
+                pose: anim === 'thinking' ? 'thinking' : 'tired',
+                activity: anim,
+                speech: statusSpeech(emp),
+                label: anim === 'thinking' ? 'Thinking' : 'Overloaded'
+            };
+        }
+        if (anim === 'waiting' && st !== 'awaiting_approval') {
+            var deskWait = LAYOUT.desks[seatIndex % LAYOUT.desks.length];
+            return {
+                x: deskWait[0], z: deskWait[1] - 0.78, facing: 0, seated: true,
+                pose: 'waiting', activity: 'waiting',
+                speech: statusSpeech(emp), label: 'Waiting'
+            };
+        }
         if (st === 'awaiting_approval') {
             var m = LAYOUT.meeting[meetingIndex % LAYOUT.meeting.length];
             return {
@@ -1143,6 +1168,39 @@
             parts.rightArm.rotation.x = -0.2;
             parts.body.position.y = seated ? -0.14 : Math.abs(Math.sin(t * 5)) * 0.025;
             parts.torso.rotation.z = 0;
+            return;
+        }
+
+        if (activity === 'thinking') {
+            parts.leftLeg.rotation.x = -Math.PI / 2.2;
+            parts.rightLeg.rotation.x = -Math.PI / 2.2;
+            parts.leftArm.rotation.x = -0.9;
+            parts.rightArm.rotation.x = -1.5;
+            parts.head.rotation.y = Math.sin(t * 0.9 + ud.phase) * 0.18;
+            parts.body.position.y = -0.14 + Math.sin(t * 2) * 0.01;
+            parts.torso.rotation.z = 0.04;
+            return;
+        }
+
+        if (activity === 'waiting') {
+            parts.leftLeg.rotation.x = -Math.PI / 2.2;
+            parts.rightLeg.rotation.x = -Math.PI / 2.2;
+            parts.leftArm.rotation.x = -0.25;
+            parts.rightArm.rotation.x = -0.25;
+            parts.head.rotation.y = Math.sin(t * 0.7 + ud.phase) * 0.3;
+            parts.body.position.y = -0.14;
+            parts.torso.rotation.z = 0;
+            return;
+        }
+
+        if (pose === 'tired' || activity === 'overloaded') {
+            parts.leftLeg.rotation.x = -Math.PI / 2.2;
+            parts.rightLeg.rotation.x = -Math.PI / 2.2;
+            parts.leftArm.rotation.x = 0.5;
+            parts.rightArm.rotation.x = 0.5;
+            parts.head.rotation.y = 0;
+            parts.body.position.y = -0.18 + Math.sin(t * 1.2) * 0.008;
+            parts.torso.rotation.z = -0.14;
             return;
         }
 

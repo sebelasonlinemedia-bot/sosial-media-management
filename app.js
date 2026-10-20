@@ -27,6 +27,8 @@ const appState = {
         stageReady: false,
         briefTemplates: [],
         insights: null,
+        standup: null,
+        knownSkills: [],
         platforms: ['instagram', 'facebook', 'tiktok', 'youtube'],
         activityLive: [],
         auditEntries: [],
@@ -450,7 +452,7 @@ const app = {
             dashboard: { title: 'Dasbor Utama', subtitle: 'Ikhtisar saluran terhubung dan antrean postingan terjadwal Anda.' },
             composer: { title: 'Buat Postingan Baru', subtitle: 'Tulis, unggah media, dan kirim postingan secara bersamaan ke berbagai sosmed.' },
             queue: { title: 'Jadwal & Kalender', subtitle: 'Atur kalender konten Anda di masa mendatang secara presisi.' },
-            office: { title: 'Kantor AI', subtitle: 'Ruang kerja karyawan AI — brief, detail job, approval, dan publish otomatis. Work Board ada di panel bawah Mission Control.' },
+            office: { title: 'Kantor AI', subtitle: 'Ruang kerja karyawan AI — brief cepat, brand memory, detail job, approval, dan insight apa berikutnya.' },
             accounts: { title: 'Akun Terhubung', subtitle: 'Tautkan profil, halaman, dan channel sosial media Anda.' },
             analytics: { title: 'Analisis Konten', subtitle: 'Analisis jangkauan, impresi, interaksi, dan rasio keberhasilan postingan.' },
             settings: { title: 'Pengaturan', subtitle: 'Otonomi & pengamanan karyawan AI — tingkat otonomi, notifikasi, izin platform per peran, dan LLM / Chat CEO.' }
@@ -668,10 +670,6 @@ app.setupOfficeEvents = function () {
             await this.submitOfficeBrief();
         });
     }
-    const refreshBtn = document.getElementById('office-refresh-btn');
-    if (refreshBtn) {
-        refreshBtn.addEventListener('click', () => this.renderOffice());
-    }
     const answerBtn = document.getElementById('office-answer-submit');
     if (answerBtn) {
         answerBtn.addEventListener('click', () => this.submitOfficeAnswers());
@@ -737,10 +735,6 @@ app.setupOfficeEvents = function () {
     if (dashInsightsOffice) {
         dashInsightsOffice.addEventListener('click', () => this.switchView('office'));
     }
-    const openMissionFromOffice = document.getElementById('office-open-mission-btn');
-    if (openMissionFromOffice) {
-        openMissionFromOffice.addEventListener('click', () => this.switchView('mission'));
-    }
     const toggle3d = document.getElementById('office-3d-toggle');
     if (toggle3d) {
         const prefOn = (typeof AiOffice3D !== 'undefined' && AiOffice3D.loadPreference)
@@ -799,6 +793,13 @@ app.setupMissionEvents = function () {
     if (workboardToggle) {
         workboardToggle.addEventListener('click', () => this.setMissionWorkboardOpen(!appState.mission.workboardOpen));
     }
+    const standupBtn = document.getElementById('mission-standup-btn');
+    if (standupBtn) standupBtn.addEventListener('click', () => this.startStandup());
+    const standupAdvance = document.getElementById('mission-standup-advance');
+    if (standupAdvance) standupAdvance.addEventListener('click', () => this.advanceStandup());
+    const standupFinish = document.getElementById('mission-standup-finish');
+    if (standupFinish) standupFinish.addEventListener('click', () => this.finishStandup());
+    this.loadStandup();
     this.setMissionWorkboardOpen(this.loadMissionWorkboardPref(), false);
     const calendarBtn = document.getElementById('mission-calendar-btn');
     if (calendarBtn) {
@@ -993,6 +994,89 @@ app.updateMissionPills = function () {
     setStat('jobs-sub', `${counts.done || 0} done · ${counts.failed || 0} failed`);
 };
 
+/** Standup Konten Terstruktur (#4) — panel kecil di atas Work Board. */
+app.renderStandup = function () {
+    const wrap = document.getElementById('mission-standup');
+    const phaseEl = document.getElementById('mission-standup-phase');
+    const cardEl = document.getElementById('mission-standup-card');
+    if (!wrap || !phaseEl || !cardEl) return;
+    const s = appState.office.standup;
+    if (!s || !s.session) {
+        wrap.hidden = true;
+        return;
+    }
+    wrap.hidden = false;
+    const session = s.session;
+    const speaker = s.speaker || {};
+    const phaseLabel = { gathering: 'Berkumpul di area rapat', in_progress: 'Berlangsung', complete: 'Selesai' }[session.phase] || session.phase;
+    phaseEl.textContent = `Standup · ${phaseLabel}${speaker.roleId ? ` · giliran ${speaker.index + 1}/${speaker.total}` : ''}`;
+    const card = speaker.card;
+    if (session.phase === 'complete') {
+        const made = (session.createdJobIds || []).length;
+        cardEl.innerHTML = `<p><strong>Standup selesai.</strong></p><p>${made ? `${made} follow-up job dibuat.` : 'Klik "Selesai & buat follow-up" untuk menjadikan follow-up sebagai job.'}</p>`;
+    } else if (card) {
+        const blockers = (card.blockers || []).map(b => this._escapeHtml(b.brief || b.status)).join('; ');
+        const next = (card.nextUp || []).map(n => this._escapeHtml(n.cta || '')).join('; ');
+        cardEl.innerHTML = `<p><strong>${card.emoji || ''} ${this._escapeHtml(card.name)} — ${this._escapeHtml(card.title)}</strong></p>
+            <p>${this._escapeHtml(card.headline || '')}</p>
+            ${blockers ? `<p>Blocker: ${blockers}</p>` : ''}
+            ${next ? `<p>Berikutnya: ${next}</p>` : ''}`;
+    } else {
+        cardEl.innerHTML = '<p class="mission-empty">Semua berkumpul — klik Maju untuk mulai giliran bicara.</p>';
+    }
+};
+
+app.loadStandup = async function () {
+    try {
+        const data = await api.get('/api/ai/standup');
+        if (data.success) {
+            appState.office.standup = { session: data.session, speaker: data.speaker };
+            this.renderStandup();
+        }
+    } catch (_) { /* standup opsional */ }
+};
+
+app.startStandup = async function () {
+    try {
+        const data = await api.post('/api/ai/standup/start', {});
+        if (!data.success) { this.showToast(data.message || 'Gagal mulai standup.', 'red'); return; }
+        appState.office.standup = { session: data.session, speaker: data.speaker };
+        this.setMissionWorkboardOpen(true);
+        this.renderStandup();
+        await this.loadOfficeFromServer();
+        this.syncOffice3DEmployees();
+        this.showToast('Standup dimulai — tim ke area rapat.', 'emerald');
+    } catch (_) {
+        this.showToast('Gagal mulai standup.', 'red');
+    }
+};
+
+app.advanceStandup = async function () {
+    try {
+        const data = await api.post('/api/ai/standup/advance', {});
+        if (!data.success) { this.showToast(data.message || 'Gagal maju standup.', 'red'); return; }
+        appState.office.standup = { session: data.session, speaker: data.speaker };
+        this.renderStandup();
+    } catch (_) {
+        this.showToast('Gagal maju standup.', 'red');
+    }
+};
+
+app.finishStandup = async function () {
+    try {
+        const data = await api.post('/api/ai/standup/finish', {});
+        if (!data.success) { this.showToast(data.message || 'Gagal selesai standup.', 'red'); return; }
+        appState.office.standup = { session: data.session, speaker: data.speaker };
+        this.renderStandup();
+        await this.loadOfficeFromServer();
+        this.renderOfficeBoard();
+        const n = (data.createdJobs || []).length;
+        this.showToast(n ? `Standup selesai — ${n} follow-up job dibuat.` : 'Standup selesai — tidak ada follow-up.', 'emerald');
+    } catch (_) {
+        this.showToast('Gagal selesai standup.', 'red');
+    }
+};
+
 app.renderMissionCrew = function () {
     const list = document.getElementById('mission-crew-list');
     if (!list) return;
@@ -1061,9 +1145,10 @@ app.loadOfficeFromServer = async function () {
             appState.office.board = data.board || {};
             appState.office.jobCounts = data.jobCounts || {};
             appState.office.settings = data.settings || null;
-            appState.office.briefTemplates = data.briefTemplates || [];
-            appState.office.crewPresence = data.crewPresence || null;
-            if (data.platforms) appState.office.platforms = data.platforms;
+                    appState.office.briefTemplates = data.briefTemplates || [];
+                    appState.office.crewPresence = data.crewPresence || null;
+                    if (data.knownSkills) appState.office.knownSkills = data.knownSkills;
+                    if (data.platforms) appState.office.platforms = data.platforms;
         } else if (data.authRequired) {
             console.warn('[APP] Kantor AI butuh sesi login:', data.message);
         }
@@ -1199,6 +1284,49 @@ app.renderOfficeRolePermissions = function () {
     }).join('') || '<p class="text-secondary font-sm">Muat Kantor AI dulu.</p>';
 };
 
+app._knownSkillsFallback = [
+    { id: 'piks-digital-lab-ai-employee', label: "PiK's Digital Lab — Tim Konten" },
+    { id: 'caption-hook', label: 'Caption & Hook (Dimas)' },
+    { id: 'compliance-check', label: 'Compliance Check (Nadira)' },
+    { id: 'analytics-next-brief', label: 'Analytics → Brief Berikutnya (Bimo → Rani)' }
+];
+
+app._collectRoleSkillsFromUi = function () {
+    const root = document.getElementById('office-role-skills');
+    if (!root) return {};
+    const skills = appState.office.knownSkills?.length ? appState.office.knownSkills : this._knownSkillsFallback;
+    const map = {};
+    root.querySelectorAll('.office-role-perm-row').forEach(row => {
+        const roleId = row.dataset.roleId;
+        if (!roleId) return;
+        const checked = [...row.querySelectorAll('input[type="checkbox"]:checked')].map(c => c.value);
+        // Semua centang atau nol centang → tidak dibatasi (omit), pola rolePermissions.
+        if (checked.length > 0 && checked.length < skills.length) {
+            map[roleId] = checked;
+        }
+    });
+    return map;
+};
+
+app.renderOfficeRoleSkills = function () {
+    const root = document.getElementById('office-role-skills');
+    if (!root) return;
+    const skills = appState.office.knownSkills?.length ? appState.office.knownSkills : this._knownSkillsFallback;
+    const perms = (appState.office.settings && appState.office.settings.roleSkills) || {};
+    const employees = appState.office.employees || [];
+    root.innerHTML = employees.map(emp => {
+        const allowed = Object.prototype.hasOwnProperty.call(perms, emp.id) ? perms[emp.id] : null;
+        const checks = skills.map(s => {
+            const on = allowed == null ? true : allowed.includes(s.id);
+            return `<label><input type="checkbox" value="${this._escapeHtml(s.id)}" ${on ? 'checked' : ''}> ${this._escapeHtml(s.label || s.id)}</label>`;
+        }).join('');
+        return `<div class="office-role-perm-row" data-role-id="${emp.id}">
+            <span class="office-role-perm-name">${this._escapeHtml(emp.name)} · ${this._escapeHtml(emp.title || emp.id)}</span>
+            <div class="office-role-perm-checks">${checks}</div>
+        </div>`;
+    }).join('') || '<p class="text-secondary font-sm">Muat Kantor AI dulu.</p>';
+};
+
 app.renderOfficeSettings = function () {
     const s = appState.office.settings;
     const autonomy = document.getElementById('office-autonomy-select');
@@ -1219,6 +1347,7 @@ app.renderOfficeSettings = function () {
     if (notifyEmail) notifyEmail.value = n.email || '';
     if (notifyWh) notifyWh.value = n.whatsappWebhookUrl || n.whatsapp || '';
     this.renderOfficeRolePermissions();
+    this.renderOfficeRoleSkills();
     const llm = s.llm || {};
     const llmProv = document.getElementById('office-llm-provider');
     const llmModel = document.getElementById('office-llm-model');
@@ -1265,6 +1394,7 @@ app.saveOfficeSettings = async function () {
             whatsappWebhookUrl: document.getElementById('office-notify-webhook')?.value?.trim() || null
         };
         const rolePermissions = this._collectRolePermissionsFromUi();
+        const roleSkills = this._collectRoleSkillsFromUi();
         const llm = {
             provider: document.getElementById('office-llm-provider')?.value || 'gemini',
             model: document.getElementById('office-llm-model')?.value?.trim() || undefined,
@@ -1278,6 +1408,7 @@ app.saveOfficeSettings = async function () {
             dailyPostCap,
             notifications,
             rolePermissions,
+            roleSkills,
             llm
         });
         if (!data.success) {
@@ -1636,6 +1767,9 @@ app.focusOfficeEmployee = function (roleId) {
         appState.office.selectedJobId = emp.latestJob.id;
     }
 
+    // Aman bila kartu .office-employee-card tidak ada di DOM (querySelectorAll
+    // mengembalikan NodeList kosong) — fokus tetap berlaku untuk Mission Crew
+    // dan panel Detail Job di Kantor AI.
     document.querySelectorAll('.office-employee-card').forEach(card => {
         card.classList.toggle('is-focused', card.dataset.roleId === roleId);
     });
@@ -1694,6 +1828,10 @@ app._statusBadge = function (status) {
 };
 
 app.renderOfficeEmployees = function () {
+    // Grid Tim Konten AI sudah tidak ada di halaman Kantor AI (tim tampil di
+    // Mission Control via renderMissionCrew). Fungsi dipertahankan untuk
+    // pemanggil lama (polling, renderOffice, chat CEO) — aman no-op bila
+    // grid tidak ada di DOM.
     const grid = document.getElementById('office-employees-grid');
     const empty = document.getElementById('office-employees-empty');
     if (!grid) return;
@@ -1703,7 +1841,8 @@ app.renderOfficeEmployees = function () {
     if (employees.length === 0) {
         if (empty) {
             empty.classList.remove('hidden');
-            empty.querySelector('p').textContent = 'Belum ada peran terdaftar.';
+            const emptyText = empty.querySelector('p');
+            if (emptyText) emptyText.textContent = 'Belum ada peran terdaftar.';
         }
         return;
     }

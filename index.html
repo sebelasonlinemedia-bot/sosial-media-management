@@ -202,7 +202,23 @@
                     <i data-lucide="chevron-up" class="mission-workboard-chevron"></i>
                 </button>
                 <span class="mission-workboard-counts" id="office-board-counts">Belum ada job</span>
+                <button type="button" class="mission-workboard-toggle" id="mission-standup-btn" title="Mulai standup konten terstruktur">
+                    <i data-lucide="users"></i>
+                    <span>Standup</span>
+                </button>
                 <span class="mission-workboard-hint">Klik job untuk detail &amp; approval di Kantor AI</span>
+            </div>
+            <div class="mission-standup" id="mission-standup" hidden>
+                <div class="mission-standup-head">
+                    <span class="mission-standup-phase" id="mission-standup-phase">Standup belum dimulai</span>
+                    <div class="mission-standup-actions">
+                        <button type="button" class="btn btn-sm btn-secondary" id="mission-standup-advance">Maju</button>
+                        <button type="button" class="btn btn-sm btn-primary" id="mission-standup-finish">Selesai &amp; buat follow-up</button>
+                    </div>
+                </div>
+                <div class="mission-standup-card" id="mission-standup-card">
+                    <p class="mission-empty">Klik Standup untuk mengumpulkan tim di area rapat.</p>
+                </div>
             </div>
             <div class="mission-workboard-body" id="mission-workboard-body" hidden>
                 <div class="office-board" id="office-board">
@@ -893,34 +909,6 @@
                 <section id="view-office" class="view-panel">
                     <div class="office-layout">
                         <div class="office-main">
-                            <div class="card office-employees-card">
-                                <div class="card-header">
-                                    <h2>Tim Konten AI</h2>
-                                    <button class="btn btn-sm btn-secondary" type="button" id="office-refresh-btn">
-                                        <i data-lucide="refresh-cw"></i>
-                                        <span>Segarkan</span>
-                                    </button>
-                                </div>
-                                <div class="office-employees-grid" id="office-employees-grid">
-                                    <div class="empty-state-small" id="office-employees-empty">
-                                        <i data-lucide="users"></i>
-                                        <p>Memuat tim…</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="card office-stage-card office-stage-optional" id="office-stage-card">
-                                <div class="card-header">
-                                    <h2>Ruang Kantor AI</h2>
-                                    <span class="badge badge-emerald">Mission Control</span>
-                                </div>
-                                <p class="text-secondary font-sm mb-3">Scene 3D full-bleed ada di halaman depan Mission Control. Work Board kini menjadi panel bawah di sana — bisa ditampilkan atau diminimalkan. Halaman ini tetap untuk brief, detail job, &amp; approval.</p>
-                                <button type="button" class="btn btn-secondary" id="office-open-mission-btn">
-                                    <i data-lucide="radar"></i>
-                                    <span>Buka Ruang / Office</span>
-                                </button>
-                            </div>
-
                             <div class="card office-nextup-card" id="office-insights-card">
                                 <div class="card-header">
                                     <h2>Apa berikutnya</h2>
@@ -1076,6 +1064,11 @@
                                     <label>Izin platform per peran</label>
                                     <div id="office-role-permissions" class="office-role-permissions"></div>
                                     <span class="input-hint">Kosongkan semua centang pada suatu peran = tidak dibatasi. Centang sebagian = hanya platform itu.</span>
+                                </div>
+                                <div class="form-group">
+                                    <label>Skill per peran</label>
+                                    <div id="office-role-skills" class="office-role-permissions"></div>
+                                    <span class="input-hint">Semua centang atau nol centang pada suatu peran = tidak dibatasi. Centang sebagian = hanya skill itu yang boleh dipakai peran tersebut.</span>
                                 </div>
                                 <hr class="office-settings-divider">
                                 <h3 class="office-settings-subhead">LLM / Chat CEO</h3>
