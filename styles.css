@@ -2671,6 +2671,23 @@ body.is-mission-mode .app-shell-app-only {
     max-width: 500px;
 }
 
+.job-detail-modal-card {
+    max-width: 560px;
+}
+
+.job-detail-modal-card .modal-body {
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+.job-detail-section {
+    margin-bottom: 16px;
+}
+
+.job-detail-error {
+    margin-bottom: 12px;
+}
+
 .modal-header {
     padding: 20px 24px;
     border-bottom: 1px solid var(--border-color);

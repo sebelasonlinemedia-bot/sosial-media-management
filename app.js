@@ -2700,13 +2700,10 @@ app.renderOfficeBoard = function () {
                 ${errHint}`;
             item.addEventListener('click', () => {
                 appState.office.selectedJobId = job.id;
-                // Board kini di Mission Control; detail & approval ada di Kantor AI
-                if (appState.currentView === 'mission') {
-                    this.switchView('office');
-                    return;
-                }
                 this.renderOfficeBoard();
-                this.renderOfficeAnswerPanel();
+                // Klik kartu kanban Work Board → modal detail job di tempat,
+                // tidak lagi pindah ke halaman Kantor AI.
+                this.openJobDetailModal(job.id);
             });
             col.appendChild(item);
         });
@@ -2826,6 +2823,191 @@ app.renderOfficeAnswerPanel = function () {
     }
 
     qWrap.innerHTML = `<p class="text-secondary font-sm">Status: ${this._escapeHtml(job.status)}</p>`;
+};
+
+/** Cari job dari daftar penuh, fallback ke ringkasan board. */
+app._findOfficeJob = function (jobId) {
+    return (appState.aiJobs || []).find(j => j.id === jobId)
+        || Object.values(appState.office.board || {}).flat().find(j => j.id === jobId)
+        || null;
+};
+
+/** Modal detail job — dibuka dari klik kartu kanban Work Board (tanpa pindah halaman). */
+app.openJobDetailModal = function (jobId) {
+    const overlay = document.getElementById('job-detail-modal');
+    if (!overlay) return;
+    const job = this._findOfficeJob(jobId);
+    if (!job) {
+        this.showToast('Job tidak ditemukan.', 'red');
+        return;
+    }
+    appState.office.selectedJobId = job.id;
+    this._renderJobDetailModal(job);
+    overlay.classList.remove('hidden');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+};
+
+app.closeJobDetailModal = function () {
+    const overlay = document.getElementById('job-detail-modal');
+    if (overlay) overlay.classList.add('hidden');
+};
+
+/** Isi ulang modal dari data terbaru (setelah jawaban / approve / publish). */
+app._refreshJobDetailModal = function () {
+    const overlay = document.getElementById('job-detail-modal');
+    if (!overlay || overlay.classList.contains('hidden')) return;
+    const job = this._findOfficeJob(appState.office.selectedJobId);
+    if (!job) {
+        this.closeJobDetailModal();
+        return;
+    }
+    this._renderJobDetailModal(job);
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+};
+
+app._renderJobDetailModal = function (job) {
+    const body = document.getElementById('job-detail-modal-body');
+    const footer = document.getElementById('job-detail-modal-footer');
+    const badge = document.getElementById('job-detail-status');
+    if (!body || !footer) return;
+
+    if (badge) {
+        badge.textContent = this._statusLabel(job.status);
+        badge.className = `badge ${this._statusBadge(job.status)}`;
+    }
+
+    const esc = (v) => this._escapeHtml(v == null ? '' : String(v));
+    const fmtDate = (v) => {
+        if (!v) return '-';
+        const d = new Date(v);
+        return Number.isNaN(d.getTime())
+            ? '-'
+            : d.toLocaleString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    };
+    const emp = (appState.office.employees || []).find(e => e.id === job.roleId);
+    const who = emp
+        ? `${emp.emoji || ''} ${emp.name} — ${emp.title}`
+        : (job.employeeName || job.roleId || 'AI');
+    const platforms = Array.isArray(job.platforms) && job.platforms.length
+        ? job.platforms.join(', ')
+        : '-';
+
+    let statusHtml = '';
+    if (job.status === 'needs_info') {
+        const questions = job.questions || [];
+        statusHtml = questions.length
+            ? `<div class="job-detail-section">
+                    <p class="details-meta-label">Pertanyaan klarifikasi</p>
+                    ${questions.map((q, i) => `
+                        <div class="form-group">
+                            <label for="job-detail-answer-${i}">${esc(q)}</label>
+                            <textarea id="job-detail-answer-${i}" class="form-control job-detail-answer-input" rows="2" data-index="${i}" required></textarea>
+                        </div>`).join('')}
+                </div>`
+            : '<p class="text-secondary font-sm">Lengkapi brief lalu kirim jawaban.</p>';
+    } else if (job.status === 'awaiting_approval') {
+        statusHtml = '<p class="text-secondary font-sm">Menunggu persetujuan manusia (otonomi / high-risk / cap / jeda). Setujui untuk publish.</p>';
+    } else if (job.status === 'failed') {
+        statusHtml = '<p class="text-secondary font-sm">Publish gagal. Perbaiki lalu coba lagi.</p>';
+    } else if (job.status === 'queued') {
+        statusHtml = '<p class="text-secondary font-sm">Job siap. Jalankan publish (gate otonomi tetap berlaku).</p>';
+    } else if (job.status === 'publishing') {
+        statusHtml = '<p class="text-secondary font-sm">Sedang publish…</p>';
+    } else if (job.status === 'done') {
+        statusHtml = '<p class="text-secondary font-sm">Job selesai. Bisa dijalankan ulang jika perlu.</p>';
+    }
+
+    const captionHtml = job.caption && job.caption !== job.brief
+        ? `<div class="job-detail-section">
+                <p class="details-meta-label">Caption</p>
+                <p class="font-sm">${esc(job.caption)}</p>
+            </div>`
+        : '';
+
+    body.innerHTML = `
+        <div class="job-detail-section">
+            <p class="details-meta-label">Brief</p>
+            <p class="font-sm">${esc(job.brief || '(tanpa brief)')}</p>
+        </div>
+        ${captionHtml}
+        <div class="details-meta-row">
+            <div class="details-meta-item"><span class="details-meta-label">Karyawan</span><span class="details-meta-value">${esc(who)}</span></div>
+            <div class="details-meta-item"><span class="details-meta-label">Platform</span><span class="details-meta-value">${esc(platforms)}</span></div>
+        </div>
+        <div class="details-meta-row">
+            <div class="details-meta-item"><span class="details-meta-label">ID Job</span><span class="details-meta-value">${esc(job.id)} · v${job.version || 1}</span></div>
+            <div class="details-meta-item"><span class="details-meta-label">Diperbarui</span><span class="details-meta-value">${esc(fmtDate(job.updatedAt || job.createdAt))}</span></div>
+        </div>
+        ${job.lastError ? `<p class="font-sm text-danger job-detail-error">Error: ${esc(job.lastError)}</p>` : ''}
+        ${statusHtml}`;
+
+    let actionsHtml = '';
+    if (job.status === 'needs_info') {
+        actionsHtml = '<button type="button" class="btn btn-primary" id="job-detail-answer-submit">Kirim Jawaban → Antri</button>';
+    } else if (job.status === 'awaiting_approval') {
+        actionsHtml = '<button type="button" class="btn btn-primary" id="job-detail-approve-btn"><i data-lucide="shield-check"></i><span>Setujui &amp; Publish</span></button>';
+    } else if (job.status === 'failed') {
+        actionsHtml = `
+            <button type="button" class="btn btn-secondary" id="job-detail-run-btn">Jalankan Publish</button>
+            <button type="button" class="btn btn-primary" id="job-detail-retry-btn"><i data-lucide="rotate-cw"></i><span>Retry Publish</span></button>`;
+    } else if (job.status === 'queued' || job.status === 'done') {
+        actionsHtml = '<button type="button" class="btn btn-primary" id="job-detail-run-btn"><i data-lucide="play"></i><span>Jalankan Publish</span></button>';
+    }
+    footer.innerHTML = `
+        <button type="button" class="btn btn-secondary" onclick="app.closeJobDetailModal()">Tutup</button>
+        ${actionsHtml}`;
+
+    const answerBtn = document.getElementById('job-detail-answer-submit');
+    if (answerBtn) answerBtn.addEventListener('click', () => this.submitJobDetailAnswers());
+    const approveBtn = document.getElementById('job-detail-approve-btn');
+    if (approveBtn) {
+        approveBtn.addEventListener('click', async () => {
+            await this.approveOfficeJob();
+            this._refreshJobDetailModal();
+        });
+    }
+    const runBtn = document.getElementById('job-detail-run-btn');
+    if (runBtn) {
+        runBtn.addEventListener('click', async () => {
+            await this.runOfficeJob(false);
+            this._refreshJobDetailModal();
+        });
+    }
+    const retryBtn = document.getElementById('job-detail-retry-btn');
+    if (retryBtn) {
+        retryBtn.addEventListener('click', async () => {
+            await this.runOfficeJob(true);
+            this._refreshJobDetailModal();
+        });
+    }
+};
+
+/** Kirim jawaban klarifikasi dari modal (input khusus modal, bukan panel Kantor AI). */
+app.submitJobDetailAnswers = async function () {
+    const jobId = appState.office.selectedJobId;
+    if (!jobId) return;
+
+    const inputs = document.querySelectorAll('.job-detail-answer-input');
+    const answers = [...inputs].map(el => el.value.trim());
+    if (!answers.length || answers.some(a => !a)) {
+        this.showToast('Jawab semua pertanyaan dulu.', 'yellow');
+        return;
+    }
+
+    try {
+        const data = await api.post(`/api/ai/jobs/${jobId}/answer`, { answers });
+        if (!data.success) {
+            this.showToast(data.message || 'Gagal mengirim jawaban.', 'red');
+            return;
+        }
+        this.showToast('Jawaban tersimpan — job kembali antri.', 'emerald');
+        appState.office.selectedJobId = data.job.id;
+        await this.renderOffice();
+        this.renderAiJobs();
+        this._refreshJobDetailModal();
+    } catch (e) {
+        this.showToast('Gagal mengirim jawaban.', 'red');
+    }
 };
 
 app.submitOfficeBrief = async function () {
@@ -4045,6 +4227,8 @@ app.setupModals = function () {
         overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.classList.add('hidden'); });
     });
     document.getElementById('post-details-close-btn').addEventListener('click', () => this.closePostDetailsModal());
+    const jobDetailCloseBtn = document.getElementById('job-detail-close-btn');
+    if (jobDetailCloseBtn) jobDetailCloseBtn.addEventListener('click', () => this.closeJobDetailModal());
 };
 
 // ============================================================
