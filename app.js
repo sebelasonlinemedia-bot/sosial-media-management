@@ -1550,7 +1550,7 @@ app._drawLayoutCanvas = function () {
             pantry: [2.0, 0.6, '#e7e2d8', 'dapur'], fridge: [0.75, 0.7, '#dfe3e4', 'kulkas'],
             galon: [0.42, 0.42, '#5fb4f2', 'galon'], bookshelf: [1.4, 0.4, '#6b4a32', 'rak'],
             tv: [2.0, 0.15, '#111416', 'TV'], plant: [0.5, 0.5, '#4f8a4a', 'tanaman'],
-            stool: [0.34, 0.34, '#2dd4bf', 'stool'], foodstall: [1.9, 1.0, '#c62828', 'gerobak'],
+            stool: [0.34, 0.34, '#2dd4bf', 'stool'],
             tree: [1.2, 1.2, '#3f7a3c', 'pohon'], lamp: [0.3, 0.3, '#2f3336', 'lampu']
         };
         const s = shapes[f.type] || [0.6, 0.6, '#94a3b8', f.type];

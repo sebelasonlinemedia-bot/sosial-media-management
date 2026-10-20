@@ -81,8 +81,7 @@
             { id: 'tree-6', type: 'tree', x: 5.5, z: 6.9, rotY: 0 },
             { id: 'lamp-1', type: 'lamp', x: -6.0, z: 5.75, rotY: 0 },
             { id: 'lamp-2', type: 'lamp', x: 0.7, z: 5.75, rotY: 0 },
-            { id: 'lamp-3', type: 'lamp', x: 7.4, z: 5.75, rotY: 0 },
-            { id: 'foodstall', type: 'foodstall', x: -9.4, z: 3.6, rotY: 0 }
+            { id: 'lamp-3', type: 'lamp', x: 7.4, z: 5.75, rotY: 0 }
         ];
     }
 
@@ -711,43 +710,6 @@
         }
     }
 
-    function addFoodStall(parent, x, z) {
-        var g = groupAt(parent, x, 0, z, Math.PI / 2);
-        box(g, 0, 0.72, 0, 1.6, 0.8, 0.75, 0xf3efe4, 0.6);
-        box(g, 0, 0.34, 0, 1.65, 0.06, 0.8, 0xc62828, 0.5);
-        box(g, 0, 1.14, 0, 1.65, 0.05, 0.8, 0xc62828, 0.5);
-        [[-0.7, -0.35], [0.7, -0.35], [-0.7, 0.35], [0.7, 0.35]].forEach(function (p) {
-            cyl(g, p[0], 1.7, p[1], 0.025, 1.1, 0x6b4a32, 0.8);
-        });
-        box(g, 0, 2.28, 0, 1.9, 0.08, 1.0, 0xc62828, 0.5);
-        /* simple vendor */
-        box(g, -1.35, 0.98, 0, 0.42, 0.55, 0.28, 0xf1f1ec, 0.85);
-        box(g, -1.35, 1.48, 0, 0.36, 0.36, 0.34, 0xc98e5a, 0.7);
-        box(g, -1.35, 1.72, 0, 0.34, 0.12, 0.32, 0x1b1d20, 0.9);
-        /* bike hint */
-        var bike = groupAt(parent, x + 1.2, 0, z + 1.4);
-        var w1 = new THREE.Mesh(new THREE.TorusGeometry(0.28, 0.03, 8, 20), mat(0x1f2326, 0.8));
-        w1.position.set(-0.45, 0.3, 0);
-        w1.rotation.y = Math.PI / 2;
-        bike.add(w1);
-        var w2 = w1.clone();
-        w2.position.x = 0.45;
-        bike.add(w2);
-        box(bike, 0, 0.55, 0, 0.9, 0.04, 0.04, 0x3d7fd6, 0.4, 0.3);
-    }
-
-    function addOfficeLight(parent, x, y, z) {
-        var g = groupAt(parent, x, y, z);
-        box(g, 0, 0, 0, 1.4, 0.06, 0.16, 0xd9dde0, 0.35, 0.4);
-        var glow = new THREE.Mesh(
-            new THREE.PlaneGeometry(1.32, 0.11),
-            mat(0xffffff, 0.5, 0, { emissive: 0xf2f6ff, emissiveIntensity: 0.9, side: THREE.DoubleSide })
-        );
-        glow.position.y = -0.032;
-        glow.rotation.x = Math.PI / 2;
-        g.add(glow);
-    }
-
     /* ---------- Scene ---------- */
 
     /** Gambar satu item mebel dari layout (dipakai bawaan & custom).
@@ -784,7 +746,6 @@
             case 'tv': addTelevision(g, 0, 1.55, 0); break;
             case 'plant': addPlant(g, 0, 0, 0.7); break;
             case 'stool': addColorStool(g, 0, 0, TEAL); break;
-            case 'foodstall': addFoodStall(g, 0, 0); break;
             case 'tree': addTree(g, 0, 0, 1.1); break;
             case 'lamp': addStreetLamp(g, 0, 0); break;
             default: break;
@@ -887,17 +848,11 @@
         /* Pembatas rendah zona game (tetap) */
         box(roomRoot, 3.35, 0.5, -0.55, 0.06, 1.0, 2.6, 0xe2e8f0, 0.85);
 
-        /* Semua mebel lain dari layout (bawaan atau custom dari Layout Kantor) */
+        /* Semua mebel lain dari layout (bawaan atau custom dari Layout Kantor).
+           Tanpa lampu gantung & gerobak (dihapus atas permintaan). */
         (LAYOUT.furniture || []).forEach(function (item) {
             addFurnitureItem(roomRoot, item);
         });
-
-        LAYOUT.desks.forEach(function (d) {
-            addOfficeLight(roomRoot, d[0], 2.4, d[1]);
-        });
-        addOfficeLight(roomRoot, 5.5, 2.4, 1.5);
-        addOfficeLight(roomRoot, 5.0, 2.4, -1.5);
-        addOfficeLight(roomRoot, 6.1, 2.4, -0.55);
     }
 
     function addStartupSign(parent, x, y, z) {
