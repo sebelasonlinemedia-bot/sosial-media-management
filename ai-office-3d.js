@@ -77,6 +77,9 @@
             { id: 'sofa-1', type: 'sofa', x: 1.9, z: -3.6, rotY: Math.PI / 2 },
             { id: 'sofa-2', type: 'sofa', x: 4.1, z: -3.6, rotY: Math.PI / 2 },
             { id: 'coffee-table', type: 'coffeetable', x: 3.0, z: -3.6, rotY: Math.PI / 2 },
+            /* TV lounge di sisi timur sofa (layar menghadap -x ke sofa):
+               dasar stop idle sofa-TV — lihat deriveIdleStops. */
+            { id: 'tv-1', type: 'tv', x: 5.4, z: -4.2, rotY: -Math.PI / 2 },
             { id: 'beanbag-1', type: 'beanbag', x: 6.8, z: 0.4, rotY: 0 },
             { id: 'beanbag-2', type: 'beanbag', x: 8.6, z: 0.4, rotY: 0 },
             { id: 'pingpong', type: 'pingpong', x: 7.6, z: -2.7, rotY: 0 },
@@ -199,11 +202,35 @@
         function items(type) { return byType[type] || []; }
         var lounge = [];
         items('beanbag').forEach(function (f) { lounge.push(localSpot(f, 0, 0, 0, 1, true, 0.22)); });
+        /* Bantalan sofa: dua titik per sofa di lokal (±0.5, 0.05) — lihat addSofa. */
+        var sofaSpots = [];
         items('sofa').forEach(function (f) {
-            /* Dua bantalan sofa di lokal (±0.5, 0.05) — lihat addSofa. */
-            lounge.push(localSpot(f, -0.5, 0.05, 0, 1, true, 0.28));
-            lounge.push(localSpot(f, 0.5, 0.05, 0, 1, true, 0.28));
+            sofaSpots.push(localSpot(f, -0.5, 0.05, 0, 1, true, 0.28));
+            sofaSpots.push(localSpot(f, 0.5, 0.05, 0, 1, true, 0.28));
         });
+        /* Stop sofa-TV: hanya bila ada sofa DAN tv di layout aktif. Titik duduk
+           tetap persis di bantalan sofa, tetapi arah hadap dihitung menuju TV
+           terdekat agar robot menonton TV. Bantalan sofa lalu TIDAK diulang di
+           stop lounge (robot lain menyebar ke bean bag/dll, tak menumpuk). */
+        var tvSpots = [];
+        var tvs = items('tv');
+        if (tvs.length && sofaSpots.length) {
+            tvSpots = sofaSpots.map(function (spot) {
+                var tv = null;
+                var best = Infinity;
+                tvs.forEach(function (t) {
+                    var dd = Math.hypot(t.x - spot.x, t.z - spot.z);
+                    if (dd < best) { best = dd; tv = t; }
+                });
+                return {
+                    x: spot.x, z: spot.z,
+                    facing: Math.round(Math.atan2(tv.x - spot.x, tv.z - spot.z) * 1000) / 1000,
+                    seated: true, seatY: spot.seatY
+                };
+            });
+        } else {
+            sofaSpots.forEach(function (s) { lounge.push(s); });
+        }
         items('armchair').forEach(function (f) { lounge.push(localSpot(f, 0, 0, 0, 1, true, 0.3)); });
         items('chair').forEach(function (f) { lounge.push(localSpot(f, 0, 0, 0, 1, true, 0.3)); });
 
@@ -262,6 +289,7 @@
         items('fridge').forEach(function (f) { kitchen.push(localSpot(f, 0, 0.88, 0, -1, false, 0)); });
 
         var stops = [];
+        if (tvSpots.length) stops.push({ key: 'tv', label: 'Watching TV', spots: tvSpots });
         if (lounge.length) stops.push({ key: 'lounge', label: 'Relaxing in the lounge', spots: lounge });
         if (coffee.length) stops.push({ key: 'coffee', label: 'At the coffee bar', spots: coffee });
         if (game.length) stops.push({ key: 'game', label: 'Playing ping pong', spots: game });
@@ -323,7 +351,7 @@
         /* Spot idle diturunkan dari furnitur layout aktif (deriveIdleStops):
            bean bag/sofa/stool persis di dudukannya, pingpong/dapur titik berdiri. */
         var idleStops = deriveIdleStops(furniture);
-        var idleRoute = ['lounge', 'coffee', 'game', 'chat', 'kitchen', 'jalan']
+        var idleRoute = ['tv', 'lounge', 'coffee', 'game', 'chat', 'kitchen', 'jalan']
             .filter(function (k) { return idleStops.some(function (s) { return s.key === k; }); });
         if (!idleRoute.length) idleRoute = ['chat'];
 
@@ -1303,10 +1331,12 @@
         /* Tanpa jendela & ornamen dinding (dihapus atas permintaan):
            dinding polos bersih, termasuk tanpa tulisan STARTUP & bingkai lukisan. */
 
-        /* Low cabinet against the wall */
-        addLowCabinet(roomRoot, -4.6, -3.9, 2.4);
+        /* Meja kabinet rendah hard-coded di (-4.6,-3.9) DIHAPUS: meja lepas
+           di luar data layout (digambar selalu, tak bisa dihapus di editor)
+           yang tampak menempel/menghalangi area meja meeting di screenshot
+           dan footprint-nya menimpa meja agen A3. Tumpukan buku di atasnya
+           ikut dibersihkan agar tidak melayang tanpa kabinet. */
         addPlant(roomRoot, -5.4, -3.85, 0.55);
-        addBookStack(roomRoot, -4.2, -3.85);
 
         /* Work desks + colorful chairs */
         var chairColors = [TEAL, YELLOW, TEAL, YELLOW, TEAL, YELLOW, TEAL];
