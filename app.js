@@ -1759,9 +1759,13 @@ app._drawLayoutCanvas = function () {
     const [bx2, by2] = toPx(b.maxX, b.maxZ);
     ctx.fillStyle = '#232c38';
     ctx.fillRect(bx, by, bx2 - bx, by2 - by);
-    ctx.strokeStyle = '#14b8a6';
+    // Tepi gedung = dinding kaca sekeliling (sian transparan + rel teal)
+    ctx.strokeStyle = 'rgba(103,232,249,0.85)';
     ctx.lineWidth = 3;
     ctx.strokeRect(bx, by, bx2 - bx, by2 - by);
+    ctx.strokeStyle = 'rgba(20,184,166,0.9)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(bx - 2, by - 2, bx2 - bx + 4, by2 - by + 4);
     // Zona studio (pad warna departemen + label, dari posisi meja)
     if (typeof AiOffice3D !== 'undefined' && AiOffice3D.__test
         && typeof AiOffice3D.__test.computeStudioZones === 'function') {

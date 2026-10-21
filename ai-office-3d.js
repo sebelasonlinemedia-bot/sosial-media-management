@@ -1303,14 +1303,28 @@
         return mesh;
     }
 
-    function addWall(parent, x1, z1, x2, z2, height) {
+    /** Dinding keliling gedung FULL KACA (bukan tembok): panel transparan
+       setinggi dinding + rel bawah grafit, rel atas teal menyala, dan tiang
+       mullion ramping tiap ±3 m agar terbaca sebagai dinding kaca. */
+    function addGlassWall(parent, x1, z1, x2, z2, height) {
         var h = height == null ? WALL_H : height;
-        var thick = 0.25;
         var len = Math.hypot(x2 - x1, z2 - z1);
         var angle = Math.atan2(z2 - z1, x2 - x1);
         var g = groupAt(parent, (x1 + x2) / 2, 0, (z1 + z2) / 2, -angle);
-        box(g, 0, h / 2, 0, len + thick, h, thick, WALL, 0.9);
-        box(g, 0, h + 0.02, 0, len + thick + 0.02, 0.05, thick + 0.04, WALL_TOP, 0.85);
+        box(g, 0, 0.06, 0, len + 0.04, 0.12, 0.1, 0x334155, 0.4, 0.5);
+        var gh = Math.max(0.1, h - 0.18);
+        var glass = box(g, 0, 0.12 + gh / 2, 0, len, gh, 0.06, 0x9fd4e8, 0.12, 0.15, {
+            opacity: 0.28, emissive: 0x0e7490, emissiveIntensity: 0.08
+        });
+        glass.castShadow = false;
+        box(g, 0, h - 0.025, 0, len + 0.04, 0.05, 0.1, TEAL, 0.4, 0.2, {
+            emissive: 0x14b8a6, emissiveIntensity: 0.35
+        });
+        var n = Math.max(1, Math.floor(len / 3));
+        var i;
+        for (i = 0; i <= n; i += 1) {
+            box(g, -len / 2 + (i * len) / n, h / 2, 0, 0.07, h, 0.09, 0x334155, 0.4, 0.5);
+        }
         return g;
     }
 
@@ -1742,13 +1756,14 @@
             });
         }
 
-        /* White room shell — front open for dollhouse.
-           Belakang: selalu tinggi penuh (BACK_WALL_H).
-           Kiri & kanan: mengikuti slider tinggi dinding (WALL_H). */
-        addWall(roomRoot, b.minX, b.minZ, b.maxX, b.minZ, BACK_WALL_H);
-        addWall(roomRoot, b.minX, b.minZ, b.minX, b.maxZ);
-        addWall(roomRoot, b.maxX, b.minZ, b.maxX, b.maxZ);
-        addWall(roomRoot, b.minX, b.maxZ, b.minX + 2.2, b.maxZ, 0.5);
+        /* Kerangka gedung — front open for dollhouse, sekeliling FULL KACA
+           (bukan tembok): belakang selalu tinggi penuh (BACK_WALL_H),
+           kiri & kanan mengikuti slider tinggi dinding (WALL_H), segmen
+           depan rendah sebagai railing kaca. */
+        addGlassWall(roomRoot, b.minX, b.minZ, b.maxX, b.minZ, BACK_WALL_H);
+        addGlassWall(roomRoot, b.minX, b.minZ, b.minX, b.maxZ);
+        addGlassWall(roomRoot, b.maxX, b.minZ, b.maxX, b.maxZ);
+        addGlassWall(roomRoot, b.minX, b.maxZ, b.minX + 2.2, b.maxZ, 0.5);
 
         /* Partisi ruangan dari layout (bisa digeser/diperpendek/dihapus di editor).
            Gaya futuristik: panel kaca + rel teal; navigasi agen tetap memakai
