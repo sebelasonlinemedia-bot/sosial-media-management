@@ -1462,9 +1462,9 @@
         box(g, -0.9, 0.36, 0, 0.07, 0.72, 0.8, BLUE, 0.38, 0.08);
         box(g, 0.9, 0.36, 0, 0.07, 0.72, 0.8, BLUE, 0.38, 0.08);
         box(g, 0.62, 0.31, -0.05, 0.22, 0.56, 0.46, 0x0b0e14, 0.4, 0.3);
-        box(g, 0, 1.13, 0.22, 0.86, 0.52, 0.03, 0x0f172a, 0.25, 0.4);
+        box(g, 0, 1.13, 0.22, 1.24, 0.52, 0.03, 0x0f172a, 0.25, 0.4);
         var screen = new THREE.Mesh(
-            new THREE.PlaneGeometry(0.8, 0.46),
+            new THREE.PlaneGeometry(1.18, 0.46),
             mat(active ? 0x1a3a42 : 0x0a1014, 0.3, 0.1, {
                 emissive: active ? 0x2a8aa0 : 0x000000,
                 emissiveIntensity: active ? 0.7 : 0
@@ -1832,8 +1832,8 @@
 
     function addStartupDesk(parent, x, z, seatColor, rotY) {
         /* Workstation ala referensi: meja biru royal rangka-U dengan LED
-           strip putih menyala di tepi, triple monitor dashboard, PC tower
-           di bawah meja, kursi ergonomis biru.
+           strip putih menyala di tepi, satu monitor ultrawide memanjang,
+           PC tower di bawah meja, kursi ergonomis biru.
            Agen duduk di sisi -z menghadap +z: keyboard dekat agen (-z),
            monitor lebih jauh (+z) dengan layar menghadap agen (-z). */
         var g = groupAt(parent, x, 0, z, rotY || 0);
@@ -1855,19 +1855,13 @@
         box(g, 0.44, 0.34, 0.212, 0.014, 0.34, 0.008, 0x22d3ee, 0.4, 0.1, {
             emissive: 0x22d3ee, emissiveIntensity: 1.0
         });
-        /* Triple monitor dashboard (tengah + 2 sayap miring ke agen) */
-        function monitor(mx, mrot, screenColor) {
-            var mg = groupAt(g, mx, 0, 0.15, mrot);
-            box(mg, 0, 0.86, 0.03, 0.05, 0.22, 0.05, 0x11151c, 0.35, 0.5);
-            box(mg, 0, 0.766, 0.03, 0.2, 0.012, 0.14, 0x11151c, 0.35, 0.5);
-            box(mg, 0, 1.03, 0.02, 0.54, 0.35, 0.018, 0x0a0d13, 0.25, 0.4);
-            box(mg, 0, 1.03, 0.008, 0.5, 0.31, 0.006, screenColor, 0.3, 0.05, {
-                emissive: screenColor, emissiveIntensity: 0.6
-            });
-        }
-        monitor(-0.53, 0.3, 0x2dd4bf);
-        monitor(0, 0, 0x38bdf8);
-        monitor(0.53, -0.3, 0x818cf8);
+        /* Satu monitor ultrawide memanjang (layar dashboard menyala) */
+        box(g, 0, 0.86, 0.18, 0.05, 0.22, 0.05, 0x11151c, 0.35, 0.5);
+        box(g, 0, 0.766, 0.18, 0.2, 0.012, 0.14, 0x11151c, 0.35, 0.5);
+        box(g, 0, 1.03, 0.17, 1.18, 0.36, 0.018, 0x0a0d13, 0.25, 0.4);
+        box(g, 0, 1.03, 0.158, 1.12, 0.32, 0.006, 0x38bdf8, 0.3, 0.05, {
+            emissive: 0x38bdf8, emissiveIntensity: 0.6
+        });
         /* Keyboard + mouse gelap di depan agen */
         box(g, 0, 0.766, -0.14, 0.46, 0.014, 0.17, 0x11151c, 0.4, 0.3);
         box(g, 0.33, 0.766, -0.14, 0.06, 0.012, 0.1, 0x11151c, 0.4, 0.3);
