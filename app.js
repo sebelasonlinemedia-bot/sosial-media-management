@@ -1573,35 +1573,36 @@ app._layoutDefaultData = function () {
         wallHeight: 2.55,
         building: { minX: -10.7, maxX: 12.1, minZ: -5.9, maxZ: 5.1 },
         desks: [
-            [-9.0, 3.6, Math.PI / 2], [-9.1, 1.1, Math.PI / 2], [-9.2, -1.5, Math.PI / 2],
-            [-8.5, -3.8, Math.PI / 4], [-5.9, -4.3, 0], [-3.1, -4.3, 0],
-            [3.7, 2.7, -Math.PI / 2]
+            [-9.6, -4.4, 0], [-5.2, -4.4, 0], [-2.6, -4.4, 0],
+            [-3.9, -1.2, Math.PI], [3.2, -4.4, 0], [-7.0, -4.4, 0],
+            [5.8, -4.4, 0], [4.5, -1.2, Math.PI], [7.6, -4.4, 0],
+            [10.2, -4.4, 0], [8.9, -1.2, Math.PI]
         ],
         partitions: { segments: [
-            { axis: 'v', at: -1.4, from: -5.9, to: -2.9 },
-            { axis: 'v', at: 7.2, from: -5.9, to: -1.8 },
-            { axis: 'h', at: 0.3, from: 7.4, to: 12.1 },
-            { axis: 'v', at: 5.3, from: 1.0, to: 5.1 }
+            { axis: 'v', at: -6.1, from: -5.7, to: -0.35 },
+            { axis: 'v', at: -1.7, from: -5.7, to: -0.35 },
+            { axis: 'v', at: 2.3, from: -5.7, to: -0.35 },
+            { axis: 'v', at: 6.7, from: -5.7, to: -0.35 }
         ] },
-        meetingTable: { x: 3.0, z: -3.1, radius: 1.05, enabled: true },
+        meetingTable: { x: 0.25, z: 0.9, radius: 1.05, enabled: true },
         furniture: [
-            { id: 'sofa-1', type: 'sofa', x: -3.1, z: -0.2, rotY: 0 },
-            { id: 'sofa-2', type: 'sofa', x: -5.0, z: 1.9, rotY: Math.PI / 2 },
-            { id: 'sofa-3', type: 'sofa', x: -1.2, z: 1.9, rotY: Math.PI / 2 },
-            { id: 'coffee-table', type: 'coffeetable', x: -3.1, z: 1.9, rotY: Math.PI / 2 },
-            { id: 'tv-1', type: 'tv', x: 3.0, z: -5.7, rotY: 0 },
-            { id: 'bookshelf-1', type: 'bookshelf', x: 0.5, z: -5.7, rotY: 0 },
-            { id: 'bookshelf-2', type: 'bookshelf', x: 5.5, z: -5.7, rotY: 0 },
-            { id: 'arcade-1', type: 'arcade', x: 7.9, z: -5.6, rotY: 0 },
-            { id: 'pingpong', type: 'pingpong', x: 10.0, z: -3.3, rotY: Math.PI / 2 },
-            { id: 'beanbag-1', type: 'beanbag', x: 9.0, z: -0.7, rotY: 0 },
-            { id: 'beanbag-2', type: 'beanbag', x: 11.1, z: -0.7, rotY: 0 },
-            { id: 'coffeebar', type: 'coffeebar', x: 8.1, z: 4.6, rotY: 0 },
-            { id: 'stool-1', type: 'stool', x: 7.4, z: 3.9, rotY: 0 },
-            { id: 'stool-2', type: 'stool', x: 8.8, z: 3.9, rotY: 0 },
-            { id: 'pantry', type: 'pantry', x: 11.9, z: 3.0, rotY: -Math.PI / 2 },
-            { id: 'fridge', type: 'fridge', x: 11.0, z: 4.4, rotY: -Math.PI / 2 },
-            { id: 'galon', type: 'galon', x: 10.6, z: 2.7, rotY: 0 },
+            { id: 'sofa-1', type: 'sofa', x: 0.25, z: 4.35, rotY: 0 },
+            { id: 'sofa-2', type: 'sofa', x: -1.1, z: 3.3, rotY: Math.PI / 2 },
+            { id: 'sofa-3', type: 'sofa', x: 1.6, z: 3.3, rotY: Math.PI / 2 },
+            { id: 'coffee-table', type: 'coffeetable', x: 0.25, z: 3.3, rotY: Math.PI / 2 },
+            { id: 'tv-1', type: 'tv', x: 0.3, z: -5.72, rotY: 0 },
+            { id: 'bookshelf-1', type: 'bookshelf', x: -1.3, z: -5.7, rotY: 0 },
+            { id: 'bookshelf-2', type: 'bookshelf', x: 1.9, z: -5.7, rotY: 0 },
+            { id: 'arcade-1', type: 'arcade', x: 11.55, z: -5.5, rotY: 0 },
+            { id: 'pingpong', type: 'pingpong', x: 9.9, z: 3.5, rotY: 0 },
+            { id: 'beanbag-1', type: 'beanbag', x: 8.3, z: 2.6, rotY: 0 },
+            { id: 'beanbag-2', type: 'beanbag', x: 7.5, z: 4.0, rotY: 0 },
+            { id: 'coffeebar', type: 'coffeebar', x: -9.7, z: 4.55, rotY: 0 },
+            { id: 'stool-1', type: 'stool', x: -10.4, z: 3.85, rotY: 0 },
+            { id: 'stool-2', type: 'stool', x: -9.0, z: 3.85, rotY: 0 },
+            { id: 'pantry', type: 'pantry', x: 11.9, z: 0.9, rotY: -Math.PI / 2 },
+            { id: 'fridge', type: 'fridge', x: 11.5, z: 2.6, rotY: -Math.PI / 2 },
+            { id: 'galon', type: 'galon', x: 11.3, z: 1.9, rotY: 0 },
             { id: 'plant-1', type: 'plant', x: -10.4, z: -5.8, rotY: 0 },
             { id: 'plant-2', type: 'plant', x: -10.5, z: 4.8, rotY: 0 },
             { id: 'plant-3', type: 'plant', x: 11.8, z: -5.7, rotY: 0 },
@@ -1623,21 +1624,30 @@ app.renderLayoutEditor = async function () {
         await this.loadOfficeFromServer();
     }
     const saved = appState.office.settings && appState.office.settings.officeLayout;
-    const base = saved ? JSON.parse(JSON.stringify(saved)) : this._layoutDefaultData();
+    let base = saved ? JSON.parse(JSON.stringify(saved)) : this._layoutDefaultData();
     // Layout lama tanpa field baru → lengkapi dari bawaan agar denah utuh
     const def = this._layoutDefaultData();
     if (!base.furniture || !base.furniture.length) base.furniture = def.furniture;
     if (!base.desks || !base.desks.length) base.desks = def.desks;
     if (!base.partitions || !Array.isArray(base.partitions.segments)) base.partitions = def.partitions;
     if (!base.meetingTable) base.meetingTable = def.meetingTable;
+    // Layout yang masih persis bawaan lama (belum dikustom user) dinaikkan
+    // ke denah klaster studio saat ini — sama seperti migrasi scene 3D.
+    let migratedFromLegacy = false;
+    if (typeof AiOffice3D !== 'undefined' && typeof AiOffice3D.migrateLegacyLayout === 'function') {
+        const m = AiOffice3D.migrateLegacyLayout(base);
+        if (m && m.migrated) { base = m.layout; migratedFromLegacy = true; }
+    }
     this._layoutEditor = { data: base, selected: null, drag: null };
     this._syncLayoutEditorControls();
     this._drawLayoutCanvas();
     const status = document.getElementById('layout-editor-status');
     if (status) {
-        status.textContent = saved
-            ? 'Layout custom tersimpan sedang dipakai. Seret item lalu Simpan Layout.'
-            : 'Masih layout bawaan. Atur denah lalu Simpan Layout untuk memakai layout custom.';
+        status.textContent = migratedFromLegacy
+            ? 'Layout bawaan lama diperbarui ke denah klaster studio baru. Klik Simpan Layout untuk menetapkannya.'
+            : saved
+                ? 'Layout custom tersimpan sedang dipakai. Seret item lalu Simpan Layout.'
+                : 'Masih layout bawaan. Atur denah lalu Simpan Layout untuk memakai layout custom.';
     }
     lucide.createIcons();
 };
@@ -1723,15 +1733,15 @@ app._drawLayoutCanvas = function () {
     const d = ed.data;
     const b = d.building;
 
-    // Rumput
-    ctx.fillStyle = '#79c25f';
+    // Latar gelap (gedung melayang seperti referensi)
+    ctx.fillStyle = '#0b1220';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     // Jalan di depan (z besar = bawah)
     const [roadX, roadY] = toPx(b.minX - 4, b.maxZ + 2.2);
     const [roadX2, roadY2] = toPx(b.maxX + 4, b.maxZ + 7.2);
-    ctx.fillStyle = '#3c4147';
+    ctx.fillStyle = '#11161f';
     ctx.fillRect(roadX, roadY, roadX2 - roadX, roadY2 - roadY);
-    ctx.strokeStyle = '#f5f0dc';
+    ctx.strokeStyle = 'rgba(226,232,240,0.5)';
     ctx.setLineDash([10, 8]);
     ctx.beginPath();
     const [, laneY] = toPx(0, b.maxZ + 4.7);
@@ -1742,22 +1752,43 @@ app._drawLayoutCanvas = function () {
     // Trotoar
     const [swX, swY] = toPx(b.minX - 1.8, b.minZ - 1.8);
     const [swX2, swY2] = toPx(b.maxX + 1.8, b.maxZ + 1.8);
-    ctx.fillStyle = '#c9cdd1';
+    ctx.fillStyle = '#27313f';
     ctx.fillRect(swX, swY, swX2 - swX, swY2 - swY);
-    // Lantai gedung
+    // Lantai gedung slate gelap
     const [bx, by] = toPx(b.minX, b.minZ);
     const [bx2, by2] = toPx(b.maxX, b.maxZ);
-    ctx.fillStyle = '#dcbc90';
+    ctx.fillStyle = '#232c38';
     ctx.fillRect(bx, by, bx2 - bx, by2 - by);
-    ctx.strokeStyle = '#ffffff';
+    ctx.strokeStyle = '#14b8a6';
     ctx.lineWidth = 3;
     ctx.strokeRect(bx, by, bx2 - bx, by2 - by);
+    // Zona studio (pad warna departemen + label, dari posisi meja)
+    if (typeof AiOffice3D !== 'undefined' && AiOffice3D.__test
+        && typeof AiOffice3D.__test.computeStudioZones === 'function') {
+        try {
+            const zones = AiOffice3D.__test.computeStudioZones(d.desks || [], b);
+            (zones || []).forEach((z) => {
+                const [zx, zy] = toPx(z.cx - z.w / 2, z.cz - z.d / 2);
+                const [zx2, zy2] = toPx(z.cx + z.w / 2, z.cz + z.d / 2);
+                const col = '#' + Number(z.color || 0x38bdf8).toString(16).padStart(6, '0');
+                ctx.fillStyle = col + '2e';
+                ctx.fillRect(zx, zy, zx2 - zx, zy2 - zy);
+                ctx.strokeStyle = col + '66';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(zx, zy, zx2 - zx, zy2 - zy);
+                ctx.fillStyle = 'rgba(226,232,240,0.9)';
+                ctx.font = '700 8px system-ui, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(String(z.studio || '').toUpperCase() + ' STUDIO', (zx + zx2) / 2, zy + 10);
+            });
+        } catch (_) { /* zona opsional */ }
+    }
     // Partisi ruangan (dari layout — bisa digeser/diperpendek/dihapus)
     ((d.partitions && d.partitions.segments) || []).forEach((seg, i) => {
         const sel = ed.selected && ed.selected.kind === 'partition' && ed.selected.index === i;
         const [sx, sy] = seg.axis === 'h' ? toPx(seg.from, seg.at) : toPx(seg.at, seg.from);
         const [ex, ey] = seg.axis === 'h' ? toPx(seg.to, seg.at) : toPx(seg.at, seg.to);
-        ctx.strokeStyle = sel ? '#facc15' : '#ffffff';
+        ctx.strokeStyle = sel ? '#facc15' : 'rgba(103,232,249,0.75)';
         ctx.lineWidth = sel ? 7 : 5;
         ctx.lineCap = 'round';
         ctx.beginPath();
@@ -1833,17 +1864,17 @@ app._drawLayoutCanvas = function () {
         const dp = app._deskPos(desk);
         const co = rotOffset(dp[2], 0, -0.68);
         drawItem(dp[0] + co[0], dp[1] + co[1], 0.42, 0.42, '#1f6f6b', '', sel, dp[2]);
-        drawItem(dp[0], dp[1], 1.25, 0.65, '#e8d5b5', `A${i + 1}`, sel, dp[2]);
+        drawItem(dp[0], dp[1], 1.25, 0.65, '#5b8dd9', `A${i + 1}`, sel, dp[2]);
     });
 
-    // Label zona
-    ctx.fillStyle = 'rgba(15,23,42,0.65)';
+    // Label zona koridor depan
+    ctx.fillStyle = 'rgba(226,232,240,0.65)';
     ctx.font = '700 11px system-ui, sans-serif';
     ctx.textAlign = 'left';
-    const [lzX, lzY] = toPx(b.minX + 0.3, b.minZ + 0.6);
-    ctx.fillText('AREA KERJA', lzX, lzY);
-    const [rzX, rzY] = toPx(3.2, b.minZ + 0.6);
-    ctx.fillText('LOUNGE · GAME · DAPUR', rzX, rzY);
+    const [lzX, lzY] = toPx(b.minX + 0.3, b.maxZ - 0.35);
+    ctx.fillText('KORIDOR · LOUNGE · GAME', lzX, lzY);
+    const [rzX, rzY] = toPx(0.35, b.minZ + 0.6);
+    ctx.fillText('MEETING TERBUKA', rzX, rzY);
 };
 
 app._layoutHitTest = function (worldX, worldZ) {

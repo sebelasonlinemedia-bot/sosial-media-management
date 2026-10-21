@@ -122,8 +122,26 @@ function ok(name, fn) {
         assert.strictEqual(isLegacySeg([{ axis: 'h', at: -2.95, from: -8.1, to: 3.3 }]), false, 'partisi baru/kustom aman');
 
         const defLayout = globalThis.AiOffice3D.getDefaultLayout();
-        assert.strictEqual(defLayout.desks.length, 11, 'denah pod baru: 11 meja');
-        assert.strictEqual(defLayout.partitions.segments.length, 3, 'denah pod baru: 3 segmen kaca');
+        assert.strictEqual(defLayout.desks.length, 11, 'denah klaster baru: 11 meja');
+        assert.strictEqual(defLayout.partitions.segments.length, 4, 'denah klaster baru: 4 pembatas kaca vertikal');
+        // Migrasi: denah pod dua-baris (bawaan sebelumnya) → denah klaster
+        const legacyPod = JSON.parse(JSON.stringify(defLayout));
+        legacyPod.desks = [
+            [-9.3, -4.35, 0], [-6.5, -4.35, 0], [-3.7, -4.35, 0],
+            [-0.9, -4.35, 0], [1.9, -4.35, 0], [4.7, -4.35, 0],
+            [-9.3, -1.55, 0], [-6.5, -1.55, 0], [-3.7, -1.55, 0],
+            [-0.9, -1.55, 0], [1.9, -1.55, 0]
+        ];
+        legacyPod.partitions = { segments: [
+            { axis: 'h', at: -2.95, from: -8.1, to: 3.3 },
+            { axis: 'v', at: 3.3, from: -5.6, to: -3.3 },
+            { axis: 'v', at: 6.05, from: -5.6, to: -3.3 }
+        ] };
+        const mig = globalThis.AiOffice3D.migrateLegacyLayout(legacyPod);
+        assert.strictEqual(mig.migrated, true, 'migrasi pod → klaster terdeteksi');
+        assert.strictEqual(mig.layout.partitions.segments.length, 4, 'hasil migrasi: 4 pembatas kaca');
+        const customCfg = globalThis.AiOffice3D.migrateLegacyLayout({ desks: [[0, 0, 0]] });
+        assert.strictEqual(customCfg.migrated, false, 'layout kustom tidak dimigrasi');
     });
 
     console.log(`\n${passed} grup asserts lolos.`);

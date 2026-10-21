@@ -104,7 +104,7 @@
        DAPUR/kopi kanan-bawah.
        Dideklarasikan SEBELUM buildLayout pertama agar tidak undefined. */
     var DEFAULT_BUILDING = { minX: -10.7, maxX: 12.1, minZ: -5.9, maxZ: 5.1 };
-    var DEFAULT_MEETING = { x: -6.0, z: 2.0, radius: 1.05, enabled: true };
+    var DEFAULT_MEETING = { x: 0.25, z: 0.9, radius: 1.05, enabled: true };
     /* Meja meeting MEMANJANG (elips sumbu-X): radius = skala lebar;
        setengah-panjang a = radius*1.6 (±3.2x lebar), setengah-lebar b. */
     var MEETING_LONG = 'elongated-meeting-v1';
@@ -135,33 +135,33 @@
     var LAYOUT = buildLayout(7, null);
     var CUSTOM_LAYOUT = null;
 
-    /** Mebel bawaan scene (denah studio futuristik ala referensi:
-       pod meja di utara, meeting bundar tengah-kiri, lounge timur,
-       koridor rekreasi di kanan). */
+    /** Mebel bawaan scene (denah klaster studio ala referensi: lounge
+       bawah-tengah, rak server + TV di dinding belakang tengah, pingpong
+       bawah-kanan, bar kopi bawah-barat, dapur di tepi timur). */
     function defaultFurniture() {
         return [
-            /* Lounge sofa-U di timur-tengah menghadap meja kopi. */
-            { id: 'sofa-1', type: 'sofa', x: 5.6, z: 1.2, rotY: 0 },
-            { id: 'sofa-2', type: 'sofa', x: 3.9, z: 2.9, rotY: Math.PI / 2 },
-            { id: 'sofa-3', type: 'sofa', x: 7.3, z: 2.9, rotY: Math.PI / 2 },
-            { id: 'coffee-table', type: 'coffeetable', x: 5.6, z: 2.9, rotY: Math.PI / 2 },
-            /* TV + rak di dinding belakang (utara); rak barat berperan rak
-               server Operations. Stop idle sofa-TV menghadap TV ini. */
-            { id: 'tv-1', type: 'tv', x: 3.4, z: -5.7, rotY: 0 },
-            { id: 'bookshelf-1', type: 'bookshelf', x: -9.9, z: -5.7, rotY: 0 },
-            { id: 'bookshelf-2', type: 'bookshelf', x: 6.4, z: -5.7, rotY: 0 },
-            { id: 'arcade-1', type: 'arcade', x: 7.9, z: -5.6, rotY: 0 },
-            /* Pingpong vertikal (panjang meja sejajar sumbu Z) di kanan. */
-            { id: 'pingpong', type: 'pingpong', x: 10.0, z: -3.3, rotY: Math.PI / 2 },
-            { id: 'beanbag-1', type: 'beanbag', x: 9.0, z: -0.7, rotY: 0 },
-            { id: 'beanbag-2', type: 'beanbag', x: 11.1, z: -0.7, rotY: 0 },
-            { id: 'coffeebar', type: 'coffeebar', x: 8.1, z: 4.6, rotY: 0 },
-            { id: 'stool-1', type: 'stool', x: 7.4, z: 3.9, rotY: 0 },
-            { id: 'stool-2', type: 'stool', x: 8.8, z: 3.9, rotY: 0 },
-            /* Counter dapur vertikal di tepi kanan-bawah (sisi depan -x). */
-            { id: 'pantry', type: 'pantry', x: 11.9, z: 3.0, rotY: -Math.PI / 2 },
-            { id: 'fridge', type: 'fridge', x: 11.0, z: 4.4, rotY: -Math.PI / 2 },
-            { id: 'galon', type: 'galon', x: 10.6, z: 2.7, rotY: 0 },
+            /* Lounge sofa-U di bawah-tengah menghadap meja kopi. */
+            { id: 'sofa-1', type: 'sofa', x: 0.25, z: 4.35, rotY: 0 },
+            { id: 'sofa-2', type: 'sofa', x: -1.1, z: 3.3, rotY: Math.PI / 2 },
+            { id: 'sofa-3', type: 'sofa', x: 1.6, z: 3.3, rotY: Math.PI / 2 },
+            { id: 'coffee-table', type: 'coffeetable', x: 0.25, z: 3.3, rotY: Math.PI / 2 },
+            /* TV + rak server di dinding belakang tengah (di atas area meeting). */
+            { id: 'tv-1', type: 'tv', x: 0.3, z: -5.72, rotY: 0 },
+            { id: 'bookshelf-1', type: 'bookshelf', x: -1.3, z: -5.7, rotY: 0 },
+            { id: 'bookshelf-2', type: 'bookshelf', x: 1.9, z: -5.7, rotY: 0 },
+            { id: 'arcade-1', type: 'arcade', x: 11.55, z: -5.5, rotY: 0 },
+            /* Pingpong horizontal di bawah-kanan + beanbag di dekatnya. */
+            { id: 'pingpong', type: 'pingpong', x: 9.9, z: 3.5, rotY: 0 },
+            { id: 'beanbag-1', type: 'beanbag', x: 8.3, z: 2.6, rotY: 0 },
+            { id: 'beanbag-2', type: 'beanbag', x: 7.5, z: 4.0, rotY: 0 },
+            /* Bar kopi bawah-barat. */
+            { id: 'coffeebar', type: 'coffeebar', x: -9.7, z: 4.55, rotY: 0 },
+            { id: 'stool-1', type: 'stool', x: -10.4, z: 3.85, rotY: 0 },
+            { id: 'stool-2', type: 'stool', x: -9.0, z: 3.85, rotY: 0 },
+            /* Counter dapur vertikal di tepi timur. */
+            { id: 'pantry', type: 'pantry', x: 11.9, z: 0.9, rotY: -Math.PI / 2 },
+            { id: 'fridge', type: 'fridge', x: 11.5, z: 2.6, rotY: -Math.PI / 2 },
+            { id: 'galon', type: 'galon', x: 11.3, z: 1.9, rotY: 0 },
             { id: 'plant-1', type: 'plant', x: -10.4, z: -5.8, rotY: 0 },
             { id: 'plant-2', type: 'plant', x: -10.5, z: 4.8, rotY: 0 },
             { id: 'plant-3', type: 'plant', x: 11.8, z: -5.7, rotY: 0 },
@@ -181,27 +181,31 @@
         return {
             wallHeight: 2.55,
             building: { minX: DEFAULT_BUILDING.minX, maxX: DEFAULT_BUILDING.maxX, minZ: DEFAULT_BUILDING.minZ, maxZ: DEFAULT_BUILDING.maxZ },
-            /* Denah pod studio ala referensi: dua baris pod menghadap selatan
-               (rot 0 — kursi di utara meja, agen menghadap ruang), dikelompokkan
-               per studio. Urutan meja = urutan peran: baris belakang (z=-4.35)
-               Maya, Rani, Dimas, Salsa, Titin, Kirana; baris depan (z=-1.55)
-               Bimo, Nadira, Reno, Fajar, Prama. Timur (x>6) koridor rekreasi. */
+            /* Denah klaster studio ala referensi (4 ruang berdinding kaca di
+               dinding belakang; tengah terbuka untuk meeting):
+               A Barat  (Operations+Data):  Maya, Bimo
+               B Tengah-Barat (Marketing+Design): Rani, Dimas, Salsa
+               C Tengah-Timur (Support+Legal+Sales): Titin, Nadira, Reno
+               D Timur (Finance+Product+People): Fajar, Prama, Kirana
+               Urutan meja tetap = urutan peran (ROLE_STUDIO). Meja baris
+               belakang rot 0 (kursi di utara); meja baris depan rot PI
+               (saling berhadapan dengan baris belakang). */
             desks: [
-                [-9.3, -4.35, 0], [-6.5, -4.35, 0], [-3.7, -4.35, 0],
-                [-0.9, -4.35, 0], [1.9, -4.35, 0], [4.7, -4.35, 0],
-                [-9.3, -1.55, 0], [-6.5, -1.55, 0], [-3.7, -1.55, 0],
-                [-0.9, -1.55, 0], [1.9, -1.55, 0]
+                [-9.6, -4.4, 0], [-5.2, -4.4, 0], [-2.6, -4.4, 0],
+                [-3.9, -1.2, Math.PI], [3.2, -4.4, 0], [-7.0, -4.4, 0],
+                [5.8, -4.4, 0], [4.5, -1.2, Math.PI], [7.6, -4.4, 0],
+                [10.2, -4.4, 0], [8.9, -1.2, Math.PI]
             ],
             furniture: defaultFurniture(),
             partitions: {
-                /* Kaca studio: pembatas horizontal antar baris pod + dua
-                   pembatas pendek di dinding belakang. Celah lebar dibiarkan
-                   di ujung barat/timur dan selatan segmen pendek agar semua
-                   zona tetap terjangkau agen. */
+                /* Pembatas kaca vertikal antar-studio dari dinding belakang
+                   sampai z=-0.35; sisi selatan terbuka untuk akses dan
+                   tengah (x -1.7..2.3) dibiarkan terbuka untuk meeting. */
                 segments: [
-                    { axis: 'h', at: -2.95, from: -8.1, to: 3.3 },
-                    { axis: 'v', at: 3.3, from: -5.6, to: -3.3 },
-                    { axis: 'v', at: 6.05, from: -5.6, to: -3.3 }
+                    { axis: 'v', at: -6.1, from: -5.7, to: -0.35 },
+                    { axis: 'v', at: -1.7, from: -5.7, to: -0.35 },
+                    { axis: 'v', at: 2.3, from: -5.7, to: -0.35 },
+                    { axis: 'v', at: 6.7, from: -5.7, to: -0.35 }
                 ]
             },
             meetingTable: { x: DEFAULT_MEETING.x, z: DEFAULT_MEETING.z, radius: DEFAULT_MEETING.radius, enabled: true }
@@ -428,8 +432,9 @@
     }
 
     /* Bawaan meja generasi lama: (a) 7 meja sebelum spesialis baru,
-       (b) 11 meja menyebar sebelum denah pod studio. Layout yang masih
-       persis salah satu bawaan ini (belum dikustom user) dimigrasikan. */
+       (b) 11 meja menyebar sebelum denah pod, (c) 11 meja pod dua-baris
+       sebelum denah klaster studio. Layout yang masih persis salah satu
+       bawaan ini (belum dikustom user) dimigrasikan. */
     var LEGACY_DESK_SETS = [
         [
             [-9.0, 3.6, Math.PI / 2], [-9.1, 1.1, Math.PI / 2], [-9.2, -1.5, Math.PI / 2],
@@ -441,6 +446,12 @@
             [-8.5, -3.8, Math.PI / 4], [-5.9, -4.3, 0], [-3.1, -4.3, 0],
             [3.7, 2.7, -Math.PI / 2], [-0.3, -4.3, 0], [2.5, -4.3, 0],
             [5.6, -4.3, 0], [10.9, 3.4, -Math.PI / 2]
+        ],
+        [
+            [-9.3, -4.35, 0], [-6.5, -4.35, 0], [-3.7, -4.35, 0],
+            [-0.9, -4.35, 0], [1.9, -4.35, 0], [4.7, -4.35, 0],
+            [-9.3, -1.55, 0], [-6.5, -1.55, 0], [-3.7, -1.55, 0],
+            [-0.9, -1.55, 0], [1.9, -1.55, 0]
         ]
     ];
     function isLegacyDefaultDesks(desks) {
@@ -454,41 +465,71 @@
             });
         });
     }
-    /* Partisi bawaan generasi sebelumnya (sebelum kaca studio). */
-    var LEGACY_DEFAULT_SEGMENTS = [
-        { axis: 'v', at: -1.4, from: -5.9, to: -2.9 },
-        { axis: 'v', at: 7.2, from: -5.9, to: -1.8 },
-        { axis: 'h', at: 0.3, from: 7.4, to: 12.1 },
-        { axis: 'v', at: 5.3, from: 1.0, to: 5.1 }
+    /* Set partisi bawaan generasi sebelumnya: (a) sebelum kaca studio,
+       (b) denah pod dua-baris. */
+    var LEGACY_SEGMENT_SETS = [
+        [
+            { axis: 'v', at: -1.4, from: -5.9, to: -2.9 },
+            { axis: 'v', at: 7.2, from: -5.9, to: -1.8 },
+            { axis: 'h', at: 0.3, from: 7.4, to: 12.1 },
+            { axis: 'v', at: 5.3, from: 1.0, to: 5.1 }
+        ],
+        [
+            { axis: 'h', at: -2.95, from: -8.1, to: 3.3 },
+            { axis: 'v', at: 3.3, from: -5.6, to: -3.3 },
+            { axis: 'v', at: 6.05, from: -5.6, to: -3.3 }
+        ]
     ];
     function isLegacyDefaultSegments(segs) {
-        if (!Array.isArray(segs) || segs.length !== LEGACY_DEFAULT_SEGMENTS.length) return false;
-        return segs.every(function (s, i) {
-            var b = LEGACY_DEFAULT_SEGMENTS[i];
-            return s.axis === b.axis && Math.abs(s.at - b.at) < 0.02 &&
-                Math.abs(s.from - b.from) < 0.02 && Math.abs(s.to - b.to) < 0.02;
+        if (!Array.isArray(segs)) return false;
+        return LEGACY_SEGMENT_SETS.some(function (set) {
+            if (segs.length !== set.length) return false;
+            return segs.every(function (s, i) {
+                var b = set[i];
+                return s.axis === b.axis && Math.abs(s.at - b.at) < 0.02 &&
+                    Math.abs(s.from - b.from) < 0.02 && Math.abs(s.to - b.to) < 0.02;
+            });
         });
     }
-    /* Tanda tangan furniture bawaan generasi sebelumnya [id, type, x, z]. */
-    var LEGACY_FURNITURE_SIG = [
-        ['sofa-1', 'sofa', -3.1, -0.2], ['sofa-2', 'sofa', -5.0, 1.9], ['sofa-3', 'sofa', -1.2, 1.9],
-        ['coffee-table', 'coffeetable', -3.1, 1.9], ['tv-1', 'tv', 3.0, -5.7],
-        ['bookshelf-1', 'bookshelf', 0.5, -5.7], ['bookshelf-2', 'bookshelf', 5.5, -5.7],
-        ['arcade-1', 'arcade', 7.9, -5.6], ['pingpong', 'pingpong', 10.0, -3.3],
-        ['beanbag-1', 'beanbag', 9.0, -0.7], ['beanbag-2', 'beanbag', 11.1, -0.7],
-        ['coffeebar', 'coffeebar', 8.1, 4.6], ['stool-1', 'stool', 7.4, 3.9], ['stool-2', 'stool', 8.8, 3.9],
-        ['pantry', 'pantry', 11.9, 3.0], ['fridge', 'fridge', 11.0, 4.4], ['galon', 'galon', 10.6, 2.7],
-        ['plant-1', 'plant', -10.4, -5.8], ['plant-2', 'plant', -10.5, 4.8], ['plant-3', 'plant', 11.8, -5.7],
-        ['tree-1', 'tree', -8.2, -9.5], ['tree-2', 'tree', -2.9, -9.3], ['tree-3', 'tree', 3.0, -9.2],
-        ['tree-4', 'tree', 8.2, -9.2], ['tree-5', 'tree', -14.0, -0.6], ['tree-6', 'tree', 15.2, -0.6],
-        ['lamp-1', 'lamp', -13.5, 6.7], ['lamp-2', 'lamp', 14.7, 6.5], ['lamp-3', 'lamp', 13.2, -7.1]
+    /* Tanda tangan furniture bawaan generasi sebelumnya [id, type, x, z]:
+       (a) sebelum denah pod, (b) denah pod dua-baris. */
+    var LEGACY_FURNITURE_SIGS = [
+        [
+            ['sofa-1', 'sofa', -3.1, -0.2], ['sofa-2', 'sofa', -5.0, 1.9], ['sofa-3', 'sofa', -1.2, 1.9],
+            ['coffee-table', 'coffeetable', -3.1, 1.9], ['tv-1', 'tv', 3.0, -5.7],
+            ['bookshelf-1', 'bookshelf', 0.5, -5.7], ['bookshelf-2', 'bookshelf', 5.5, -5.7],
+            ['arcade-1', 'arcade', 7.9, -5.6], ['pingpong', 'pingpong', 10.0, -3.3],
+            ['beanbag-1', 'beanbag', 9.0, -0.7], ['beanbag-2', 'beanbag', 11.1, -0.7],
+            ['coffeebar', 'coffeebar', 8.1, 4.6], ['stool-1', 'stool', 7.4, 3.9], ['stool-2', 'stool', 8.8, 3.9],
+            ['pantry', 'pantry', 11.9, 3.0], ['fridge', 'fridge', 11.0, 4.4], ['galon', 'galon', 10.6, 2.7],
+            ['plant-1', 'plant', -10.4, -5.8], ['plant-2', 'plant', -10.5, 4.8], ['plant-3', 'plant', 11.8, -5.7],
+            ['tree-1', 'tree', -8.2, -9.5], ['tree-2', 'tree', -2.9, -9.3], ['tree-3', 'tree', 3.0, -9.2],
+            ['tree-4', 'tree', 8.2, -9.2], ['tree-5', 'tree', -14.0, -0.6], ['tree-6', 'tree', 15.2, -0.6],
+            ['lamp-1', 'lamp', -13.5, 6.7], ['lamp-2', 'lamp', 14.7, 6.5], ['lamp-3', 'lamp', 13.2, -7.1]
+        ],
+        [
+            ['sofa-1', 'sofa', 5.6, 1.2], ['sofa-2', 'sofa', 3.9, 2.9], ['sofa-3', 'sofa', 7.3, 2.9],
+            ['coffee-table', 'coffeetable', 5.6, 2.9], ['tv-1', 'tv', 3.4, -5.7],
+            ['bookshelf-1', 'bookshelf', -9.9, -5.7], ['bookshelf-2', 'bookshelf', 6.4, -5.7],
+            ['arcade-1', 'arcade', 7.9, -5.6], ['pingpong', 'pingpong', 10.0, -3.3],
+            ['beanbag-1', 'beanbag', 9.0, -0.7], ['beanbag-2', 'beanbag', 11.1, -0.7],
+            ['coffeebar', 'coffeebar', 8.1, 4.6], ['stool-1', 'stool', 7.4, 3.9], ['stool-2', 'stool', 8.8, 3.9],
+            ['pantry', 'pantry', 11.9, 3.0], ['fridge', 'fridge', 11.0, 4.4], ['galon', 'galon', 10.6, 2.7],
+            ['plant-1', 'plant', -10.4, -5.8], ['plant-2', 'plant', -10.5, 4.8], ['plant-3', 'plant', 11.8, -5.7],
+            ['tree-1', 'tree', -8.2, -9.5], ['tree-2', 'tree', -2.9, -9.3], ['tree-3', 'tree', 3.0, -9.2],
+            ['tree-4', 'tree', 8.2, -9.2], ['tree-5', 'tree', -14.0, -0.6], ['tree-6', 'tree', 15.2, -0.6],
+            ['lamp-1', 'lamp', -13.5, 6.7], ['lamp-2', 'lamp', 14.7, 6.5], ['lamp-3', 'lamp', 13.2, -7.1]
+        ]
     ];
     function isLegacyDefaultFurniture(list) {
-        if (!Array.isArray(list) || list.length !== LEGACY_FURNITURE_SIG.length) return false;
-        return LEGACY_FURNITURE_SIG.every(function (sig) {
-            return list.some(function (f) {
-                return f.id === sig[0] && f.type === sig[1] &&
-                    Math.abs((Number(f.x) || 0) - sig[2]) < 0.02 && Math.abs((Number(f.z) || 0) - sig[3]) < 0.02;
+        if (!Array.isArray(list)) return false;
+        return LEGACY_FURNITURE_SIGS.some(function (set) {
+            if (list.length !== set.length) return false;
+            return set.every(function (sig) {
+                return list.some(function (f) {
+                    return f.id === sig[0] && f.type === sig[1] &&
+                        Math.abs((Number(f.x) || 0) - sig[2]) < 0.02 && Math.abs((Number(f.z) || 0) - sig[3]) < 0.02;
+                });
             });
         });
     }
@@ -1660,14 +1701,15 @@
         var cx = (b.minX + b.maxX) / 2;
         var cz = (b.minZ + b.maxZ) / 2;
 
-        /* --- Lingkungan luar: rumput, trotoar, jalan (seperti referensi) --- */
-        addFloorPlane(roomRoot, cx, -0.09, cz, 64, 44, 0x74b45e, 1);
+        /* --- Lingkungan luar gelap (gedung melayang seperti referensi):
+           tanah gelap, trotoar slate, jalan aspal gelap + marka --- */
+        addFloorPlane(roomRoot, cx, -0.09, cz, 64, 44, 0x141c28, 1);
         /* Trotoar keliling gedung */
         addFloorPlane(roomRoot, cx, -0.045, cz,
-            (b.maxX - b.minX) + 3.6, (b.maxZ - b.minZ) + 3.6, 0xc4c9cd, 0.95);
+            (b.maxX - b.minX) + 3.6, (b.maxZ - b.minZ) + 3.6, 0x27313f, 0.95);
         /* Jalan aspal di depan (+z) + marka putus-putus */
         var roadZ = b.maxZ + 4.6;
-        addFloorPlane(roomRoot, cx, -0.04, roadZ, 64, 5.4, 0x3a3f45, 0.95);
+        addFloorPlane(roomRoot, cx, -0.04, roadZ, 64, 5.4, 0x11161f, 0.95);
         var laneX;
         for (laneX = -24; laneX <= 24; laneX += 4) {
             box(roomRoot, laneX, -0.02, roadZ, 1.8, 0.012, 0.16, 0xf5f0dc, 0.8);
@@ -3461,6 +3503,25 @@
             isLegacyDefaultFurniture: isLegacyDefaultFurniture,
             getLayoutRef: function () { return LAYOUT; }
         },
-        getDefaultLayout: defaultLayoutData
+        getDefaultLayout: defaultLayoutData,
+        /**
+         * Migrasi layout bawaan lama → denah klaster studio saat ini.
+         * Dipakai editor Layout Kantor (app.js) agar layout tersimpan yang
+         * masih persis bawaan lama tampil sebagai denah baru; layout kustom
+         * dikembalikan apa adanya. Mengembalikan {layout, migrated}.
+         */
+        migrateLegacyLayout: function (cfg) {
+            if (!cfg || typeof cfg !== 'object' || !isLegacyDefaultDesks(cfg.desks)) {
+                return { layout: cfg, migrated: false };
+            }
+            var built = buildLayout(ROLE_STUDIO.length, cfg);
+            var out = {};
+            Object.keys(cfg).forEach(function (k) { out[k] = cfg[k]; });
+            out.desks = built.desks;
+            out.partitions = built.partitions;
+            out.meetingTable = built.meetingTable;
+            out.furniture = built.furniture;
+            return { layout: out, migrated: true };
+        }
     };
 })(typeof window !== 'undefined' ? window : globalThis);
