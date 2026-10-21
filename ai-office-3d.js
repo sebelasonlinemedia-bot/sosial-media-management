@@ -183,39 +183,39 @@
             wallHeight: 2.55,
             building: { minX: DEFAULT_BUILDING.minX, maxX: DEFAULT_BUILDING.maxX, minZ: DEFAULT_BUILDING.minZ, maxZ: DEFAULT_BUILDING.maxZ },
             /* Denah 4 studio persis referensi: tiap studio 7 meja — 1 meja
-               lead/manager di belakang-tengah + 3 meja agen menempel dinding
-               kiri (menghadap timur) + 3 meja agen menempel dinding kanan
-               (menghadap barat). Meeting bundar di tengah, lobi di
-               depan-tengah, dapur barat-bawah, olahraga di sudut bawah.
-               Studio A barat (Operations+Data) · B tengah-barat
-               (Marketing+Design) · C tengah-timur (Support+Legal+Sales) ·
-               D timur (Finance+Product+People).
-               Indeks meja 0..10 ditempati peran (ROLE_STUDIO); meja 11..27
-               workstation kosong siap pakai. */
+               lead/manager MENEMPEL dinding belakang + 3 meja agen MENEMPEL
+               dinding/partisi kaca kiri (agen menghadap dinding, kursi di
+               sisi ruang) + 3 meja agen MENEMPEL dinding/partisi kanan.
+               Tepi meja rapat ke dinding (pusat = dinding ± 0,36 m).
+               Meeting bundar di tengah, lobi di depan-tengah, dapur
+               barat-bawah, olahraga di sudut bawah.
+               Studio 1 Marketing · Studio 2 Sales · Studio 3 Operational ·
+               Studio 4 Support. Indeks meja 0..10 ditempati peran
+               (ROLE_STUDIO); meja 11..27 workstation kosong siap pakai. */
             desks: [
-                /* 0 Maya — lead Studio A */ [-12.45, -5.5, 0],
-                /* 1 Rani — lead Studio B */ [-5.95, -5.5, 0],
-                /* 2 Dimas — B kiri */ [-8.4, -4.6, Math.PI / 2],
-                /* 3 Salsa — B kanan */ [-3.5, -4.6, -Math.PI / 2],
-                /* 4 Titin — lead Studio C */ [7.35, -5.5, 0],
-                /* 5 Bimo — A kiri */ [-14.9, -3.1, Math.PI / 2],
-                /* 6 Nadira — C kiri */ [4.9, -4.6, Math.PI / 2],
-                /* 7 Reno — C kanan */ [9.8, -4.6, -Math.PI / 2],
-                /* 8 Fajar — lead Studio D */ [13.85, -5.5, 0],
-                /* 9 Prama — D kiri */ [11.4, -4.6, Math.PI / 2],
-                /* 10 Kirana — D kanan */ [16.3, -4.6, -Math.PI / 2],
-                /* Workstation kosong Studio A */
-                [-14.9, -4.6, Math.PI / 2], [-14.9, -1.6, Math.PI / 2],
-                [-10.0, -4.6, -Math.PI / 2], [-10.0, -3.1, -Math.PI / 2], [-10.0, -1.6, -Math.PI / 2],
-                /* Workstation kosong Studio B */
-                [-8.4, -3.1, Math.PI / 2], [-8.4, -1.6, Math.PI / 2],
-                [-3.5, -3.1, -Math.PI / 2], [-3.5, -1.6, -Math.PI / 2],
-                /* Workstation kosong Studio C */
-                [4.9, -3.1, Math.PI / 2], [4.9, -1.6, Math.PI / 2],
-                [9.8, -3.1, -Math.PI / 2], [9.8, -1.6, -Math.PI / 2],
-                /* Workstation kosong Studio D */
-                [11.4, -3.1, Math.PI / 2], [11.4, -1.6, Math.PI / 2],
-                [16.3, -3.1, -Math.PI / 2], [16.3, -1.6, -Math.PI / 2]
+                /* 0 Maya — lead Studio 1 */ [-12.45, -6.1, 0],
+                /* 1 Rani — lead Studio 2 */ [-5.95, -6.1, 0],
+                /* 2 Dimas — S2 kiri */ [-8.84, -4.6, -Math.PI / 2],
+                /* 3 Salsa — S2 kanan */ [-3.06, -4.6, Math.PI / 2],
+                /* 4 Titin — lead Studio 3 */ [7.35, -6.1, 0],
+                /* 5 Bimo — S1 kiri */ [-15.34, -3.1, -Math.PI / 2],
+                /* 6 Nadira — S3 kiri */ [4.46, -4.6, -Math.PI / 2],
+                /* 7 Reno — S3 kanan */ [10.24, -4.6, Math.PI / 2],
+                /* 8 Fajar — lead Studio 4 */ [13.85, -6.1, 0],
+                /* 9 Prama — S4 kiri */ [10.96, -4.6, -Math.PI / 2],
+                /* 10 Kirana — S4 kanan */ [16.74, -4.6, Math.PI / 2],
+                /* Workstation kosong Studio 1 */
+                [-15.34, -4.6, -Math.PI / 2], [-15.34, -1.6, -Math.PI / 2],
+                [-9.56, -4.6, Math.PI / 2], [-9.56, -3.1, Math.PI / 2], [-9.56, -1.6, Math.PI / 2],
+                /* Workstation kosong Studio 2 */
+                [-8.84, -3.1, -Math.PI / 2], [-8.84, -1.6, -Math.PI / 2],
+                [-3.06, -3.1, Math.PI / 2], [-3.06, -1.6, Math.PI / 2],
+                /* Workstation kosong Studio 3 */
+                [4.46, -3.1, -Math.PI / 2], [4.46, -1.6, -Math.PI / 2],
+                [10.24, -3.1, Math.PI / 2], [10.24, -1.6, Math.PI / 2],
+                /* Workstation kosong Studio 4 */
+                [10.96, -3.1, -Math.PI / 2], [10.96, -1.6, -Math.PI / 2],
+                [16.74, -3.1, Math.PI / 2], [16.74, -1.6, Math.PI / 2]
             ],
             furniture: defaultFurniture(),
             partitions: {
@@ -487,6 +487,20 @@
             [-3.9, -1.2, Math.PI], [3.2, -4.4, 0], [-7.0, -4.4, 0],
             [5.8, -4.4, 0], [4.5, -1.2, Math.PI], [7.6, -4.4, 0],
             [10.2, -4.4, 0], [8.9, -1.2, Math.PI]
+        ],
+        [
+            [-12.45, -5.5, 0], [-5.95, -5.5, 0], [-8.4, -4.6, Math.PI / 2],
+            [-3.5, -4.6, -Math.PI / 2], [7.35, -5.5, 0], [-14.9, -3.1, Math.PI / 2],
+            [4.9, -4.6, Math.PI / 2], [9.8, -4.6, -Math.PI / 2], [13.85, -5.5, 0],
+            [11.4, -4.6, Math.PI / 2], [16.3, -4.6, -Math.PI / 2],
+            [-14.9, -4.6, Math.PI / 2], [-14.9, -1.6, Math.PI / 2],
+            [-10.0, -4.6, -Math.PI / 2], [-10.0, -3.1, -Math.PI / 2], [-10.0, -1.6, -Math.PI / 2],
+            [-8.4, -3.1, Math.PI / 2], [-8.4, -1.6, Math.PI / 2],
+            [-3.5, -3.1, -Math.PI / 2], [-3.5, -1.6, -Math.PI / 2],
+            [4.9, -3.1, Math.PI / 2], [4.9, -1.6, Math.PI / 2],
+            [9.8, -3.1, -Math.PI / 2], [9.8, -1.6, -Math.PI / 2],
+            [11.4, -3.1, Math.PI / 2], [11.4, -1.6, Math.PI / 2],
+            [16.3, -3.1, -Math.PI / 2], [16.3, -1.6, -Math.PI / 2]
         ]
     ];
     function isLegacyDefaultDesks(desks) {
@@ -519,6 +533,20 @@
             { axis: 'v', at: -1.7, from: -5.7, to: -0.35 },
             { axis: 'v', at: 2.3, from: -5.7, to: -0.35 },
             { axis: 'v', at: 6.7, from: -5.7, to: -0.35 }
+        ],
+        [
+            { axis: 'v', at: -9.2, from: -6.3, to: -0.9 },
+            { axis: 'v', at: -2.7, from: -6.3, to: -0.9 },
+            { axis: 'v', at: 4.1, from: -6.3, to: -0.9 },
+            { axis: 'v', at: 10.6, from: -6.3, to: -0.9 },
+            { axis: 'h', at: -0.9, from: -15.5, to: -13.25 },
+            { axis: 'h', at: -0.9, from: -11.65, to: -9.4 },
+            { axis: 'h', at: -0.9, from: -9.0, to: -6.75 },
+            { axis: 'h', at: -0.9, from: -5.15, to: -2.9 },
+            { axis: 'h', at: -0.9, from: 4.3, to: 6.55 },
+            { axis: 'h', at: -0.9, from: 8.15, to: 10.4 },
+            { axis: 'h', at: -0.9, from: 10.8, to: 13.05 },
+            { axis: 'h', at: -0.9, from: 14.65, to: 16.9 }
         ]
     ];
     function isLegacyDefaultSegments(segs) {
@@ -573,6 +601,20 @@
             ['tree-1', 'tree', -8.2, -9.5], ['tree-2', 'tree', -2.9, -9.3], ['tree-3', 'tree', 3.0, -9.2],
             ['tree-4', 'tree', 8.2, -9.2], ['tree-5', 'tree', -14.0, -0.6], ['tree-6', 'tree', 15.2, -0.6],
             ['lamp-1', 'lamp', -13.5, 6.7], ['lamp-2', 'lamp', 14.7, 6.5], ['lamp-3', 'lamp', 13.2, -7.1]
+        ],
+        [
+            ['sofa-1', 'sofa', 0.7, 4.6], ['sofa-2', 'sofa', -0.6, 3.5], ['sofa-3', 'sofa', 2.0, 3.5],
+            ['coffee-table', 'coffeetable', 0.7, 3.5], ['tv-1', 'tv', 0.7, -6.32],
+            ['bookshelf-1', 'bookshelf', -0.9, -6.32], ['bookshelf-2', 'bookshelf', 2.3, -6.32],
+            ['arcade-1', 'arcade', 16.75, -6.15], ['pingpong', 'pingpong', 13.5, 3.8],
+            ['pingpong-2', 'pingpong', -12.3, 2.4],
+            ['beanbag-1', 'beanbag', 11.3, 2.7], ['beanbag-2', 'beanbag', 15.6, 2.9],
+            ['coffeebar', 'coffeebar', -13.2, 4.95], ['stool-1', 'stool', -13.9, 4.25], ['stool-2', 'stool', -12.5, 4.25],
+            ['pantry', 'pantry', -15.4, 1.8], ['fridge', 'fridge', -15.35, 3.1], ['galon', 'galon', -14.9, 2.4],
+            ['plant-1', 'plant', -15.4, -6.3], ['plant-2', 'plant', -15.4, 5.2], ['plant-3', 'plant', 16.8, 5.2],
+            ['tree-1', 'tree', -12.0, -9.8], ['tree-2', 'tree', -5.0, -9.6], ['tree-3', 'tree', 2.0, -9.6],
+            ['tree-4', 'tree', 9.0, -9.6], ['tree-5', 'tree', -19.5, -0.5], ['tree-6', 'tree', 20.8, -0.5],
+            ['lamp-1', 'lamp', -18.5, 7.0], ['lamp-2', 'lamp', 20.0, 6.8], ['lamp-3', 'lamp', 18.0, -8.5]
         ]
     ];
     function isLegacyDefaultFurniture(list) {

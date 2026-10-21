@@ -158,6 +158,28 @@ function ok(name, fn) {
         const mig2 = globalThis.AiOffice3D.migrateLegacyLayout(legacyCluster);
         assert.strictEqual(mig2.migrated, true, 'migrasi klaster → 4 studio terdeteksi');
 
+        // Meja menempel dinding/partisi: kolom kiri Studio 1 rapat ke dinding barat
+        assert.strictEqual(defLayout.desks[5][0], -15.34, 'meja kolom kiri menempel dinding (x=-15,34)');
+        assert.strictEqual(defLayout.desks[0][1], -6.1, 'meja lead menempel dinding belakang (z=-6,1)');
+        const floating28 = JSON.parse(JSON.stringify(defLayout));
+        floating28.desks = [
+            [-12.45, -5.5, 0], [-5.95, -5.5, 0], [-8.4, -4.6, Math.PI / 2],
+            [-3.5, -4.6, -Math.PI / 2], [7.35, -5.5, 0], [-14.9, -3.1, Math.PI / 2],
+            [4.9, -4.6, Math.PI / 2], [9.8, -4.6, -Math.PI / 2], [13.85, -5.5, 0],
+            [11.4, -4.6, Math.PI / 2], [16.3, -4.6, -Math.PI / 2],
+            [-14.9, -4.6, Math.PI / 2], [-14.9, -1.6, Math.PI / 2],
+            [-10.0, -4.6, -Math.PI / 2], [-10.0, -3.1, -Math.PI / 2], [-10.0, -1.6, -Math.PI / 2],
+            [-8.4, -3.1, Math.PI / 2], [-8.4, -1.6, Math.PI / 2],
+            [-3.5, -3.1, -Math.PI / 2], [-3.5, -1.6, -Math.PI / 2],
+            [4.9, -3.1, Math.PI / 2], [4.9, -1.6, Math.PI / 2],
+            [9.8, -3.1, -Math.PI / 2], [9.8, -1.6, -Math.PI / 2],
+            [11.4, -3.1, Math.PI / 2], [11.4, -1.6, Math.PI / 2],
+            [16.3, -3.1, -Math.PI / 2], [16.3, -1.6, -Math.PI / 2]
+        ];
+        const mig3 = globalThis.AiOffice3D.migrateLegacyLayout(floating28);
+        assert.strictEqual(mig3.migrated, true, 'migrasi denah melayang → menempel dinding terdeteksi');
+        assert.strictEqual(mig3.layout.desks[5][0], -15.34, 'hasil migrasi: meja rapat dinding');
+
         // 4 studio fisik (barat→timur): Marketing, Sales, Operational, Support
         const rooms = globalThis.AiOffice3D.__test.computeStudioRooms(defLayout);
         assert.strictEqual(rooms.length, 4, 'tepat 4 ruang studio fisik');
