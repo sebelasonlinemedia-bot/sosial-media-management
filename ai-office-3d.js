@@ -108,6 +108,25 @@
     /* Meja meeting MEMANJANG (elips sumbu-X): radius = skala lebar;
        setengah-panjang a = radius*1.6 (±3.2x lebar), setengah-lebar b. */
     var MEETING_LONG = 'elongated-meeting-v1';
+
+    /* Studio per departemen — urutan mengikuti registry peran
+       (lib/ai-roles.js: field `department`; lib/ai-departments.js).
+       Meja ke-i ditempati peran ke-i, jadi zona diturunkan dari posisi meja.
+       Dideklarasikan sebelum buildLayout pertama (dipakai di dalamnya). */
+    var ROLE_STUDIO = [
+        { roleId: 'manager', studio: 'Operations', color: 0xe11d48 },
+        { roleId: 'strategist', studio: 'Marketing', color: 0x0d9488 },
+        { roleId: 'copywriter', studio: 'Marketing', color: 0x0d9488 },
+        { roleId: 'visual-producer', studio: 'Design', color: 0x7c3aed },
+        { roleId: 'community-manager', studio: 'Support', color: 0x059669 },
+        { roleId: 'analyst', studio: 'Data', color: 0xd97706 },
+        { roleId: 'compliance', studio: 'Legal', color: 0x64748b },
+        { roleId: 'sales', studio: 'Sales', color: 0x0284c7 },
+        { roleId: 'finance', studio: 'Finance', color: 0x65a30d },
+        { roleId: 'product', studio: 'Product', color: 0xdb2777 },
+        { roleId: 'people', studio: 'People', color: 0x9333ea }
+    ];
+
     function meetingDims(table) {
         var r = (table && Number(table.radius)) || 1.05;
         return { r: r, a: r * 1.6, b: r * 0.62 };
@@ -238,6 +257,43 @@
             x: round2(info.x + off.x), z: round2(info.z + off.z),
             facing: Math.round(info.rot * 1000) / 1000, seated: true, seatY: 0.3
         };
+    }
+
+    /** Zona studio dari daftar meja: kelompokkan meja per studio peran,
+     *  pad = bounding box meja anggotanya + margin, dibatasi gedung. */
+    function computeStudioZones(desks, bounds) {
+        var groups = {};
+        var order = [];
+        (desks || []).forEach(function (d, i) {
+            var meta = ROLE_STUDIO[i];
+            if (!meta) return;
+            var info = deskInfo(d);
+            if (!groups[meta.studio]) {
+                groups[meta.studio] = {
+                    id: meta.studio.toLowerCase(), studio: meta.studio, color: meta.color,
+                    minX: info.x, maxX: info.x, minZ: info.z, maxZ: info.z, desks: 0
+                };
+                order.push(meta.studio);
+            }
+            var g = groups[meta.studio];
+            g.minX = Math.min(g.minX, info.x); g.maxX = Math.max(g.maxX, info.x);
+            g.minZ = Math.min(g.minZ, info.z); g.maxZ = Math.max(g.maxZ, info.z);
+            g.desks += 1;
+        });
+        return order.map(function (name) {
+            var g = groups[name];
+            var minX = g.minX - 1.55, maxX = g.maxX + 1.55;
+            var minZ = g.minZ - 1.35, maxZ = g.maxZ + 1.35;
+            if (bounds) {
+                minX = Math.max(bounds.minX + 0.15, minX); maxX = Math.min(bounds.maxX - 0.15, maxX);
+                minZ = Math.max(bounds.minZ + 0.15, minZ); maxZ = Math.min(bounds.maxZ - 0.15, maxZ);
+            }
+            return {
+                id: g.id, studio: g.studio, color: g.color, desks: g.desks,
+                cx: round2((minX + maxX) / 2), cz: round2((minZ + maxZ) / 2),
+                w: round2(maxX - minX), d: round2(maxZ - minZ)
+            };
+        });
     }
 
     /** Spot dari titik lokal furnitur + arah hadap lokal furnitur itu sendiri. */
@@ -376,6 +432,21 @@
         return stops;
     }
 
+    /* Bawaan meja lama (7) sebelum spesialis Sales/Finance/Product/People. */
+    var LEGACY_DEFAULT_DESKS = [
+        [-9.0, 3.6, Math.PI / 2], [-9.1, 1.1, Math.PI / 2], [-9.2, -1.5, Math.PI / 2],
+        [-8.5, -3.8, Math.PI / 4], [-5.9, -4.3, 0], [-3.1, -4.3, 0],
+        [3.7, 2.7, -Math.PI / 2]
+    ];
+    function isLegacyDefaultDesks(desks) {
+        if (!Array.isArray(desks) || desks.length !== LEGACY_DEFAULT_DESKS.length) return false;
+        return desks.every(function (d, i) {
+            var a = deskInfo(d);
+            var b = LEGACY_DEFAULT_DESKS[i];
+            return Math.abs(a.x - b[0]) < 0.02 && Math.abs(a.z - b[1]) < 0.02 && Math.abs(a.rot - b[2]) < 0.02;
+        });
+    }
+
     function buildLayout(agentCount, custom) {
         var cfg = custom && typeof custom === 'object' ? custom : null;
         var desks = (cfg && Array.isArray(cfg.desks) && cfg.desks.length
@@ -384,7 +455,23 @@
                 return [info.x, info.z, round2(info.rot)];
             })
             : defaultLayoutData().desks
-        ).slice(0, Math.max(1, agentCount));
+        );
+        /* Migrasi: layout yang masih persis bawaan lama (belum dikustom user)
+           dinaikkan ke bawaan 11 meja; layout kustom tidak disentuh. */
+        var migrated = false;
+        if (cfg && isLegacyDefaultDesks(desks)) {
+            desks = defaultLayoutData().desks.map(function (d) {
+                var info = deskInfo(d);
+                return [info.x, info.z, round2(info.rot)];
+            });
+            migrated = true;
+        }
+        /* Layout bawaan/migrasi mempertahankan meja untuk semua peran yang
+           dikenal (setLayout bisa dipanggil sebelum daftar karyawan dimuat). */
+        var keepDesks = (!cfg || migrated)
+            ? Math.max(agentCount, Math.min(desks.length, ROLE_STUDIO.length))
+            : Math.max(1, agentCount);
+        desks = desks.slice(0, Math.max(1, keepDesks));
 
         var building = cfg && cfg.building
             ? {
@@ -1123,6 +1210,42 @@
         return g;
     }
 
+    /** Partisi kaca futuristik: panel transparan + rel atas/bawah teal-grafit. */
+    function addGlassPartition(parent, x1, z1, x2, z2) {
+        var len = Math.hypot(x2 - x1, z2 - z1);
+        var angle = Math.atan2(z2 - z1, x2 - x1);
+        var g = groupAt(parent, (x1 + x2) / 2, 0, (z1 + z2) / 2, -angle);
+        var glass = box(g, 0, 1.12, 0, len, 1.94, 0.06, 0x9fd4e8, 0.12, 0.15, {
+            opacity: 0.32, emissive: 0x0e7490, emissiveIntensity: 0.08
+        });
+        glass.castShadow = false;
+        box(g, 0, 2.12, 0, len + 0.04, 0.05, 0.1, TEAL, 0.4, 0.2, {
+            emissive: 0x14b8a6, emissiveIntensity: 0.35
+        });
+        box(g, 0, 0.06, 0, len + 0.04, 0.12, 0.1, 0x334155, 0.4, 0.5);
+        return g;
+    }
+
+    /** Pad lantai zona studio (warna departemen) + garis tepi menyala. */
+    var studioZones = [];
+    var zoneLabelEls = [];
+    function addStudioZones(parent) {
+        studioZones = computeStudioZones(LAYOUT.desks, LAYOUT.building);
+        studioZones.forEach(function (zone) {
+            var pad = box(parent, zone.cx, 0.017, zone.cz, zone.w, 0.012, zone.d,
+                zone.color, 0.6, 0.05, {
+                    opacity: 0.15, emissive: zone.color, emissiveIntensity: 0.1
+                });
+            pad.castShadow = false;
+            var edgeGeo = new THREE.EdgesGeometry(new THREE.BoxGeometry(zone.w, 0.014, zone.d));
+            var edge = new THREE.LineSegments(edgeGeo, new THREE.LineBasicMaterial({
+                color: zone.color, transparent: true, opacity: 0.55
+            }));
+            edge.position.set(zone.cx, 0.02, zone.cz);
+            parent.add(edge);
+        });
+    }
+
     function addPlant(parent, x, z, size) {
         var s = size || 1;
         var g = groupAt(parent, x, 0, z);
@@ -1495,12 +1618,23 @@
         }
         /* Pohon, lampu jalan & gerobak digambar dari daftar mebel layout (bisa custom). */
 
-        /* --- Lantai kayu kantor (papan-papan) --- */
+        /* --- Lantai futuristik: panel terang + grid halus + strip cahaya --- */
         addFloorPlane(roomRoot, cx, 0.004, cz,
-            b.maxX - b.minX, b.maxZ - b.minZ, 0xd3b285, 0.88);
-        var plankZ;
-        for (plankZ = b.minZ + 0.55; plankZ < b.maxZ - 0.2; plankZ += 0.55) {
-            box(roomRoot, cx, 0.012, plankZ, b.maxX - b.minX - 0.1, 0.006, 0.025, 0xb9986e, 0.9);
+            b.maxX - b.minX, b.maxZ - b.minZ, 0xdfe8ef, 0.55);
+        var gridZ;
+        for (gridZ = b.minZ + 1.1; gridZ < b.maxZ - 0.2; gridZ += 1.1) {
+            box(roomRoot, cx, 0.012, gridZ, b.maxX - b.minX - 0.1, 0.006, 0.02, 0xb7c8d4, 0.7);
+        }
+        var gridX;
+        for (gridX = b.minX + 1.1; gridX < b.maxX - 0.2; gridX += 1.1) {
+            box(roomRoot, gridX, 0.012, cz, 0.02, 0.006, b.maxZ - b.minZ - 0.1, 0xc3d2dc, 0.7);
+        }
+        /* Strip cahaya cyan di jalur masuk (sisi terbuka +z) */
+        var glowX;
+        for (glowX = -8; glowX <= 10.5; glowX += 3) {
+            box(roomRoot, glowX, 0.02, b.maxZ - 0.55, 1.7, 0.014, 0.07, 0x22d3ee, 0.4, 0.1, {
+                emissive: 0x22d3ee, emissiveIntensity: 0.7
+            });
         }
 
         /* White room shell — front open for dollhouse.
@@ -1511,12 +1645,14 @@
         addWall(roomRoot, b.maxX, b.minZ, b.maxX, b.maxZ);
         addWall(roomRoot, b.minX, b.maxZ, b.minX + 2.2, b.maxZ, 0.5);
 
-        /* Partisi ruangan dari layout (bisa digeser/diperpendek/dihapus di editor) */
+        /* Partisi ruangan dari layout (bisa digeser/diperpendek/dihapus di editor).
+           Gaya futuristik: panel kaca + rel teal; navigasi agen tetap memakai
+           data segmen layout (bukan mesh), jadi tampilan aman diubah. */
         (LAYOUT.partitions && LAYOUT.partitions.segments || []).forEach(function (seg) {
             if (seg.axis === 'h') {
-                addWall(roomRoot, seg.from, seg.at, seg.to, seg.at);
+                addGlassPartition(roomRoot, seg.from, seg.at, seg.to, seg.at);
             } else {
-                addWall(roomRoot, seg.at, seg.from, seg.at, seg.to);
+                addGlassPartition(roomRoot, seg.at, seg.from, seg.at, seg.to);
             }
         });
 
@@ -1531,6 +1667,9 @@
            hard-coded di (-5.4,-3.85) juga dihapus: tidak ada di data layout
            dan pada denah bawaan kini menimpa area meja agen A5 — semua
            tanaman kini hanya dari daftar mebel layout. */
+
+        /* Zona studio per departemen (pad lantai berwarna di bawah klaster meja) */
+        addStudioZones(roomRoot);
 
         /* Work desks + colorful chairs */
         var chairColors = [TEAL, YELLOW, TEAL, YELLOW, TEAL, YELLOW, TEAL];
@@ -1906,10 +2045,25 @@
         return focusedRoleId;
     }
 
+    function createZoneLabels() {
+        zoneLabelEls = [];
+        if (!labelsRoot) return;
+        studioZones.forEach(function (zone) {
+            var el = document.createElement('div');
+            el.className = 'office-3d-zone-label';
+            el.dataset.studio = zone.id;
+            el.textContent = zone.studio;
+            el.style.display = 'none';
+            labelsRoot.appendChild(el);
+            zoneLabelEls.push(el);
+        });
+    }
+
     function rebuildLabels(employees) {
         if (!labelsRoot) return;
         labelsRoot.innerHTML = '';
         labelEls = [];
+        zoneLabelEls = [];
         catLabelEl = null;
         /* Pilihan agen untuk kamera follow/first-person ikut daftar karyawan. */
         var camAgentSel = container ? container.querySelector('#office-3d-cam-agent') : null;
@@ -1957,6 +2111,8 @@
         });
         labelsRoot.appendChild(catEl);
         catLabelEl = catEl;
+
+        createZoneLabels();
     }
 
     /* Prioritas penempatan label: terfokus → status aktif → selesai/siaga → idle. */
@@ -2076,6 +2232,23 @@
                 }
             }
         }
+
+        /* Label zona studio: hanya mode overview, tanpa interaksi (CSS
+           pointer-events:none) — diproyeksikan dari jangkar lantai zona. */
+        if (zoneLabelEls.length !== studioZones.length && labelsRoot) createZoneLabels();
+        zoneLabelEls.forEach(function (el, zi) {
+            var zone = studioZones[zi];
+            if (!zone || !overview) { el.style.display = 'none'; return; }
+            _scratchV.set(zone.cx, 0.05, zone.cz);
+            _scratchV.project(camera);
+            if (_scratchV.z >= 1) { el.style.display = 'none'; return; }
+            var zx = (_scratchV.x * 0.5 + 0.5) * rect.width;
+            var zy = (-_scratchV.y * 0.5 + 0.5) * rect.height;
+            zx = Math.min(rect.width - 40, Math.max(40, zx));
+            zy = Math.min(rect.height - 10, Math.max(30, zy));
+            el.style.display = 'block';
+            el.style.transform = 'translate(-50%, -50%) translate(' + zx.toFixed(1) + 'px, ' + zy.toFixed(1) + 'px)';
+        });
     }
 
     function updateHud() {
@@ -3160,6 +3333,7 @@
         followRoleId = null;
         cameraTour.active = false;
         labelEls = [];
+        zoneLabelEls = [];
         catLabelEl = null;
         container = null;
         canvas = null;
@@ -3212,12 +3386,21 @@
                 overview: !!(labelsRoot && labelsRoot.classList.contains('is-overview'))
             };
         },
+        getZoneState: function () {
+            return {
+                count: studioZones.length,
+                labels: zoneLabelEls.length,
+                zones: studioZones.map(function (z) { return z.id; })
+            };
+        },
         startTour: startTour,
         stopTour: stopTour,
         __test: {
             buildLayout: buildLayout, deskSeatSpot: deskSeatSpot, deskInfo: deskInfo,
             deriveIdleStops: deriveIdleStops, navPath: navPath, pointBlocked: pointBlocked,
             resolveLightingPeriod: resolveLightingPeriod,
+            computeStudioZones: computeStudioZones,
+            isLegacyDefaultDesks: isLegacyDefaultDesks,
             getLayoutRef: function () { return LAYOUT; }
         },
         getDefaultLayout: defaultLayoutData

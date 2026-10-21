@@ -79,5 +79,39 @@ function ok(name, fn) {
         assert.strictEqual(AI_ROLES.length, listRoles().length);
     });
 
+    await ok('zona studio 3D dari posisi meja (computeStudioZones)', () => {
+        require('../ai-office-3d.js');
+        const zones3d = globalThis.AiOffice3D.__test.computeStudioZones;
+        assert.strictEqual(typeof zones3d, 'function');
+        const desks = [
+            [-9, 3.6, 0], [-9.1, 1.1, 0], [-9.2, -1.5, 0], [-8.5, -3.8, 0],
+            [-5.9, -4.3, 0], [-3.1, -4.3, 0], [3.7, 2.7, 0], [-0.3, -4.3, 0],
+            [2.5, -4.3, 0], [5.6, -4.3, 0], [10.9, 3.4, 0]
+        ];
+        const bounds = { minX: -10.7, maxX: 12.1, minZ: -5.9, maxZ: 5.1 };
+        const zones = zones3d(desks, bounds);
+        assert.strictEqual(zones.length, 10, 'semua studio punya zona');
+        const marketing = zones.find(z => z.id === 'marketing');
+        assert.strictEqual(marketing.desks, 2, 'Marketing = 2 meja (Rani+Dimas)');
+        for (const z of zones) {
+            assert.ok(z.w > 0 && z.d > 0, `zona ${z.id} berukuran valid`);
+            assert.ok(z.cx - z.w / 2 >= bounds.minX - 0.01 && z.cx + z.w / 2 <= bounds.maxX + 0.01,
+                `zona ${z.id} di dalam gedung (x)`);
+            assert.ok(z.cz - z.d / 2 >= bounds.minZ - 0.01 && z.cz + z.d / 2 <= bounds.maxZ + 0.01,
+                `zona ${z.id} di dalam gedung (z)`);
+        }
+        assert.deepStrictEqual(zones3d([], bounds), [], 'tanpa meja → tanpa zona');
+        assert.strictEqual(typeof globalThis.AiOffice3D.getZoneState, 'function');
+
+        const isLegacy = globalThis.AiOffice3D.__test.isLegacyDefaultDesks;
+        const legacy = [
+            [-9.0, 3.6, Math.PI / 2], [-9.1, 1.1, Math.PI / 2], [-9.2, -1.5, Math.PI / 2],
+            [-8.5, -3.8, Math.PI / 4], [-5.9, -4.3, 0], [-3.1, -4.3, 0], [3.7, 2.7, -Math.PI / 2]
+        ];
+        assert.strictEqual(isLegacy(legacy), true, 'layout bawaan lama terdeteksi untuk migrasi');
+        const custom = legacy.map(d => [...d]); custom[0] = [0, 0, 0];
+        assert.strictEqual(isLegacy(custom), false, 'layout kustom tidak ditimpa migrasi');
+    });
+
     console.log(`\n${passed} grup asserts lolos.`);
 })().catch(err => { console.error('✗ GAGAL:', err.message); process.exit(1); });
