@@ -2463,7 +2463,11 @@ app._deptSkillByRole = {
     'visual-producer': '— (brief & arahan Maya/Rani)',
     'community-manager': '— (eskalasi ke Maya/manusia)',
     analyst: 'analytics-next-brief',
-    compliance: 'compliance-check'
+    compliance: 'compliance-check',
+    sales: 'general-tasks (outreach via email/whatsapp)',
+    finance: 'general-tasks (spreadsheet/dokumen)',
+    product: 'general-tasks (riset web/dokumen)',
+    people: 'general-tasks (dokumen)'
 };
 
 app.renderDepartmentStructure = async function () {
@@ -2543,13 +2547,19 @@ app.openSpecialistProfile = function (roleId) {
     const chatBtn = document.getElementById('dept-profile-chat');
     if (chatBtn) {
         chatBtn.addEventListener('click', () => {
-            const roleSelect = document.getElementById('ceo-chat-role');
-            if (roleSelect) roleSelect.value = roleId;
             this.switchView('mission');
-            const chatBox = document.getElementById('ceo-chat');
-            if (chatBox) chatBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            const input = document.getElementById('ceo-chat-input');
-            if (input) input.focus();
+            if (this.setMissionTab) this.setMissionTab('chat');
+            /* Opsi peran dibangun _fillCeoChatRoles saat tab chat aktif —
+               terapkan pilihan sesudahnya agar tidak tertimpa rebuild. */
+            setTimeout(() => {
+                if (this._fillCeoChatRoles) this._fillCeoChatRoles();
+                const roleSelect = document.getElementById('ceo-chat-role');
+                if (roleSelect) roleSelect.value = roleId;
+                const chatBox = document.getElementById('ceo-chat');
+                if (chatBox) chatBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                const input = document.getElementById('ceo-chat-input');
+                if (input) input.focus();
+            }, 400);
         });
     }
     const closeBtn = document.getElementById('dept-profile-close');
