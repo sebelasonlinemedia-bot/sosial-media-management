@@ -5077,3 +5077,9 @@ button.mission-cal-day:hover {
 
 .office-3d-tool-select { appearance: auto; }
 .office-3d-tool-select option { color: #0f172a; }
+
+/* Label 3D: mode overview (zoom jauh) ringkas + agen terfokus menonjol */
+.office-3d-labels.is-overview .office-3d-status-pill { font-size: 0.52rem; padding: 1px 5px; }
+.office-3d-labels.is-overview .office-3d-role-badge { font-size: 0.52rem; padding: 1px 6px; max-width: 84px; }
+.office-3d-label.is-focused .office-3d-role-badge { background: #0f766e; outline: 1px solid #2dd4bf; }
+.office-3d-label.is-focused .office-3d-status-pill { border-color: #2dd4bf; color: #5eead4; }

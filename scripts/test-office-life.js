@@ -48,6 +48,14 @@ assert(A.getCameraState().tourActive === true, 'tur aktif setelah startTour');
 A.stopTour();
 assert(A.getCameraState().tourActive === false, 'tur berhenti setelah stopTour');
 
+// Visual upgrade: fokus label + state label
+assert(typeof A.setFocusedRole === 'function', 'setFocusedRole tersedia');
+assert(A.setFocusedRole('copywriter') === 'copywriter', 'fokus tersimpan');
+assert(A.getFocusedRole() === 'copywriter', 'getFocusedRole konsisten');
+assert(A.setFocusedRole(null) === null, 'fokus bisa dibersihkan');
+const labelState = A.getLabelState();
+assert(labelState && labelState.count === 0 && labelState.hasCat === false, 'label state aman tanpa scene');
+
 if (failed) {
     console.error(`\n${failed} assertion gagal`);
     process.exit(1);

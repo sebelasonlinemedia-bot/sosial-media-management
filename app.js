@@ -2843,6 +2843,9 @@ app.syncOffice3DEmployees = function () {
 app.focusOfficeEmployee = function (roleId) {
     if (!roleId) return;
     appState.office.focusRoleId = roleId;
+    if (typeof AiOffice3D !== 'undefined' && typeof AiOffice3D.setFocusedRole === 'function') {
+        AiOffice3D.setFocusedRole(roleId);
+    }
     const select = document.getElementById('office-role-select');
     if (select) select.value = roleId;
 

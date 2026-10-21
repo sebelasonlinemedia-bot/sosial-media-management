@@ -468,6 +468,13 @@
     var followRoleId = null;
     var cameraTour = { active: false, startedAt: 0 };
     var CAT_NAME = 'Piko';
+    /* Label: cache elemen (dibuat sekali per rebuild, bukan per frame),
+       agen terfokus untuk prioritas tampilan, dan vektor coret dipakai ulang. */
+    var labelEls = [];
+    var catLabelEl = null;
+    var focusedRoleId = null;
+    var _scratchV = null;
+    var _scratchV2 = null;
 
     /* Orbit / pan / zoom (Ruang-like OrbitControls subset) */
     var orbit = {
@@ -1059,7 +1066,9 @@
     function box(parent, x, y, z, w, h, d, color, roughness, metalness, opts) {
         var mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(color, roughness, metalness, opts));
         mesh.position.set(x, y, z);
-        mesh.castShadow = false;
+        /* Bayangan selektif: hanya mesh yang meminta lewat opts.cast yang
+           melempar bayangan (hemat GPU); semua box tetap menerima. */
+        mesh.castShadow = !!(opts && opts.cast);
         mesh.receiveShadow = true;
         parent.add(mesh);
         return mesh;
@@ -1134,6 +1143,8 @@
                 mat(0x3f7a3c, 0.9, 0, { flatShading: true })
             );
             canopy.position.set(p[0], p[1], p[2]);
+            canopy.castShadow = true;
+            canopy.receiveShadow = true;
             g.add(canopy);
         });
     }
@@ -1187,8 +1198,8 @@
 
     function addWorkDesk(parent, x, z, active) {
         var g = groupAt(parent, x, 0, z);
-        /* Workdesk futuristik: top putih glossy melayang + tepi cahaya cyan */
-        box(g, 0, 0.74, 0, 1.9, 0.06, 0.95, 0xf8fafc, 0.22, 0.08);
+        /* Workdesk futuristik: top putih melayang + tepi cahaya cyan */
+        box(g, 0, 0.74, 0, 1.9, 0.06, 0.95, 0xf8fafc, 0.32, 0.06, { cast: true });
         box(g, 0, 0.715, -0.485, 1.9, 0.018, 0.018, 0x22d3ee, 0.4, 0.1, {
             emissive: 0x22d3ee, emissiveIntensity: 0.85
         });
@@ -1219,8 +1230,8 @@
     function addSofa(parent, x, z, rotY) {
         var g = groupAt(parent, x, 0, z, rotY || 0);
         var c = 0x5b6f8c;
-        box(g, 0, 0.28, 0, 2.4, 0.36, 0.9, c, 0.95);
-        box(g, 0, 0.66, -0.36, 2.4, 0.62, 0.2, c, 0.95);
+        box(g, 0, 0.28, 0, 2.4, 0.36, 0.9, c, 0.9, 0.02, { cast: true });
+        box(g, 0, 0.66, -0.36, 2.4, 0.62, 0.2, c, 0.9, 0.02, { cast: true });
         box(g, -1.12, 0.52, 0, 0.2, 0.42, 0.9, c, 0.95);
         box(g, 1.12, 0.52, 0, 0.2, 0.42, 0.9, c, 0.95);
         box(g, -0.5, 0.5, 0.05, 0.95, 0.14, 0.7, 0x6e83a2, 0.95);
@@ -1259,8 +1270,10 @@
     function addElongatedMeetingTable(parent, x, z, radius, spots, spotsLocal) {
         var g = groupAt(parent, x, 0, z);
         var dims = meetingDims({ radius: radius });
-        var top = cyl(g, 0, 0.74, 0, 1, 0.06, 0xf8fafc, 0.22, 0.08, { segments: 36 });
+        var top = cyl(g, 0, 0.74, 0, 1, 0.06, 0xf8fafc, 0.3, 0.06, { segments: 36 });
         top.scale.set(dims.a, 1, dims.b);
+        top.castShadow = true;
+        top.receiveShadow = true;
         var rim = cyl(g, 0, 0.705, 0, 1, 0.02, 0x22d3ee, 0.4, 0.1, {
             segments: 36, emissive: 0x22d3ee, emissiveIntensity: 0.7
         });
@@ -1286,7 +1299,7 @@
 
     function addPantryCounter(parent, x, z, rotY) {
         var g = groupAt(parent, x, 0, z, rotY || 0);
-        box(g, 0, 0.45, 0, 2, 0.9, 0.6, 0xf2eee6, 0.7);
+        box(g, 0, 0.45, 0, 2, 0.9, 0.6, 0xf2eee6, 0.75, 0.02, { cast: true });
         box(g, 0, 0.92, 0, 2.05, 0.05, 0.65, 0x3a3f44, 0.3, 0.2);
         cyl(g, -0.6, 1.07, 0, 0.16, 0.24, 0xf5f5f2, 0.5);
         cyl(g, -0.6, 1.2, 0, 0.14, 0.05, 0xd64545, 0.5, 0, { top: 0.1 });
@@ -1298,7 +1311,7 @@
 
     function addFridge(parent, x, z, rotY) {
         var g = groupAt(parent, x, 0, z, rotY || 0);
-        box(g, 0, 0.9, 0, 0.75, 1.8, 0.7, 0xdfe3e4, 0.35, 0.2);
+        box(g, 0, 0.9, 0, 0.75, 1.8, 0.7, 0xdfe3e4, 0.4, 0.15, { cast: true });
         box(g, 0.28, 1.0, 0.37, 0.03, 0.4, 0.03, 0x9aa2a6, 0.4, 0.4);
     }
 
@@ -1311,7 +1324,7 @@
 
     function addPingPong(parent, x, z) {
         var g = groupAt(parent, x, 0, z);
-        box(g, 0, 0.74, 0, 2.74, 0.05, 1.52, 0x1f5f8b, 0.45);
+        box(g, 0, 0.74, 0, 2.74, 0.05, 1.52, 0x1f5f8b, 0.5, 0.02, { cast: true });
         box(g, 0, 0.768, 0, 2.7, 0.004, 0.03, 0xffffff, 0.5);
         box(g, 0, 0.768, 0, 0.02, 0.004, 1.48, 0xffffff, 0.5);
         box(g, 0, 0.85, 0, 0.02, 0.16, 1.62, 0xf4f4f0, 0.4, 0, { opacity: 0.75 });
@@ -1322,7 +1335,7 @@
 
     function addArcade(parent, x, z, color) {
         var g = groupAt(parent, x, 0, z);
-        box(g, 0, 0.85, 0, 0.72, 1.7, 0.62, color, 0.5);
+        box(g, 0, 0.85, 0, 0.72, 1.7, 0.62, color, 0.55, 0.02, { cast: true });
         box(g, 0, 0.95, 0.32, 0.66, 0.06, 0.22, 0x1c1f24, 0.4);
         var screen = new THREE.Mesh(
             new THREE.PlaneGeometry(0.56, 0.44),
@@ -1359,7 +1372,7 @@
 
     function addBookshelf(parent, x, z, rotY) {
         var g = groupAt(parent, x, 0, z, rotY || 0);
-        box(g, 0, 1, 0, 1.4, 2, 0.4, 0x6b4a32, 0.7);
+        box(g, 0, 1, 0, 1.4, 2, 0.4, 0x6b4a32, 0.75, 0.02, { cast: true });
         var colors = [0xb54b45, 0x2f6f8f, 0xe0a43a, 0x4f8a4a, 0x6a4d8d, 0xdcd6c8];
         var shelf;
         for (shelf = 0; shelf < 3; shelf += 1) {
@@ -1431,6 +1444,20 @@
         scene.add(ambientLight);
         var key = new THREE.DirectionalLight(0xfff5e8, 1.05);
         key.position.set(8, 18, 10);
+        /* Bayangan fisik (Three r160): satu directional light saja, peta
+           2048, frustum pas gedung — dimatikan pada mode reduced. */
+        key.castShadow = !reduced;
+        if (key.shadow) {
+            key.shadow.mapSize.set(2048, 2048);
+            key.shadow.camera.left = -17;
+            key.shadow.camera.right = 17;
+            key.shadow.camera.top = 14;
+            key.shadow.camera.bottom = -14;
+            key.shadow.camera.near = 2;
+            key.shadow.camera.far = 48;
+            key.shadow.bias = -0.0004;
+            key.shadow.normalBias = 0.02;
+        }
         scene.add(key);
         var fill = new THREE.DirectionalLight(0xa8c8e0, 0.4);
         fill.position.set(-10, 8, -6);
@@ -1450,13 +1477,13 @@
         var cz = (b.minZ + b.maxZ) / 2;
 
         /* --- Lingkungan luar: rumput, trotoar, jalan (seperti referensi) --- */
-        addFloorPlane(roomRoot, cx, -0.09, cz, 64, 44, 0x79c25f, 1);
+        addFloorPlane(roomRoot, cx, -0.09, cz, 64, 44, 0x74b45e, 1);
         /* Trotoar keliling gedung */
         addFloorPlane(roomRoot, cx, -0.045, cz,
-            (b.maxX - b.minX) + 3.6, (b.maxZ - b.minZ) + 3.6, 0xc9cdd1, 0.95);
+            (b.maxX - b.minX) + 3.6, (b.maxZ - b.minZ) + 3.6, 0xc4c9cd, 0.95);
         /* Jalan aspal di depan (+z) + marka putus-putus */
         var roadZ = b.maxZ + 4.6;
-        addFloorPlane(roomRoot, cx, -0.04, roadZ, 64, 5.4, 0x3c4147, 0.95);
+        addFloorPlane(roomRoot, cx, -0.04, roadZ, 64, 5.4, 0x3a3f45, 0.95);
         var laneX;
         for (laneX = -24; laneX <= 24; laneX += 4) {
             box(roomRoot, laneX, -0.02, roadZ, 1.8, 0.012, 0.16, 0xf5f0dc, 0.8);
@@ -1465,10 +1492,10 @@
 
         /* --- Lantai kayu kantor (papan-papan) --- */
         addFloorPlane(roomRoot, cx, 0.004, cz,
-            b.maxX - b.minX, b.maxZ - b.minZ, 0xdcbc90, 0.8);
+            b.maxX - b.minX, b.maxZ - b.minZ, 0xd3b285, 0.88);
         var plankZ;
         for (plankZ = b.minZ + 0.55; plankZ < b.maxZ - 0.2; plankZ += 0.55) {
-            box(roomRoot, cx, 0.012, plankZ, b.maxX - b.minX - 0.1, 0.006, 0.025, 0xc9a876, 0.85);
+            box(roomRoot, cx, 0.012, plankZ, b.maxX - b.minX - 0.1, 0.006, 0.025, 0xb9986e, 0.9);
         }
 
         /* White room shell — front open for dollhouse.
@@ -1532,9 +1559,9 @@
 
     function addStartupDesk(parent, x, z, seatColor, rotY) {
         var g = groupAt(parent, x, 0, z, rotY || 0);
-        /* Meja futuristik: slab putih glossy melayang, kaki panel grafit
-           miring, dan strip cahaya cyan di tepi depan + bawah meja. */
-        box(g, 0, 0.72, 0, 1.35, 0.06, 0.72, 0xf8fafc, 0.22, 0.08);
+        /* Meja futuristik: slab putih melayang (roughness ditahan agar tidak
+           silau), kaki panel grafit miring, strip cahaya cyan di tepi depan. */
+        box(g, 0, 0.72, 0, 1.35, 0.06, 0.72, 0xf8fafc, 0.32, 0.06, { cast: true });
         box(g, 0, 0.7, 0.365, 1.35, 0.018, 0.018, 0x22d3ee, 0.4, 0.1, {
             emissive: 0x22d3ee, emissiveIntensity: 0.9
         });
@@ -1717,6 +1744,7 @@
         torso.position.y = 0.88;
         var chest = robotPart(assets.geo.torso, assets.mats.white, 0, 0, 0);
         chest.scale.set(1, 1, 0.82);
+        chest.castShadow = true;
         torso.add(chest);
         /* Garis aksen menyala di dada (warna peran) */
         torso.add(robotPart(assets.geo.strip, bodyMat, 0, 0.07, 0.168));
@@ -1731,6 +1759,7 @@
         head.position.y = 1.44;
         var skull = robotPart(assets.geo.skull, assets.mats.white, 0, 0, 0);
         skull.scale.set(1, 0.94, 0.96);
+        skull.castShadow = true;
         head.add(skull);
         var visor = robotPart(assets.geo.visor, assets.mats.visor, 0, -0.03, 0.115);
         visor.scale.set(0.86, 0.74, 0.72);
@@ -1863,9 +1892,20 @@
         return String(emp.id || emp.name || 'agent').slice(0, 16);
     }
 
+    function setFocusedRole(roleId) {
+        focusedRoleId = roleId || null;
+        labelEls.forEach(function (el) {
+            el.classList.toggle('is-focused', !!focusedRoleId && el.dataset.roleId === focusedRoleId);
+        });
+        if (catLabelEl) catLabelEl.classList.remove('is-focused');
+        return focusedRoleId;
+    }
+
     function rebuildLabels(employees) {
         if (!labelsRoot) return;
         labelsRoot.innerHTML = '';
+        labelEls = [];
+        catLabelEl = null;
         /* Pilihan agen untuk kamera follow/first-person ikut daftar karyawan. */
         var camAgentSel = container ? container.querySelector('#office-3d-cam-agent') : null;
         if (camAgentSel) {
@@ -1883,6 +1923,7 @@
             el.type = 'button';
             el.className = 'office-3d-label';
             el.dataset.roleId = emp.id;
+            if (focusedRoleId && emp.id === focusedRoleId) el.classList.add('is-focused');
             el.innerHTML =
                 '<span class="office-3d-action hidden" aria-hidden="true"></span>' +
                 '<span class="office-3d-status-pill" data-status="' + escapeHtml(emp.status || 'idle') + '">' +
@@ -1891,9 +1932,11 @@
                 '<span class="office-3d-role-badge">' + escapeHtml(roleBadge(emp)) + '</span>';
             el.addEventListener('click', function (e) {
                 e.stopPropagation();
+                setFocusedRole(emp.id);
                 if (typeof onSelect === 'function') onSelect(emp.id);
             });
             labelsRoot.appendChild(el);
+            labelEls.push(el);
         });
 
         var catEl = document.createElement('button');
@@ -1908,25 +1951,83 @@
             petCat();
         });
         labelsRoot.appendChild(catEl);
+        catLabelEl = catEl;
+    }
+
+    /* Prioritas penempatan label: terfokus → status aktif → selesai/siaga → idle. */
+    function labelPriority(ch) {
+        if (focusedRoleId && ch.userData.roleId === focusedRoleId) return 0;
+        var st = ch.userData.status || 'idle';
+        if (st === 'working' || st === 'needs_info' || st === 'awaiting_approval' || st === 'failed') return 1;
+        if (st === 'done' || st === 'standby') return 2;
+        return 3;
     }
 
     function updateLabelPositions() {
         if (!labelsRoot || !camera || !renderer) return;
+        if (!_scratchV) { _scratchV = new THREE.Vector3(); _scratchV2 = new THREE.Vector3(); }
         var rect = renderer.domElement.getBoundingClientRect();
-        var labels = labelsRoot.querySelectorAll('.office-3d-label');
-        characters.forEach(function (ch, i) {
-            var el = labels[i];
-            if (!el) return;
-            var pos = ch.position.clone();
-            pos.y = 2.05;
-            pos.project(camera);
-            var x = (pos.x * 0.5 + 0.5) * rect.width;
-            var y = (-pos.y * 0.5 + 0.5) * rect.height;
-            var visible = pos.z < 1;
-            el.style.display = visible ? 'flex' : 'none';
-            el.style.transform = 'translate(-50%, -100%) translate(' + x + 'px, ' + y + 'px)';
+        /* Zoom jauh (radius besar) = mode overview: label ringkas, teks aksi
+           hanya untuk label prioritas; dekat = detail penuh. */
+        var overview = !cameraTour.active && cameraMode === 'orbit' && orbit.spherical.radius > 26;
+        labelsRoot.classList.toggle('is-overview', overview);
+
+        /* Urutan penempatan deterministik berdasarkan prioritas — label penting
+           menempati posisi alaminya, label lain digeser ke atas / disembunyikan
+           (overview) bila bertabrakan. Tidak ada DOM baru per frame. */
+        var order = characters.map(function (ch, i) { return i; });
+        order.sort(function (a, b) {
+            return labelPriority(characters[a]) - labelPriority(characters[b]) || a - b;
+        });
+        var placed = [];
+        var labelW = overview ? 88 : 118;
+        var labelH = overview ? 26 : 46;
+
+        function claim(x, y, allowHide) {
+            var tries = [0, -labelH - 6, -2 * (labelH + 6)];
+            for (var ti = 0; ti < tries.length; ti += 1) {
+                var cy = y + tries[ti];
+                if (cy - labelH < 24) continue;
+                var hit = false;
+                for (var pi = 0; pi < placed.length; pi += 1) {
+                    var p = placed[pi];
+                    if (Math.abs(p.x - x) < (p.w + labelW) / 2 && Math.abs(p.y - cy) < (p.h + labelH) / 2) { hit = true; break; }
+                }
+                if (!hit) {
+                    placed.push({ x: x, y: cy, w: labelW, h: labelH });
+                    return cy;
+                }
+            }
+            return allowHide ? null : y - 2 * (labelH + 6);
+        }
+
+        order.forEach(function (i) {
+            var ch = characters[i];
+            var el = labelEls[i];
+            if (!el || !ch) return;
+            _scratchV.copy(ch.position);
+            _scratchV.y = 2.05;
+            _scratchV.project(camera);
+            if (_scratchV.z >= 1) {
+                el.style.display = 'none';
+                return;
+            }
+            var x = (_scratchV.x * 0.5 + 0.5) * rect.width;
+            var y = (-_scratchV.y * 0.5 + 0.5) * rect.height;
+            x = Math.min(rect.width - labelW / 2 - 4, Math.max(labelW / 2 + 4, x));
+            y = Math.min(rect.height - 4, Math.max(labelH + 26, y));
 
             var st = ch.userData.status || 'idle';
+            var focused = focusedRoleId && ch.userData.roleId === focusedRoleId;
+            var cy = claim(x, y, overview && !focused);
+            if (cy == null) {
+                el.style.display = 'none';
+                return;
+            }
+            el.style.display = 'flex';
+            el.style.transform = 'translate(-50%, -100%) translate(' + x.toFixed(1) + 'px, ' + cy.toFixed(1) + 'px)';
+            el.style.zIndex = focused ? '5' : String(4 - labelPriority(ch));
+
             var pill = el.querySelector('.office-3d-status-pill');
             if (pill && pill.dataset.status !== st) {
                 pill.dataset.status = st;
@@ -1937,8 +2038,9 @@
             var actionEl = el.querySelector('.office-3d-action');
             if (actionEl) {
                 var text = placement && placement.speech ? placement.speech : '';
-                if (text) {
-                    actionEl.textContent = text;
+                /* Overview: teks aksi hanya untuk agen terfokus / berstatus aktif. */
+                if (text && (!overview || focused || labelPriority(ch) <= 1)) {
+                    if (actionEl.textContent !== text) actionEl.textContent = text;
                     actionEl.classList.remove('hidden');
                     actionEl.classList.toggle('is-idle', st === 'idle');
                 } else {
@@ -1948,19 +2050,25 @@
             }
         });
 
-        var catEl = labelsRoot.querySelector('.office-3d-cat-label');
-        if (catEl && cat && cat.group) {
-            var cpos = cat.group.position.clone();
-            cpos.y = 1.05;
-            cpos.project(camera);
-            var cx = (cpos.x * 0.5 + 0.5) * rect.width;
-            var cy = (-cpos.y * 0.5 + 0.5) * rect.height;
-            catEl.style.display = cpos.z < 1 ? 'flex' : 'none';
-            catEl.style.transform = 'translate(-50%, -100%) translate(' + cx + 'px, ' + cy + 'px)';
-            var catAction = catEl.querySelector('.office-3d-action');
-            if (catAction) {
-                catAction.textContent = catStateText(Date.now());
-                catAction.classList.remove('hidden');
+        if (catLabelEl && cat && cat.group) {
+            _scratchV2.copy(cat.group.position);
+            _scratchV2.y = 1.05;
+            _scratchV2.project(camera);
+            if (_scratchV2.z >= 1) {
+                catLabelEl.style.display = 'none';
+            } else {
+                var cx = (_scratchV2.x * 0.5 + 0.5) * rect.width;
+                var cy2 = (-_scratchV2.y * 0.5 + 0.5) * rect.height;
+                cx = Math.min(rect.width - 48, Math.max(48, cx));
+                cy2 = Math.min(rect.height - 4, Math.max(50, cy2));
+                catLabelEl.style.display = 'flex';
+                catLabelEl.style.transform = 'translate(-50%, -100%) translate(' + cx.toFixed(1) + 'px, ' + cy2.toFixed(1) + 'px)';
+                var catAction = catLabelEl.querySelector('.office-3d-action');
+                if (catAction) {
+                    var catText = overview ? '' : catStateText(Date.now());
+                    if (catAction.textContent !== catText) catAction.textContent = catText;
+                    catAction.classList.toggle('hidden', !catText);
+                }
             }
         }
     }
@@ -1999,6 +2107,7 @@
         /* Kepala robot besar: reset dulu agar tak mewarisi putaran pose sebelumnya
            (pose thinking/review/waiting menimpanya lagi di bawah). */
         parts.head.rotation.y = 0;
+        parts.head.rotation.x = 0;
         if (walking) {
             var swing = Math.sin(t * 10 + ud.phase) * 0.55;
             parts.head.rotation.y = Math.sin(t * 5 + ud.phase) * 0.06;
@@ -2006,17 +2115,19 @@
             parts.rightLeg.rotation.x = -swing;
             parts.leftArm.rotation.x = -swing * 0.85;
             parts.rightArm.rotation.x = swing * 0.85;
-            parts.body.position.y = 0;
+            parts.body.position.y = Math.abs(Math.sin(t * 10 + ud.phase)) * 0.02;
             parts.torso.rotation.z = 0;
             return;
         }
 
         if (pose === 'slump' || activity === 'failed') {
+            /* Blocked/gagal: bahu jatuh + kepala menunduk — beda jelas dari idle. */
             parts.leftArm.rotation.x = 0.35;
             parts.rightArm.rotation.x = 0.35;
             parts.leftLeg.rotation.x = seated ? -Math.PI / 2.2 : 0;
             parts.rightLeg.rotation.x = seated ? -Math.PI / 2.2 : 0;
             parts.body.position.y = seated ? -0.12 : 0;
+            parts.head.rotation.x = 0.3;
             parts.torso.rotation.z = -0.1;
             return;
         }
@@ -2032,20 +2143,26 @@
         }
 
         if (activity === 'work') {
+            /* Mengetik: ayunan lengan kecil bergantian per fase agen (tidak
+               sinkron antaragen), kepala sedikit menunduk ke layar/keyboard. */
             parts.leftLeg.rotation.x = -Math.PI / 2.2;
             parts.rightLeg.rotation.x = -Math.PI / 2.2;
-            parts.leftArm.rotation.x = -1.05 + Math.sin(t * 14) * 0.12;
-            parts.rightArm.rotation.x = -1.05 + Math.cos(t * 14) * 0.12;
+            parts.leftArm.rotation.x = -1.02 + Math.sin(t * 9 + ud.phase) * 0.07;
+            parts.rightArm.rotation.x = -1.02 + Math.cos(t * 10.5 + ud.phase) * 0.08;
+            parts.head.rotation.x = 0.14;
+            parts.head.rotation.y = Math.sin(t * 0.8 + ud.phase) * 0.05;
             parts.body.position.y = -0.14;
             parts.torso.rotation.z = 0;
             return;
         }
 
         if (activity === 'review' || activity === 'needs_info') {
+            /* Review: satu tangan terangkat membaca, kepala memindai perlahan. */
             parts.leftLeg.rotation.x = -Math.PI / 2.2;
             parts.rightLeg.rotation.x = -Math.PI / 2.2;
             parts.leftArm.rotation.x = -0.35;
             parts.rightArm.rotation.x = -1.15;
+            parts.head.rotation.x = 0.08;
             parts.head.rotation.y = Math.sin(t * 1.4 + ud.phase) * 0.25;
             parts.body.position.y = -0.14;
             parts.torso.rotation.z = 0;
@@ -2210,11 +2327,13 @@
                     ud.blockedFor = 0;
                 }
                 if (moved) {
+                    /* Putaran menghadap berbasis delta-time: kecepatan putar
+                       sama di semua frame rate (dulu faktor tetap per frame). */
                     var heading = Math.atan2(dx, dz);
                     var dy = heading - ch.rotation.y;
                     while (dy > Math.PI) dy -= Math.PI * 2;
                     while (dy < -Math.PI) dy += Math.PI * 2;
-                    ch.rotation.y += dy * 0.22;
+                    ch.rotation.y += dy * Math.min(1, (dt || 0.016) * 11);
                 }
             }
         }
@@ -2223,7 +2342,7 @@
             var dy2 = (ud.targetFacing || 0) - ch.rotation.y;
             while (dy2 > Math.PI) dy2 -= Math.PI * 2;
             while (dy2 < -Math.PI) dy2 += Math.PI * 2;
-            ch.rotation.y += dy2 * 0.12;
+            ch.rotation.y += dy2 * Math.min(1, (dt || 0.016) * 7);
         }
 
         applyPose(ch, t, walking);
@@ -2288,6 +2407,7 @@
         var torso = new THREE.Mesh(new THREE.SphereGeometry(0.21, 18, 14), fur);
         torso.scale.set(0.85, 0.78, 1.45);
         torso.position.set(0, 0.34, 0);
+        torso.castShadow = true;
         body.add(torso);
         var chest = new THREE.Mesh(new THREE.SphereGeometry(0.15, 14, 12), cream);
         chest.scale.set(0.8, 0.75, 0.9);
@@ -2819,6 +2939,20 @@
             alpha: false,
             powerPreference: 'low-power'
         });
+        /* Manajemen warna & bayangan (Three r160): output sRGB + tone mapping
+           ACES yang ditahan agar warna material tidak pucat; bayangan PCF soft
+           hanya di mode penuh (reduced = layar kecil/hemat). */
+        if ('outputColorSpace' in renderer && THREE.SRGBColorSpace) {
+            renderer.outputColorSpace = THREE.SRGBColorSpace;
+        }
+        if (THREE.ACESFilmicToneMapping) {
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.06;
+        }
+        if (renderer.shadowMap) {
+            renderer.shadowMap.enabled = !reduced;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        }
         renderer.setClearColor(0xb8d4e8, 1);
         if (!canvas) {
             canvas = renderer.domElement;
@@ -3020,6 +3154,8 @@
         cameraMode = 'orbit';
         followRoleId = null;
         cameraTour.active = false;
+        labelEls = [];
+        catLabelEl = null;
         container = null;
         canvas = null;
         labelsRoot = null;
@@ -3060,6 +3196,16 @@
         setCameraMode: setCameraMode,
         getCameraState: function () {
             return { mode: cameraMode, followRoleId: followRoleId, tourActive: !!cameraTour.active };
+        },
+        setFocusedRole: setFocusedRole,
+        getFocusedRole: function () { return focusedRoleId; },
+        getLabelState: function () {
+            return {
+                count: labelEls.length,
+                hasCat: !!catLabelEl,
+                focusedRoleId: focusedRoleId,
+                overview: !!(labelsRoot && labelsRoot.classList.contains('is-overview'))
+            };
         },
         startTour: startTour,
         stopTour: stopTour,
