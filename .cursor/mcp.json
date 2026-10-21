@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "piks-digital-lab": {
+      "command": "node",
+      "args": ["mcp/server.js"],
+      "env": {
+        "PIKS_BASE_URL": "http://localhost:3000"
+      }
+    }
+  }
+}

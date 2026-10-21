@@ -8,6 +8,7 @@
         "includeFiles": [
           "automation/**",
           "lib/**",
+          "mcp/**",
           "js/**",
           "schema.sql",
           "index.html",

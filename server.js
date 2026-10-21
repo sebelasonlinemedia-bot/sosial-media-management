@@ -3130,6 +3130,38 @@ app.get('/api/cron/publish', async (req, res) => {
 });
 
 // ============================================================
+// MCP Server (Streamable HTTP) — /mcp
+// Tool MCP meneruskan ke REST API dengan token pemanggil, jadi gate yang
+// sama tetap berlaku. Wajib login (Bearer session token / cookie).
+// ============================================================
+try {
+    const { createPiksMcpServer } = require('./mcp/create-server');
+    const { StreamableHTTPServerTransport } = require('@modelcontextprotocol/sdk/server/streamableHttp.js');
+
+    app.all('/mcp', auth.requireAuth, async (req, res) => {
+        try {
+            const baseUrl = `${req.protocol}://${req.get('host')}`;
+            const mcpServer = createPiksMcpServer({ baseUrl, token: req.sessionToken });
+            const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
+            res.on('close', () => {
+                transport.close().catch(() => {});
+                mcpServer.close().catch(() => {});
+            });
+            await mcpServer.connect(transport);
+            await transport.handleRequest(req, res, req.body);
+        } catch (err) {
+            console.error('[MCP] request error:', err.message);
+            if (!res.headersSent) {
+                res.status(500).json({ success: false, message: 'MCP server error.' });
+            }
+        }
+    });
+    console.log('🔌 [MCP] Endpoint /mcp aktif (Streamable HTTP, wajib auth).');
+} catch (err) {
+    console.warn('⚠️  [MCP] Endpoint /mcp tidak tersedia:', err.message);
+}
+
+// ============================================================
 // Serve Frontend (Fallback ke index.html)
 // ============================================================
 app.get('*', (req, res) => {
