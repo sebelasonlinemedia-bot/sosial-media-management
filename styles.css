@@ -5036,3 +5036,28 @@ button.mission-cal-day:hover {
     margin: 0 0 8px;
     color: var(--text-primary, #e2e8f0);
 }
+
+/* ==========================================================================
+   VIEW: TENTANG APLIKASI
+   ========================================================================== */
+.about-hero { text-align: center; padding: 36px 28px; }
+.about-hero-badge { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-bottom: 16px; }
+.about-hero-title { font-size: 1.6rem; font-weight: 800; margin: 0 0 12px; }
+.about-hero-desc { max-width: 760px; margin: 0 auto; line-height: 1.65; }
+.about-hero-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 20px; }
+.about-grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; }
+.about-list { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 10px; line-height: 1.6; font-size: 0.9rem; }
+.about-flow { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 10px; line-height: 1.6; font-size: 0.9rem; }
+.about-table td, .about-table th { vertical-align: top; }
+.about-agents-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+.about-agent-card { border-top: 4px solid var(--agent-color, var(--indigo)); display: flex; flex-direction: column; }
+.about-agent-head { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; }
+.about-agent-avatar { width: 52px; height: 52px; flex-shrink: 0; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; background: color-mix(in srgb, var(--agent-color, #6366f1) 14%, transparent); }
+.about-agent-head h3 { margin: 0; font-size: 1.1rem; font-weight: 800; }
+.about-agent-head p { margin: 2px 0 0; font-size: 0.8rem; font-weight: 600; color: var(--agent-color, var(--indigo)); }
+.about-agent-desc { margin: 0 0 14px; line-height: 1.6; font-size: 0.9rem; color: var(--text-secondary); }
+.about-agent-meta { margin: 0 0 14px; display: flex; flex-direction: column; gap: 8px; }
+.about-agent-meta div { display: grid; grid-template-columns: 92px 1fr; gap: 8px; font-size: 0.82rem; line-height: 1.5; }
+.about-agent-meta dt { font-weight: 700; color: var(--text-muted); }
+.about-agent-meta dd { margin: 0; }
+.about-agent-example { margin: auto 0 0; padding: 10px 12px; border-radius: 10px; background: rgba(99, 102, 241, 0.07); border: 1px solid rgba(99, 102, 241, 0.16); font-size: 0.82rem; font-style: italic; line-height: 1.5; }

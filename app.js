@@ -188,7 +188,7 @@ const app = {
 
         // Render pertama — Mission Control sebagai halaman depan
         const hashView = (location.hash || '').replace(/^#/, '').trim();
-        const allowed = ['mission', 'dashboard', 'composer', 'queue', 'office', 'accounts', 'analytics', 'settings', 'layout'];
+        const allowed = ['mission', 'dashboard', 'composer', 'queue', 'office', 'accounts', 'analytics', 'settings', 'layout', 'about'];
         this.switchView(allowed.includes(hashView) ? hashView : 'mission');
         lucide.createIcons();
     },
@@ -433,7 +433,8 @@ const app = {
                 accounts: 'AKUN',
                 analytics: 'ANALISIS',
                 settings: 'PENGATURAN',
-                layout: 'LAYOUT KANTOR'
+                layout: 'LAYOUT KANTOR',
+                about: 'TENTANG'
             };
             sectionLabel.textContent = labels[viewName] || 'APP';
         }
@@ -465,7 +466,8 @@ const app = {
             accounts: { title: 'Akun Terhubung', subtitle: 'Tautkan profil, halaman, dan channel sosial media Anda.' },
             analytics: { title: 'Analisis Konten', subtitle: 'Analisis jangkauan, impresi, interaksi, dan rasio keberhasilan postingan.' },
             settings: { title: 'Pengaturan', subtitle: 'Otonomi & pengamanan karyawan AI — tingkat otonomi, notifikasi, izin platform per peran, dan LLM / Chat CEO.' },
-            layout: { title: 'Layout Kantor', subtitle: 'Atur denah kantor 3D — tinggi dinding, ukuran gedung, meja agen, dan tata letak mebel.' }
+            layout: { title: 'Layout Kantor', subtitle: 'Atur denah kantor 3D — tinggi dinding, ukuran gedung, meja agen, dan tata letak mebel.' },
+            about: { title: 'Tentang Aplikasi', subtitle: "Profil PiK's Digital Lab, fitur, dan kemampuan masing-masing agen Tim Konten AI." }
         };
 
         const titleEl = document.getElementById('view-title');
@@ -879,7 +881,7 @@ app.setupMissionEvents = function () {
     window.addEventListener('hashchange', () => {
         if (!appState.user) return;
         const hashView = (location.hash || '').replace(/^#/, '').trim();
-        const allowed = ['mission', 'dashboard', 'composer', 'queue', 'office', 'accounts', 'analytics', 'settings', 'layout'];
+        const allowed = ['mission', 'dashboard', 'composer', 'queue', 'office', 'accounts', 'analytics', 'settings', 'layout', 'about'];
         if (allowed.includes(hashView) && hashView !== appState.currentView) {
             this.switchView(hashView);
         }
