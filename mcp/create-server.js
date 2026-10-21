@@ -181,6 +181,40 @@ function createPiksMcpServer({ baseUrl, token } = {}) {
             }));
         });
 
+    /* ---- Tugas Umum Kantor AI (Fase A–D): di luar publish sosmed ---- */
+
+    tool('list_task_types',
+        'Katalog tugas umum Kantor AI: research (riset web), email, document, spreadsheet (CSV), image, whatsapp, general (LLM). Memuat peran bawaan, field wajib, dan apakah tugas bersifat keluar (butuh approval).',
+        {},
+        async () => api('/api/ai/task-types'));
+
+    tool('create_task',
+        'Buat job tugas umum (bukan publish sosmed). taskType dari list_task_types; input sesuai hint tiap tipe. Job dibuat queued; jalankan dengan execute_task. Brief opsional — bila kosong disintesis dari input.',
+        {
+            taskType: z.string(),
+            input: z.record(z.string(), z.any()),
+            brief: z.string().optional(),
+            roleId: z.string().optional()
+        },
+        async ({ taskType, input, brief, roleId }) => api('/api/ai/jobs', {
+            method: 'POST',
+            body: { taskType, taskInput: input, brief, roleId }
+        }));
+
+    tool('execute_task',
+        'Eksekusi job tugas umum. Tugas keluar (email/whatsapp) bisa berhenti di awaiting_approval sesuai otonomi — setujui dulu (approve_job autoRun=false) atau forceExecute khusus admin/approver atas izin user. Hasil di job.taskResult; dokumen/CSV diunduh via GET /api/ai/jobs/:id/artifact.',
+        { jobId: z.string(), forceExecute: z.boolean().optional() },
+        async ({ jobId, forceExecute }) => api(`/api/ai/jobs/${encodeURIComponent(jobId)}/execute`, {
+            method: 'POST', body: { forceExecute: forceExecute === true }
+        }));
+
+    tool('research_web',
+        'Riset web cepat (Rani): ambil maks 3 URL, ringkas via LLM bila terkonfigurasi. Membuat job research yang langsung dieksekusi; hasil ringkasan + kutipan sumber di job.taskResult.',
+        { urls: z.array(z.string()).min(1).max(3), query: z.string().optional() },
+        async ({ urls, query }) => api('/api/ai/research', {
+            method: 'POST', body: { urls, query }
+        }));
+
     return server;
 }
 

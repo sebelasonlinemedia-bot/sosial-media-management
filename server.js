@@ -43,6 +43,7 @@ const {
     appendDecision,
     enforceRolePlatforms,
     enforceRoleSkill,
+    resolveAutonomy,
     KNOWN_SKILLS,
     FURNITURE_TYPES,
     ALL_PLATFORMS,
@@ -50,7 +51,15 @@ const {
 } = require('./lib/ai-policy');
 const { checkExpectedVersion, buildRevision } = require('./lib/draft-history');
 const { isEncryptionEnabled, warnIfNoEncryptionKey, encryptSecret } = require('./lib/token-crypto');
-const { listProviders } = require('./lib/llm');
+const { listProviders, chatCompletion } = require('./lib/llm');
+const { resolveLlmApiKey } = require('./lib/llm-keys');
+const {
+    TASK_TYPES,
+    normalizeTaskType,
+    getTaskType,
+    listTaskTypes,
+    executeTask
+} = require('./lib/task-executors');
 const { runCeoChatTurn } = require('./lib/ceo-chat');
 const {
     resolveCrewPresenceUpdate,
@@ -2411,8 +2420,22 @@ app.post('/api/ai/jobs', async (req, res) => {
             variantA,
             variantB,
             abWinner,
-            skillId
+            skillId,
+            taskType,
+            taskInput
         } = req.body || {};
+
+        // Tugas umum (Fase A–D): taskType mengubah job dari publish sosmed
+        // menjadi tugas kantor umum yang dijalankan POST /api/ai/jobs/:id/execute.
+        const resolvedTaskType = taskType ? normalizeTaskType(taskType) : null;
+        if (taskType && !resolvedTaskType) {
+            return res.status(400).json({
+                success: false,
+                message: `taskType tidak dikenal: ${taskType}. Pilihan: ${Object.keys(TASK_TYPES).join(', ')}.`
+            });
+        }
+        const taskDef = resolvedTaskType ? getTaskType(resolvedTaskType) : null;
+        const cleanTaskInput = taskInput && typeof taskInput === 'object' ? taskInput : {};
 
         let briefInput = structuredBrief || brief;
         if (templateId && !briefInput) {
@@ -2424,7 +2447,15 @@ app.post('/api/ai/jobs', async (req, res) => {
             ? { thin: false, questions: [], structured: null, text: String(brief || '').trim() }
             : assessStructuredBrief(briefInput);
 
-        const briefText = assessment.text || String(brief || '').trim();
+        let briefText = assessment.text || String(brief || '').trim();
+        if (!briefText && resolvedTaskType) {
+            // Brief tugas umum disintesis dari input agar kartu job tetap terbaca.
+            const firstVals = Object.entries(cleanTaskInput)
+                .slice(0, 3)
+                .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : String(v ?? '').slice(0, 80)}`)
+                .join(' · ');
+            briefText = `[${taskDef.label}] ${firstVals}`.trim();
+        }
         if (!briefText && !forceQueued) {
             return res.status(400).json({
                 success: false,
@@ -2432,7 +2463,11 @@ app.post('/api/ai/jobs', async (req, res) => {
             });
         }
 
-        const role = resolveRole({ roleId, employeeRole, employeeName });
+        const role = resolveRole({
+            roleId: roleId || (taskDef ? taskDef.defaultRoleId : null),
+            employeeRole,
+            employeeName
+        });
         if (roleId && !getRoleById(roleId) && !role) {
             return res.status(400).json({
                 success: false,
@@ -2440,13 +2475,17 @@ app.post('/api/ai/jobs', async (req, res) => {
             });
         }
 
-        const status = assessment.thin ? 'needs_info' : 'queued';
+        // Tugas umum: kelengkapan dinilai dari taskInput oleh executor
+        // (missing → needs_info saat execute), bukan dari ketipisan brief.
+        const status = (assessment.thin && !resolvedTaskType) ? 'needs_info' : 'queued';
         const fromStructured = assessment.structured?.platforms?.length
             ? assessment.structured.platforms
             : null;
         let resolvedPlatforms = Array.isArray(platforms) && platforms.length
             ? platforms.map(p => String(p).toLowerCase())
             : (fromStructured || role?.defaultPlatforms || []);
+        // Tugas umum tidak terikat platform sosmed — izin platform tidak berlaku.
+        if (resolvedTaskType) resolvedPlatforms = [];
 
         const settings = await db.getAiSettings();
         const resolvedRoleId = role?.id || (roleId ? normalizeRoleId(roleId) : null);
@@ -2478,7 +2517,9 @@ app.post('/api/ai/jobs', async (req, res) => {
 
         let decisionLog = appendDecision([], {
             actor: role?.name || 'system',
-            reason: assessment.thin ? 'Brief tipis — needs_info' : 'Brief cukup — queued',
+            reason: resolvedTaskType
+                ? `Tugas umum ${resolvedTaskType} dibuat — queued`
+                : (assessment.thin ? 'Brief tipis — needs_info' : 'Brief cukup — queued'),
             status
         });
 
@@ -2526,6 +2567,10 @@ app.post('/api/ai/jobs', async (req, res) => {
             employeeRole: (employeeRole || role?.id || 'content').trim(),
             roleId: resolvedRoleId,
             skillId: skillId ? String(skillId).trim() : null,
+            taskType: resolvedTaskType,
+            taskInput: resolvedTaskType ? cleanTaskInput : null,
+            taskResult: null,
+            taskArtifact: null,
             variantA: abVariants.A || '',
             variantB: abVariants.B || '',
             abWinner: (abWinner === 'A' || abWinner === 'B') ? abWinner : null,
@@ -2539,7 +2584,7 @@ app.post('/api/ai/jobs', async (req, res) => {
             actor: job.employeeName,
             action: 'job_created',
             target: job.id,
-            detail: { status, roleId: job.roleId, thin: assessment.thin }
+            detail: { status, roleId: job.roleId, thin: assessment.thin, taskType: resolvedTaskType }
         });
 
         if (status === 'needs_info') {
@@ -2640,6 +2685,278 @@ app.post('/api/ai/jobs/:id/answer', async (req, res) => {
         res.json({ success: true, job: updated });
     } catch (err) {
         console.error('📋 [AI-JOB] answer error:', err.message);
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+/* ------------------------------------------------------------------ *
+ * Tugas Umum Kantor AI (Fase A–D) — lib/task-executors.js
+ * Job dengan taskType dijalankan di sini, BUKAN lewat /run (publish).
+ * Gate: emergencyPause memblokir aksi keluar (email/whatsapp);
+ * aksi keluar butuh approval kecuali limited_autonomous / approvedAt /
+ * forceExecute (admin/approver). Hasil tersimpan di job.taskResult,
+ * artefak file (dokumen/CSV) di job.taskArtifact.
+ * ------------------------------------------------------------------ */
+
+function buildTaskCtx(settings) {
+    const resolved = resolveLlmApiKey(settings);
+    const llm = (settings && settings.llm) || {};
+    const llmText = resolved.apiKey
+        ? async (prompt) => {
+            const raw = await chatCompletion({
+                provider: llm.provider || 'gemini',
+                model: llm.model || undefined,
+                apiKey: resolved.apiKey,
+                system: 'Kamu karyawan AI Kantor PiK\'s Digital Lab. Balas HANYA JSON valid sesuai instruksi.',
+                messages: [{ role: 'user', content: prompt }]
+            });
+            try {
+                const parsed = JSON.parse(raw);
+                return parsed.result || parsed.summary || raw;
+            } catch {
+                return raw;
+            }
+        }
+        : null;
+    return {
+        llmText,
+        openAiKey: String(llm.provider || '').toLowerCase() === 'openai' ? resolved.apiKey : '',
+        env: process.env
+    };
+}
+
+async function runTaskExecution(job, settings, { forceExecute = false, actor = 'user' } = {}) {
+    const def = getTaskType(job.taskType);
+    const outward = !!def.outward;
+    const autonomy = resolveAutonomy(settings);
+
+    if (settings.emergencyPause && outward) {
+        return {
+            blocked: true,
+            status: 403,
+            message: 'Jeda darurat (emergencyPause) aktif — aksi keluar (email/WhatsApp) diblokir.'
+        };
+    }
+    if (outward && autonomy.autonomyLevel !== 'limited_autonomous' && !job.approvedAt && !forceExecute) {
+        const history = Array.isArray(job.draftHistory) ? [...job.draftHistory] : [];
+        history.push({
+            at: new Date().toISOString(),
+            type: 'task_approval',
+            version: draftVersionLabel(job.version || 1),
+            note: `Menunggu approval untuk tugas keluar: ${def.label}`
+        });
+        const updated = await db.updateAiJob(job.id, {
+            status: 'awaiting_approval',
+            draftHistory: history,
+            decisionLog: appendDecision(job.decisionLog, {
+                actor: job.employeeName || 'system',
+                reason: `Tugas keluar (${def.label}) menunggu approval — otonomi ${autonomy.autonomyLevel}`,
+                status: 'awaiting_approval'
+            })
+        });
+        return { awaitingApproval: true, job: updated };
+    }
+
+    await db.updateAiJob(job.id, { status: 'working', lastError: null });
+    let result;
+    try {
+        result = await executeTask(def.id, job.taskInput || {}, buildTaskCtx(settings));
+    } catch (err) {
+        result = { ok: false, summary: `Executor gagal: ${err.message}` };
+    }
+
+    const history = Array.isArray(job.draftHistory) ? [...job.draftHistory] : [];
+    if (!result.ok && Array.isArray(result.missing) && result.missing.length) {
+        const questions = result.missing.map(f => `Isi field "${f}" untuk tugas ${def.label}.`);
+        history.push({
+            at: new Date().toISOString(),
+            type: 'task_needs_info',
+            version: draftVersionLabel(job.version || 1),
+            note: result.summary
+        });
+        const updated = await db.updateAiJob(job.id, {
+            status: 'needs_info',
+            questions,
+            draftHistory: history,
+            lastError: result.summary
+        });
+        return { needsInfo: true, questions, job: updated, result };
+    }
+
+    history.push({
+        at: new Date().toISOString(),
+        type: 'task_result',
+        version: draftVersionLabel(job.version || 1),
+        note: String(result.summary || '').slice(0, 300),
+        simulated: !!result.simulated
+    });
+
+    const artifact = result.artifact
+        ? {
+            filename: result.artifact.filename,
+            mime: result.artifact.mime,
+            content: String(result.artifact.content || '').slice(0, 200000),
+            at: new Date().toISOString()
+        }
+        : null;
+
+    const updated = await db.updateAiJob(job.id, {
+        status: result.ok ? 'done' : 'failed',
+        draftHistory: history,
+        decisionLog: appendDecision(job.decisionLog, {
+            actor: job.employeeName || actor,
+            reason: String(result.summary || '').slice(0, 200),
+            status: result.ok ? 'task_executed' : 'task_failed'
+        }),
+        taskResult: {
+            type: def.id,
+            at: new Date().toISOString(),
+            ok: !!result.ok,
+            simulated: !!result.simulated,
+            summary: result.summary || '',
+            data: result.data || null
+        },
+        taskArtifact: artifact || job.taskArtifact || null,
+        lastError: result.ok ? null : (result.summary || 'Task gagal.')
+    });
+
+    await db.appendAuditLog({
+        actor,
+        action: result.ok ? 'task_executed' : 'task_failed',
+        target: job.id,
+        detail: { taskType: def.id, simulated: !!result.simulated, summary: String(result.summary || '').slice(0, 200) }
+    });
+
+    console.log(`🧰 [AI-TASK] ${job.id} type=${def.id} ok=${result.ok} simulated=${!!result.simulated}`);
+    return { job: updated, result };
+}
+
+app.get('/api/ai/task-types', async (req, res) => {
+    res.json({ success: true, taskTypes: listTaskTypes() });
+});
+
+app.post('/api/ai/jobs/:id/execute', async (req, res) => {
+    try {
+        const job = await db.getAiJobById(req.params.id);
+        if (!job) return res.status(404).json({ success: false, message: 'Job tidak ditemukan.' });
+
+        const def = getTaskType(job.taskType);
+        if (!def) {
+            return res.status(400).json({
+                success: false,
+                message: 'Job ini bukan tugas umum (tanpa taskType). Gunakan POST /api/ai/jobs/:id/run untuk publish konten.'
+            });
+        }
+        if (job.status === 'needs_info') {
+            return res.status(400).json({
+                success: false,
+                message: 'Job masih needs_info. Lengkapi taskInput lalu jawab via POST /api/ai/jobs/:id/answer atau buat job baru.',
+                questions: job.questions || []
+            });
+        }
+        if (job.status === 'done') {
+            return res.status(409).json({ success: false, message: 'Tugas sudah selesai (idempotent).', job });
+        }
+        if (job.status === 'working' || job.status === 'publishing') {
+            return res.status(409).json({ success: false, message: 'Tugas sedang berjalan.' });
+        }
+
+        const forceCheck = auth.assertForcePublish(req, !!(req.body && req.body.forceExecute));
+        if (!forceCheck.ok) {
+            return res.status(forceCheck.status).json({ success: false, message: forceCheck.message });
+        }
+
+        const settings = await db.getAiSettings();
+        const outcome = await runTaskExecution(job, settings, {
+            forceExecute: !!(req.body && req.body.forceExecute),
+            actor: req.user?.email || 'user'
+        });
+
+        if (outcome.blocked) {
+            return res.status(outcome.status).json({ success: false, message: outcome.message });
+        }
+        if (outcome.awaitingApproval) {
+            notifyJobAttention(settings, {
+                status: 'awaiting_approval',
+                job: outcome.job,
+                reason: `Tugas umum keluar (${def.label}) menunggu approval`,
+                actor: outcome.job.employeeName
+            }, { appendAuditLog: (e) => db.appendAuditLog(e) }).catch(() => {});
+            return res.json({
+                success: true,
+                awaitingApproval: true,
+                message: 'Tugas keluar menunggu approval. Setujui (autoRun:false) lalu execute lagi, atau execute dengan forceExecute (admin/approver).',
+                job: outcome.job
+            });
+        }
+        if (outcome.needsInfo) {
+            return res.json({ success: true, needsInfo: true, questions: outcome.questions, job: outcome.job, result: outcome.result });
+        }
+        return res.json({ success: !!outcome.result.ok, job: outcome.job, result: outcome.result });
+    } catch (err) {
+        console.error('🧰 [AI-TASK] execute error:', err.message);
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+/** Riset cepat: buat job research + langsung eksekusi (non-outward, tanpa gate approval). */
+app.post('/api/ai/research', async (req, res) => {
+    try {
+        const { urls, query, roleId } = req.body || {};
+        const urlList = (Array.isArray(urls) ? urls : [urls]).map(u => String(u || '').trim()).filter(Boolean);
+        if (!urlList.length) {
+            return res.status(400).json({ success: false, message: 'Wajib isi urls[] (maks 3 URL http/https).' });
+        }
+        const role = resolveRole({ roleId: roleId || 'strategist' });
+        const job = await db.addAiJob({
+            brief: `[Riset Web] ${query ? String(query).slice(0, 120) : urlList.join(', ')}`,
+            structuredBrief: null,
+            status: 'queued',
+            questions: [],
+            draftHistory: [{ at: new Date().toISOString(), type: 'created', version: 'v1', brief: 'Riset web', complianceNote: null }],
+            decisionLog: appendDecision([], { actor: role?.name || 'Rani', reason: 'Riset web dibuat', status: 'queued' }),
+            platforms: [],
+            mediaUrl: '',
+            mediaType: '',
+            employeeName: role?.name || 'Rani',
+            employeeRole: role?.id || 'strategist',
+            roleId: role?.id || 'strategist',
+            skillId: null,
+            taskType: 'research',
+            taskInput: { urls: urlList, query: query ? String(query) : '' },
+            taskResult: null,
+            taskArtifact: null,
+            variantA: '',
+            variantB: '',
+            abWinner: null,
+            runId: null,
+            version: 1,
+            lastError: null,
+            publishResults: {}
+        });
+        const settings = await db.getAiSettings();
+        const outcome = await runTaskExecution(job, settings, { actor: req.user?.email || 'user' });
+        if (outcome.blocked) return res.status(outcome.status).json({ success: false, message: outcome.message });
+        return res.status(201).json({ success: !!outcome.result?.ok, job: outcome.job, result: outcome.result });
+    } catch (err) {
+        console.error('🧰 [AI-TASK] research error:', err.message);
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+/** Unduh artefak tugas (dokumen/CSV) yang tersimpan di job. */
+app.get('/api/ai/jobs/:id/artifact', async (req, res) => {
+    try {
+        const job = await db.getAiJobById(req.params.id);
+        if (!job) return res.status(404).json({ success: false, message: 'Job tidak ditemukan.' });
+        const artifact = job.taskArtifact;
+        if (!artifact || !artifact.content) {
+            return res.status(404).json({ success: false, message: 'Job ini tidak punya artefak file.' });
+        }
+        res.setHeader('Content-Type', artifact.mime || 'application/octet-stream');
+        res.setHeader('Content-Disposition', `attachment; filename="${artifact.filename || 'artifact.txt'}"`);
+        res.send(artifact.content);
+    } catch (err) {
         res.status(500).json({ success: false, message: err.message });
     }
 });

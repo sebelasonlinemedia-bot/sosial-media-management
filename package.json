@@ -14,6 +14,7 @@
     "test:p3": "node scripts/test-p3-hardening.js",
     "test:draft-history": "node scripts/test-draft-history.js",
     "test:office-life": "node scripts/test-office-life.js",
+    "test:tasks": "node scripts/test-general-tasks.js",
     "check:db": "node scripts/check-database-url.js"
   },
   "engines": {
@@ -33,6 +34,7 @@
     "form-data": "^4.0.0",
     "instagram-private-api": "^1.46.1",
     "multer": "^2.4.0",
+    "nodemailer": "^10.1.7",
     "puppeteer": "^25.2.1",
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",

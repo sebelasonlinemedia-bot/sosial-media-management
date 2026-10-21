@@ -1,9 +1,18 @@
 # MCP Server — PiK's Digital Lab
 
 Menghubungkan PiK's Digital Lab ke klien MCP (Cursor, Claude Desktop, dll.)
-lewat 11 tool: `office_context`, `list_roles`, `list_jobs`, `get_job`,
+lewat 15 tool: `office_context`, `list_roles`, `list_jobs`, `get_job`,
 `create_job`, `answer_job`, `request_revision`, `approve_job`, `run_job`,
-`get_insights`, `list_accounts`.
+`get_insights`, `list_accounts`, plus Tugas Umum (Fase A–D): `list_task_types`,
+`create_task`, `execute_task`, `research_web`.
+
+Tugas Umum memperluas kantor di luar publish sosmed: riset web, kirim email,
+dokumen, spreadsheet CSV, generate gambar, WhatsApp, dan tugas bebas LLM
+(`lib/task-executors.js`). Aksi keluar (email/WhatsApp) tetap lewat gate
+approval yang sama; tanpa kredensial di `.env` hasilnya **simulasi** yang
+ditandai jujur (`simulated: true`) — SMTP/Resend untuk email,
+`WHATSAPP_ACCESS_TOKEN`+`WHATSAPP_PHONE_NUMBER_ID` untuk WhatsApp,
+`OPENAI_API_KEY` untuk gambar asli.
 
 Semua tool meneruskan panggilan ke REST API dengan `Authorization: Bearer
 <session token>`, jadi auth, peran, `emergencyPause`, otonomi, gate publish,
