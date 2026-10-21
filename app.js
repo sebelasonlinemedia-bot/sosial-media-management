@@ -1783,26 +1783,19 @@ app._drawLayoutCanvas = function () {
     ctx.strokeStyle = 'rgba(20,184,166,0.9)';
     ctx.lineWidth = 1;
     ctx.strokeRect(bx - 2, by - 2, bx2 - bx + 4, by2 - by + 4);
-    // Zona studio (pad warna departemen + label, dari posisi meja)
+    // Label 4 studio fisik (tanpa pad warna di bawah meja — layout final)
     if (typeof AiOffice3D !== 'undefined' && AiOffice3D.__test
-        && typeof AiOffice3D.__test.computeStudioZones === 'function') {
+        && typeof AiOffice3D.__test.computeStudioRooms === 'function') {
         try {
-            const zones = AiOffice3D.__test.computeStudioZones(d.desks || [], b);
-            (zones || []).forEach((z) => {
-                const [zx, zy] = toPx(z.cx - z.w / 2, z.cz - z.d / 2);
-                const [zx2, zy2] = toPx(z.cx + z.w / 2, z.cz + z.d / 2);
-                const col = '#' + Number(z.color || 0x38bdf8).toString(16).padStart(6, '0');
-                ctx.fillStyle = col + '2e';
-                ctx.fillRect(zx, zy, zx2 - zx, zy2 - zy);
-                ctx.strokeStyle = col + '66';
-                ctx.lineWidth = 1;
-                ctx.strokeRect(zx, zy, zx2 - zx, zy2 - zy);
-                ctx.fillStyle = 'rgba(226,232,240,0.9)';
-                ctx.font = '700 8px system-ui, sans-serif';
+            const rooms = AiOffice3D.__test.computeStudioRooms(d);
+            (rooms || []).forEach((z) => {
+                const [zx, zy] = toPx(z.cx, b.minZ + 0.55);
+                ctx.fillStyle = 'rgba(125,211,252,0.95)';
+                ctx.font = '700 9px system-ui, sans-serif';
                 ctx.textAlign = 'center';
-                ctx.fillText(String(z.studio || '').toUpperCase() + ' STUDIO', (zx + zx2) / 2, zy + 10);
+                ctx.fillText(String(z.studio || '').toUpperCase(), zx, zy);
             });
-        } catch (_) { /* zona opsional */ }
+        } catch (_) { /* label studio opsional */ }
     }
     // Partisi ruangan (dari layout — bisa digeser/diperpendek/dihapus)
     ((d.partitions && d.partitions.segments) || []).forEach((seg, i) => {
@@ -1894,7 +1887,8 @@ app._drawLayoutCanvas = function () {
     ctx.textAlign = 'left';
     const [lzX, lzY] = toPx(b.minX + 0.3, b.maxZ - 0.35);
     ctx.fillText('KORIDOR · LOUNGE · GAME', lzX, lzY);
-    const [rzX, rzY] = toPx(0.35, b.minZ + 0.6);
+    const [rzX, rzY] = toPx(0.7, -1.35);
+    ctx.textAlign = 'center';
     ctx.fillText('MEETING TERBUKA', rzX, rzY);
 };
 

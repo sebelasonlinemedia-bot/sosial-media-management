@@ -157,6 +157,11 @@ function ok(name, fn) {
         ] };
         const mig2 = globalThis.AiOffice3D.migrateLegacyLayout(legacyCluster);
         assert.strictEqual(mig2.migrated, true, 'migrasi klaster → 4 studio terdeteksi');
+
+        // 4 studio fisik (barat→timur): Marketing, Sales, Operational, Support
+        const rooms = globalThis.AiOffice3D.__test.computeStudioRooms(defLayout);
+        assert.strictEqual(rooms.length, 4, 'tepat 4 ruang studio fisik');
+        assert.deepStrictEqual(rooms.map(r => r.name), ['Marketing', 'Sales', 'Operational', 'Support'], 'nama studio 1-4 sesuai penetapan final');
         assert.strictEqual(Math.round((mig2.layout.building.maxX - mig2.layout.building.minX) * 10) / 10, 32.8, 'migrasi ikut melebar ke gedung 32,8 m');
         const customCfg = globalThis.AiOffice3D.migrateLegacyLayout({ desks: [[0, 0, 0]] });
         assert.strictEqual(customCfg.migrated, false, 'layout kustom tidak dimigrasi');

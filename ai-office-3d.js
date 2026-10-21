@@ -1402,24 +1402,53 @@
         return g;
     }
 
-    /** Pad lantai zona studio (warna departemen) + garis tepi menyala. */
+    /* Nama 4 studio fisik (barat → timur) sesuai layout final. */
+    var STUDIO_ROOM_NAMES = ['Marketing', 'Sales', 'Operational', 'Support'];
+
+    /** Ruang studio fisik dari gedung + pembatas kaca vertikal: rentang X
+     *  antar-pembatas (di sisi belakang) yang berisi meja. Label dijangkar
+     *  di tepi belakang ruang. Tanpa pad warna di bawah meja. */
+    function computeStudioRooms(layout) {
+        var b = (layout && layout.building) || DEFAULT_BUILDING;
+        var desks = (layout && layout.desks) || [];
+        var segs = (layout && layout.partitions && layout.partitions.segments) || [];
+        var dividers = [];
+        segs.forEach(function (s) {
+            if (s.axis === 'v' && Number(s.from) <= b.minZ + 1) dividers.push(Number(s.at));
+        });
+        dividers.sort(function (a, c) { return a - c; });
+        var edges = [b.minX].concat(dividers, [b.maxX]);
+        var rooms = [];
+        var i;
+        for (i = 0; i < edges.length - 1; i += 1) {
+            var x1 = edges[i];
+            var x2 = edges[i + 1];
+            var hasDesk = desks.some(function (d) {
+                var info = deskInfo(d);
+                return info.z < -0.6 && info.x > x1 + 0.2 && info.x < x2 - 0.2;
+            });
+            if (!hasDesk) continue;
+            var idx = rooms.length;
+            var name = STUDIO_ROOM_NAMES[idx] || ('Studio ' + (idx + 1));
+            rooms.push({
+                id: 'studio-' + (idx + 1),
+                studio: 'Studio ' + (idx + 1) + ' · ' + name,
+                name: name,
+                cx: round2((x1 + x2) / 2),
+                cz: round2(b.minZ + 0.6),
+                w: round2(x2 - x1),
+                d: round2(-0.9 - b.minZ)
+            });
+        }
+        return rooms;
+    }
+
     var studioZones = [];
     var zoneLabelEls = [];
     function addStudioZones(parent) {
-        studioZones = computeStudioZones(LAYOUT.desks, LAYOUT.building);
-        studioZones.forEach(function (zone) {
-            var pad = box(parent, zone.cx, 0.017, zone.cz, zone.w, 0.012, zone.d,
-                zone.color, 0.6, 0.05, {
-                    opacity: 0.22, emissive: zone.color, emissiveIntensity: 0.16
-                });
-            pad.castShadow = false;
-            var edgeGeo = new THREE.EdgesGeometry(new THREE.BoxGeometry(zone.w, 0.014, zone.d));
-            var edge = new THREE.LineSegments(edgeGeo, new THREE.LineBasicMaterial({
-                color: zone.color, transparent: true, opacity: 0.75
-            }));
-            edge.position.set(zone.cx, 0.02, zone.cz);
-            parent.add(edge);
-        });
+        /* Layout final: TANPA warna/pad grup di bawah meja — zona hanya
+           dipakai untuk label nama studio fisik di mode overview. */
+        studioZones = computeStudioRooms(LAYOUT);
     }
 
     function addPlant(parent, x, z, size) {
@@ -2253,7 +2282,7 @@
             var el = document.createElement('div');
             el.className = 'office-3d-zone-label';
             el.dataset.studio = zone.id;
-            el.textContent = zone.studio.toUpperCase() + ' STUDIO';
+            el.textContent = zone.studio.toUpperCase();
             el.style.display = 'none';
             labelsRoot.appendChild(el);
             zoneLabelEls.push(el);
@@ -3602,6 +3631,7 @@
             deriveIdleStops: deriveIdleStops, navPath: navPath, pointBlocked: pointBlocked,
             resolveLightingPeriod: resolveLightingPeriod,
             computeStudioZones: computeStudioZones,
+            computeStudioRooms: computeStudioRooms,
             isLegacyDefaultDesks: isLegacyDefaultDesks,
             isLegacyDefaultSegments: isLegacyDefaultSegments,
             isLegacyDefaultFurniture: isLegacyDefaultFurniture,
