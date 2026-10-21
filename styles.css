@@ -3201,6 +3201,9 @@ body.is-mission-mode .app-shell-app-only {
     z-index: 4;
     display: flex;
     gap: 6px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    max-width: calc(100% - 20px);
 }
 
 .office-3d-tool-btn {

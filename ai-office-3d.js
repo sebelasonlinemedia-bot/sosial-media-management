@@ -453,6 +453,7 @@
     var resizeObserver = null;
     var visibilityHandler = null;
     var clickHandler = null;
+    var keyHandler = null;
     var lastActivityDigest = '';
     var lastIdleStep = -1;
     var employeesCache = [];
@@ -461,6 +462,12 @@
     var lightingPeriodApplied = '';
     var lastLightingMinute = -1;
     var routineOn = (typeof localStorage !== 'undefined') ? loadRoutinePreference() : true;
+    /* Fase 2: kucing kantor Piko + kamera follow/first-person + tur kamera. */
+    var cat = null;
+    var cameraMode = 'orbit';
+    var followRoleId = null;
+    var cameraTour = { active: false, startedAt: 0 };
+    var CAT_NAME = 'Piko';
 
     /* Orbit / pan / zoom (Ruang-like OrbitControls subset) */
     var orbit = {
@@ -1508,6 +1515,8 @@
         (LAYOUT.furniture || []).forEach(function (item) {
             addFurnitureItem(roomRoot, item);
         });
+
+        spawnCat();
     }
 
     function addLowCabinet(parent, x, z, w) {
@@ -1857,6 +1866,18 @@
     function rebuildLabels(employees) {
         if (!labelsRoot) return;
         labelsRoot.innerHTML = '';
+        /* Pilihan agen untuk kamera follow/first-person ikut daftar karyawan. */
+        var camAgentSel = container ? container.querySelector('#office-3d-cam-agent') : null;
+        if (camAgentSel) {
+            var prevAgent = camAgentSel.value;
+            camAgentSel.innerHTML = employees.map(function (emp) {
+                return '<option value="' + escapeHtml(emp.id) + '">' + escapeHtml(emp.name || emp.id) + '</option>';
+            }).join('');
+            camAgentSel.value = employees.some(function (e) { return e.id === prevAgent; })
+                ? prevAgent
+                : (followRoleId || (employees[0] && employees[0].id) || '');
+        }
+
         employees.forEach(function (emp) {
             var el = document.createElement('button');
             el.type = 'button';
@@ -1874,6 +1895,19 @@
             });
             labelsRoot.appendChild(el);
         });
+
+        var catEl = document.createElement('button');
+        catEl.type = 'button';
+        catEl.className = 'office-3d-label office-3d-cat-label';
+        catEl.dataset.cat = '1';
+        catEl.innerHTML =
+            '<span class="office-3d-action hidden" aria-hidden="true"></span>' +
+            '<span class="office-3d-status-pill" data-status="cat">🐱 ' + CAT_NAME + '</span>';
+        catEl.addEventListener('click', function (e) {
+            e.stopPropagation();
+            petCat();
+        });
+        labelsRoot.appendChild(catEl);
     }
 
     function updateLabelPositions() {
@@ -1913,6 +1947,22 @@
                 }
             }
         });
+
+        var catEl = labelsRoot.querySelector('.office-3d-cat-label');
+        if (catEl && cat && cat.group) {
+            var cpos = cat.group.position.clone();
+            cpos.y = 1.05;
+            cpos.project(camera);
+            var cx = (cpos.x * 0.5 + 0.5) * rect.width;
+            var cy = (-cpos.y * 0.5 + 0.5) * rect.height;
+            catEl.style.display = cpos.z < 1 ? 'flex' : 'none';
+            catEl.style.transform = 'translate(-50%, -100%) translate(' + cx + 'px, ' + cy + 'px)';
+            var catAction = catEl.querySelector('.office-3d-action');
+            if (catAction) {
+                catAction.textContent = catStateText(Date.now());
+                catAction.classList.remove('hidden');
+            }
+        }
     }
 
     function updateHud() {
@@ -2225,6 +2275,252 @@
         updateHud();
     }
 
+    /* ---------- Kucing kantor Piko (adopsi kantor-ai Fase 2) ---------- */
+
+    function createCat() {
+        var g = new THREE.Group();
+        var fur = mat(0xfb923c, 0.85, 0);
+        var cream = mat(0xfff7ed, 0.9, 0);
+        var dark = mat(0x292524, 0.8, 0);
+
+        var body = new THREE.Group();
+        g.add(body);
+        var torso = new THREE.Mesh(new THREE.SphereGeometry(0.21, 18, 14), fur);
+        torso.scale.set(0.85, 0.78, 1.45);
+        torso.position.set(0, 0.34, 0);
+        body.add(torso);
+        var chest = new THREE.Mesh(new THREE.SphereGeometry(0.15, 14, 12), cream);
+        chest.scale.set(0.8, 0.75, 0.9);
+        chest.position.set(0, 0.3, 0.16);
+        body.add(chest);
+
+        var head = new THREE.Group();
+        head.position.set(0, 0.47, 0.32);
+        var skull = new THREE.Mesh(new THREE.SphereGeometry(0.155, 18, 14), fur);
+        head.add(skull);
+        [-1, 1].forEach(function (side) {
+            var ear = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.055, 0.13, 10), fur);
+            ear.position.set(0.09 * side, 0.15, 0);
+            head.add(ear);
+            var eye = new THREE.Mesh(new THREE.SphereGeometry(0.018, 8, 8), dark);
+            eye.position.set(0.055 * side, 0.02, 0.135);
+            head.add(eye);
+        });
+        var nose = new THREE.Mesh(new THREE.SphereGeometry(0.02, 8, 8), mat(0xf472b6, 0.7, 0));
+        nose.position.set(0, -0.02, 0.15);
+        head.add(nose);
+        body.add(head);
+
+        var tail = new THREE.Group();
+        tail.position.set(0, 0.42, -0.3);
+        var tailMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.038, 0.42, 10), fur);
+        tailMesh.position.set(0, 0.19, -0.04);
+        tailMesh.rotation.x = 0.5;
+        tail.add(tailMesh);
+        body.add(tail);
+
+        var legs = [];
+        [[-0.1, 0.17], [0.1, 0.17], [-0.1, -0.17], [0.1, -0.17]].forEach(function (p) {
+            var leg = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.036, 0.24, 8), fur);
+            leg.position.set(p[0], 0.12, p[1]);
+            body.add(leg);
+            legs.push(leg);
+        });
+
+        g.userData.isCat = true;
+        return { group: g, body: body, head: head, tail: tail, legs: legs, path: [], waitUntil: 0, sleepUntil: 0, petUntil: 0, restY: 0, targetY: 0 };
+    }
+
+    function spawnCat() {
+        if (cat && cat.group && scene) scene.remove(cat.group);
+        cat = createCat();
+        var start = (LAYOUT.idleStops.find(function (s) { return s.key === 'lounge'; }) || {}).spots;
+        var spot = (start && start[0]) || { x: 0.7, z: 0.6 };
+        cat.group.position.set(spot.x, 0, spot.z);
+        cat.waitUntil = Date.now() + 5000;
+        scene.add(cat.group);
+        return cat;
+    }
+
+    function catStateText(now) {
+        if (!cat) return '';
+        if (now < cat.petUntil) return '♥ Purr…';
+        if (now < cat.sleepUntil) return 'Zzz… sleeping';
+        if (cat.path && cat.path.length) return 'Wandering around';
+        return 'Meow';
+    }
+
+    function chooseCatDestination(now) {
+        var spots = [];
+        (LAYOUT.idleStops || []).forEach(function (s) {
+            (s.spots || []).forEach(function (sp) { spots.push({ x: sp.x, z: sp.z, seatY: sp.seatY || 0, key: s.key }); });
+        });
+        if (!spots.length) return;
+        var spot = spots[Math.floor(Math.random() * spots.length)];
+        if (Math.hypot(spot.x - cat.group.position.x, spot.z - cat.group.position.z) < 0.4) return;
+        var path = navPath(cat.group.position.x, cat.group.position.z, spot.x, spot.z, null);
+        cat.path = (path && path.length) ? path : [{ x: spot.x, z: spot.z }];
+        cat.dest = spot;
+        cat.targetY = 0;
+        cat.waitUntil = now + 6000;
+    }
+
+    function petCat() {
+        if (!cat) return false;
+        var now = Date.now();
+        cat.petUntil = now + 2600;
+        cat.sleepUntil = 0;
+        cat.waitUntil = now + 9000;
+        return true;
+    }
+
+    function updateCat(dt, t) {
+        if (!cat || !cat.group) return;
+        var now = Date.now();
+        var g = cat.group;
+
+        if (now < cat.petUntil) {
+            cat.tail.rotation.y = Math.sin(t * 16) * 0.55;
+            g.position.y += (((cat.targetY || 0) + Math.abs(Math.sin(t * 6)) * 0.02) - g.position.y) * Math.min(1, dt * 8);
+            return;
+        }
+        if (now < cat.sleepUntil) {
+            cat.tail.rotation.y = Math.sin(t * 1.4) * 0.12;
+            cat.body.rotation.z = 0.12;
+            g.position.y += ((cat.targetY || 0) - g.position.y) * Math.min(1, dt * 4);
+            return;
+        }
+        cat.body.rotation.z = 0;
+
+        if (cat.path && cat.path.length) {
+            var next = cat.path[0];
+            var dx = next.x - g.position.x;
+            var dz = next.z - g.position.z;
+            var dist = Math.hypot(dx, dz);
+            if (dist < 0.06) {
+                cat.path.shift();
+                if (!cat.path.length) {
+                    /* Sampai tujuan: kadang tidur di sofa/lounge, kadang menunggu. */
+                    if (cat.dest && (cat.dest.key === 'lounge' || cat.dest.key === 'tv') && Math.random() < 0.55) {
+                        cat.targetY = cat.dest.seatY || 0;
+                        cat.sleepUntil = now + 14000;
+                    }
+                    cat.waitUntil = now + 5000 + Math.random() * 7000;
+                }
+            } else {
+                var step = Math.min(dist, dt * 1.15);
+                g.position.x += (dx / dist) * step;
+                g.position.z += (dz / dist) * step;
+                var heading = Math.atan2(dx, dz);
+                var dy = heading - g.rotation.y;
+                while (dy > Math.PI) dy -= Math.PI * 2;
+                while (dy < -Math.PI) dy += Math.PI * 2;
+                g.rotation.y += dy * 0.18;
+                cat.legs.forEach(function (leg, i) {
+                    leg.rotation.x = Math.sin(t * 13 + (i % 2) * Math.PI) * 0.45;
+                });
+                cat.tail.rotation.y = Math.sin(t * 6) * 0.3;
+                cat.targetY = 0;
+            }
+        } else {
+            cat.legs.forEach(function (leg) { leg.rotation.x = 0; });
+            cat.tail.rotation.y = Math.sin(t * 2.2) * 0.22;
+            if (routineOn && now > cat.waitUntil) chooseCatDestination(now);
+        }
+        g.position.y += ((cat.targetY || 0) - g.position.y) * Math.min(1, (dt || 0.016) * 6);
+    }
+
+    /* ---------- Kamera follow / first-person / tur (Fase 2) ---------- */
+
+    function tourKeyframes() {
+        var b = LAYOUT.building;
+        var cx = (b.minX + b.maxX) / 2;
+        var cz = (b.minZ + b.maxZ) / 2;
+        var desk0 = LAYOUT.desks[0] ? deskInfo(LAYOUT.desks[0]) : { x: cx, z: cz };
+        var mt = LAYOUT.meetingTable || { x: cx, z: cz };
+        return [
+            { target: [cx, 0.4, cz], radius: 34, phi: 0.95, theta: 0.42 },
+            { target: [desk0.x, 0.6, desk0.z], radius: 9, phi: 1.02, theta: 0.9 },
+            { target: [mt.x, 0.5, mt.z], radius: 8.5, phi: 1.05, theta: 2.2 },
+            { target: [cx - 3, 0.5, cz + 2], radius: 11, phi: 1.0, theta: 3.4 },
+            { target: [cx, 0.4, cz], radius: 42, phi: 0.78, theta: 5.2 }
+        ];
+    }
+
+    function setCameraMode(mode, roleId) {
+        var next = ['orbit', 'follow', 'first'].includes(mode) ? mode : 'orbit';
+        cameraMode = next;
+        if (roleId) followRoleId = roleId;
+        if (next !== 'orbit' && !followRoleId && employeesCache.length) followRoleId = employeesCache[0].id;
+        if (next !== 'orbit') stopTour();
+        var sel = container ? container.querySelector('#office-3d-cam-mode') : null;
+        if (sel) sel.value = next;
+        var agentSel = container ? container.querySelector('#office-3d-cam-agent') : null;
+        if (agentSel && followRoleId) agentSel.value = followRoleId;
+        return next;
+    }
+
+    function startTour() {
+        setCameraMode('orbit');
+        cameraTour.active = true;
+        cameraTour.startedAt = Date.now();
+        var btn = container ? container.querySelector('#office-3d-tour') : null;
+        if (btn) btn.textContent = 'Tour: On';
+        return true;
+    }
+
+    function stopTour() {
+        if (!cameraTour.active) return;
+        cameraTour.active = false;
+        var btn = container ? container.querySelector('#office-3d-tour') : null;
+        if (btn) btn.textContent = 'Tour: Off';
+    }
+
+    function updateTour(now) {
+        if (!cameraTour.active) return;
+        var frames = tourKeyframes();
+        if (!frames.length) return;
+        var segMs = 4200;
+        var elapsed = now - cameraTour.startedAt;
+        var idx = Math.floor(elapsed / segMs) % frames.length;
+        var p = (elapsed % segMs) / segMs;
+        var smooth = p * p * (3 - 2 * p);
+        var a = frames[idx];
+        var b = frames[(idx + 1) % frames.length];
+        orbit.target.set(
+            a.target[0] + (b.target[0] - a.target[0]) * smooth,
+            a.target[1] + (b.target[1] - a.target[1]) * smooth,
+            a.target[2] + (b.target[2] - a.target[2]) * smooth
+        );
+        orbit.spherical.radius = a.radius + (b.radius - a.radius) * smooth;
+        orbit.spherical.phi = a.phi + (b.phi - a.phi) * smooth;
+        orbit.spherical.theta = a.theta + (b.theta - a.theta) * smooth;
+        applyOrbitToCamera();
+    }
+
+    function updateFollowCamera(dt) {
+        if (cameraMode === 'orbit' || !camera) return;
+        var ch = characters.find(function (c) { return c.userData.roleId === followRoleId; }) || characters[0];
+        if (!ch) return;
+        var pos = ch.position;
+        var fwd = { x: Math.sin(ch.rotation.y), z: Math.cos(ch.rotation.y) };
+        var k = Math.min(1, (dt || 0.016) * 5);
+        if (cameraMode === 'follow') {
+            var dest = {
+                x: pos.x - fwd.x * 3.1,
+                y: pos.y + 2.1,
+                z: pos.z - fwd.z * 3.1
+            };
+            camera.position.x += (dest.x - camera.position.x) * k;
+            camera.position.y += (dest.y - camera.position.y) * k;
+            camera.position.z += (dest.z - camera.position.z) * k;
+            camera.lookAt(pos.x, pos.y + 1.0, pos.z);
+        } else {
+            camera.position.set(pos.x + fwd.x * 0.38, pos.y + 1.52, pos.z + fwd.z * 0.38);
+            camera.lookAt(pos.x + fwd.x * 5, pos.y + 1.3, pos.z + fwd.z * 5);
+        }
+    }
+
     function layoutCharacters(employees) {
         employeesCache = employees.slice();
         employees.forEach(function (emp, i) {
@@ -2288,6 +2584,8 @@
     }
 
     function resetView() {
+        stopTour();
+        if (cameraMode !== 'orbit') setCameraMode('orbit');
         var d = orbit.defaults;
         orbit.spherical.radius = d.radius;
         orbit.spherical.phi = d.phi;
@@ -2312,6 +2610,9 @@
     function bindOrbit(el) {
         unbindOrbit();
         function onDown(e) {
+            /* Interaksi manual mengambil alih dari tur / kamera follow. */
+            if (cameraTour.active) stopTour();
+            if (cameraMode !== 'orbit') setCameraMode('orbit');
             if (e.button === 2 || e.button === 1 || (e.button === 0 && (e.shiftKey || forcePanMode))) {
                 orbit.panning = true;
             } else if (e.button === 0) {
@@ -2356,6 +2657,8 @@
         }
         function onWheel(e) {
             e.preventDefault();
+            if (cameraTour.active) stopTour();
+            if (cameraMode !== 'orbit') setCameraMode('orbit');
             var factor = e.deltaY > 0 ? 1.08 : 0.92;
             orbit.spherical.radius = Math.min(64, Math.max(8, orbit.spherical.radius * factor));
             applyOrbitToCamera();
@@ -2408,6 +2711,9 @@
         }
 
         characters.forEach(function (ch) { animateCharacter(ch, t, dt); });
+        updateCat(dt, t);
+        if (cameraTour.active) updateTour(Date.now());
+        else updateFollowCamera(dt);
         updateLabelPositions();
         renderer.render(scene, camera);
 
@@ -2547,6 +2853,38 @@
             });
         }
 
+        var camAgentSel = container.querySelector('#office-3d-cam-agent');
+        if (camAgentSel) {
+            camAgentSel.addEventListener('change', function () {
+                followRoleId = camAgentSel.value || null;
+                if (cameraMode === 'orbit') setCameraMode('follow', followRoleId);
+                else setCameraMode(cameraMode, followRoleId);
+            });
+        }
+        var camModeSel = container.querySelector('#office-3d-cam-mode');
+        if (camModeSel) {
+            camModeSel.value = cameraMode;
+            camModeSel.addEventListener('change', function () {
+                setCameraMode(camModeSel.value, followRoleId);
+            });
+        }
+        var tourBtn = container.querySelector('#office-3d-tour');
+        if (tourBtn) {
+            tourBtn.textContent = cameraTour.active ? 'Tour: On' : 'Tour: Off';
+            tourBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                if (cameraTour.active) stopTour();
+                else startTour();
+            });
+        }
+        var petBtn = container.querySelector('#office-3d-pet');
+        if (petBtn) {
+            petBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                petCat();
+            });
+        }
+
         if (typeof ResizeObserver !== 'undefined') {
             resizeObserver = new ResizeObserver(function () { handleResize(); });
             resizeObserver.observe(container);
@@ -2561,8 +2899,25 @@
         };
         document.addEventListener('visibilitychange', visibilityHandler);
 
+        keyHandler = function (e) {
+            if (e.key !== 'Escape') return;
+            if (cameraTour.active) stopTour();
+            if (cameraMode !== 'orbit') setCameraMode('orbit');
+        };
+        document.addEventListener('keydown', keyHandler);
+
         clickHandler = function (e) {
             if (orbit.moved) return;
+            if (cat && cat.group && renderer && camera) {
+                var rect0 = renderer.domElement.getBoundingClientRect();
+                pointer.x = ((e.clientX - rect0.left) / rect0.width) * 2 - 1;
+                pointer.y = -((e.clientY - rect0.top) / rect0.height) * 2 + 1;
+                raycaster.setFromCamera(pointer, camera);
+                if (raycaster.intersectObject(cat.group, true).length) {
+                    petCat();
+                    return;
+                }
+            }
             var roleId = pick(e.clientX, e.clientY);
             if (roleId && typeof onSelect === 'function') onSelect(roleId);
         };
@@ -2619,6 +2974,10 @@
             document.removeEventListener('visibilitychange', visibilityHandler);
             visibilityHandler = null;
         }
+        if (keyHandler) {
+            document.removeEventListener('keydown', keyHandler);
+            keyHandler = null;
+        }
         if (clickHandler && renderer) {
             renderer.domElement.removeEventListener('click', clickHandler);
             clickHandler = null;
@@ -2657,6 +3016,10 @@
         lightRefs = null;
         lightingPeriodApplied = '';
         lastLightingMinute = -1;
+        cat = null;
+        cameraMode = 'orbit';
+        followRoleId = null;
+        cameraTour.active = false;
         container = null;
         canvas = null;
         labelsRoot = null;
@@ -2684,6 +3047,22 @@
         getLightingPeriod: function () { return lightingPeriodApplied; },
         setRoutineEnabled: setRoutineEnabled,
         isRoutineEnabled: function () { return routineOn; },
+        petCat: petCat,
+        getCatState: function () {
+            if (!cat) return null;
+            return {
+                name: CAT_NAME,
+                state: catStateText(Date.now()),
+                position: cat.group ? cat.group.position.toArray() : null,
+                wandering: !!(cat.path && cat.path.length)
+            };
+        },
+        setCameraMode: setCameraMode,
+        getCameraState: function () {
+            return { mode: cameraMode, followRoleId: followRoleId, tourActive: !!cameraTour.active };
+        },
+        startTour: startTour,
+        stopTour: stopTour,
         __test: {
             buildLayout: buildLayout, deskSeatSpot: deskSeatSpot, deskInfo: deskInfo,
             deriveIdleStops: deriveIdleStops, navPath: navPath, pointBlocked: pointBlocked,

@@ -33,6 +33,21 @@ assert(resolve(at(3)) === 'malam', '03.00 → malam');
 assert(typeof A.setLightingMode === 'function', 'setLightingMode tersedia');
 assert(typeof A.setRoutineEnabled === 'function', 'setRoutineEnabled tersedia');
 
+// Fase 2: kucing kantor + kamera follow/first-person + tur
+assert(typeof A.petCat === 'function', 'petCat tersedia');
+assert(A.petCat() === false, 'petCat tanpa scene → false (aman)');
+assert(A.getCatState() === null, 'getCatState tanpa scene → null');
+assert(typeof A.setCameraMode === 'function', 'setCameraMode tersedia');
+assert(A.setCameraMode('follow', 'copywriter') === 'follow', 'mode follow diterima');
+assert(A.getCameraState().followRoleId === 'copywriter', 'followRoleId tersimpan');
+assert(A.setCameraMode('first') === 'first', 'mode first-person diterima');
+assert(A.setCameraMode('tidak-valid') === 'orbit', 'mode tidak valid → orbit');
+assert(typeof A.startTour === 'function' && typeof A.stopTour === 'function', 'tur kamera tersedia');
+A.startTour();
+assert(A.getCameraState().tourActive === true, 'tur aktif setelah startTour');
+A.stopTour();
+assert(A.getCameraState().tourActive === false, 'tur berhenti setelah stopTour');
+
 if (failed) {
     console.error(`\n${failed} assertion gagal`);
     process.exit(1);
