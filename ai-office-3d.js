@@ -1406,35 +1406,44 @@
        bantalan warna aksen, tiang krom, dan alas cakram melayang bercincin
        cahaya cyan. Dipakai meja kerja, meja meeting, dan workdesk. */
     function addFutureChair(parent, x, z, rotY, color) {
+        /* Kursi kerja ergonomis ala referensi workstation: bantalan biru
+           royal, rangka & sandaran tangan hitam, kaki bintang + roda. */
         var g = groupAt(parent, x, 0, z, rotY || 0);
-        var c = color == null ? 0x2f3a44 : color;
-        /* Alas cakram + cincin cahaya */
-        cyl(g, 0, 0.045, 0, 0.27, 0.05, 0x1f2937, 0.35, 0.6);
-        cyl(g, 0, 0.075, 0, 0.275, 0.014, 0x22d3ee, 0.4, 0.1, {
-            emissive: 0x22d3ee, emissiveIntensity: 0.85
-        });
-        /* Tiang tengah krom */
-        cyl(g, 0, 0.26, 0, 0.035, 0.38, 0x9aa5b1, 0.25, 0.85);
-        /* Cangkang dudukan putih + bantalan aksen */
-        var shell = new THREE.Mesh(new THREE.SphereGeometry(0.29, 18, 12), mat(0xf8fafc, 0.22, 0.08));
-        shell.scale.set(1.02, 0.34, 0.98);
-        shell.position.y = 0.35;
-        g.add(shell);
-        var seat = new THREE.Mesh(new THREE.SphereGeometry(0.26, 18, 12), mat(c, 0.35, 0.05));
-        seat.scale.set(0.95, 0.36, 0.9);
-        seat.position.y = 0.385;
+        var BLUE = 0x2456e0;
+        var DARK = 0x11151c;
+        /* Kaki bintang hitam: hub + 5 jari + roda kecil */
+        cyl(g, 0, 0.07, 0, 0.06, 0.08, DARK, 0.4, 0.5);
+        var si;
+        for (si = 0; si < 5; si += 1) {
+            var a = (si / 5) * Math.PI * 2;
+            var spoke = box(g, Math.sin(a) * 0.17, 0.045, Math.cos(a) * 0.17, 0.05, 0.03, 0.32, DARK, 0.4, 0.5);
+            spoke.rotation.y = a;
+            box(g, Math.sin(a) * 0.31, 0.03, Math.cos(a) * 0.31, 0.055, 0.05, 0.055, 0x1c222c, 0.4, 0.4);
+        }
+        /* Gas lift hitam */
+        cyl(g, 0, 0.27, 0, 0.032, 0.36, 0x232a35, 0.3, 0.7);
+        /* Dudukan biru */
+        var seat = new THREE.Mesh(new THREE.SphereGeometry(0.27, 18, 12), mat(BLUE, 0.55, 0.02));
+        seat.scale.set(1.02, 0.34, 0.95);
+        seat.position.y = 0.44;
+        seat.castShadow = true;
         g.add(seat);
-        /* Sandaran: cangkang putih di belakang, bantalan aksen di depan */
-        var backShell = new THREE.Mesh(new THREE.SphereGeometry(0.27, 18, 12), mat(0xf8fafc, 0.22, 0.08));
-        backShell.scale.set(0.98, 1.18, 0.3);
-        backShell.position.set(0, 0.84, -0.215);
-        backShell.rotation.x = -0.1;
+        /* Sandaran: rangka hitam di belakang, bantalan biru di depan */
+        var backShell = new THREE.Mesh(new THREE.SphereGeometry(0.26, 18, 12), mat(DARK, 0.45, 0.2));
+        backShell.scale.set(0.98, 1.22, 0.24);
+        backShell.position.set(0, 0.92, -0.235);
+        backShell.rotation.x = -0.09;
         g.add(backShell);
-        var backPad = new THREE.Mesh(new THREE.SphereGeometry(0.24, 18, 12), mat(c, 0.35, 0.05));
-        backPad.scale.set(0.88, 1.05, 0.2);
-        backPad.position.set(0, 0.84, -0.175);
-        backPad.rotation.x = -0.1;
+        var backPad = new THREE.Mesh(new THREE.SphereGeometry(0.24, 18, 12), mat(BLUE, 0.55, 0.02));
+        backPad.scale.set(0.88, 1.1, 0.18);
+        backPad.position.set(0, 0.92, -0.195);
+        backPad.rotation.x = -0.09;
         g.add(backPad);
+        /* Sandaran tangan hitam (tiang + bantalan) */
+        [-0.31, 0.31].forEach(function (sx) {
+            box(g, sx, 0.58, -0.03, 0.04, 0.24, 0.04, DARK, 0.4, 0.4);
+            box(g, sx, 0.71, 0.0, 0.065, 0.03, 0.27, DARK, 0.45, 0.3);
+        });
         return g;
     }
 
@@ -1444,15 +1453,15 @@
 
     function addWorkDesk(parent, x, z, active) {
         var g = groupAt(parent, x, 0, z);
-        /* Workdesk futuristik: top putih melayang + tepi cahaya cyan */
-        box(g, 0, 0.74, 0, 1.9, 0.06, 0.95, 0xf8fafc, 0.32, 0.06, { cast: true });
-        box(g, 0, 0.715, -0.485, 1.9, 0.018, 0.018, 0x22d3ee, 0.4, 0.1, {
-            emissive: 0x22d3ee, emissiveIntensity: 0.85
+        /* Workdesk biru royal + LED putih (gaya workstation yang sama) */
+        var BLUE = 0x2242c8;
+        box(g, 0, 0.74, 0, 1.9, 0.06, 0.95, BLUE, 0.38, 0.08, { cast: true });
+        box(g, 0, 0.715, -0.482, 1.9, 0.016, 0.016, 0xf8fafc, 0.4, 0.1, {
+            emissive: 0xf8fafc, emissiveIntensity: 1.1
         });
-        var legL = box(g, -0.88, 0.36, 0, 0.06, 0.7, 0.7, 0x334155, 0.32, 0.65);
-        legL.rotation.z = 0.07;
-        var legR = box(g, 0.88, 0.36, 0, 0.06, 0.7, 0.7, 0x334155, 0.32, 0.65);
-        legR.rotation.z = -0.07;
+        box(g, -0.9, 0.36, 0, 0.07, 0.72, 0.8, BLUE, 0.38, 0.08);
+        box(g, 0.9, 0.36, 0, 0.07, 0.72, 0.8, BLUE, 0.38, 0.08);
+        box(g, 0.62, 0.31, -0.05, 0.22, 0.56, 0.46, 0x0b0e14, 0.4, 0.3);
         box(g, 0, 1.13, 0.22, 0.86, 0.52, 0.03, 0x0f172a, 0.25, 0.4);
         var screen = new THREE.Mesh(
             new THREE.PlaneGeometry(0.8, 0.46),
@@ -1822,33 +1831,49 @@
     }
 
     function addStartupDesk(parent, x, z, seatColor, rotY) {
-        var g = groupAt(parent, x, 0, z, rotY || 0);
-        /* Meja futuristik: slab putih melayang (roughness ditahan agar tidak
-           silau), kaki panel grafit miring, strip cahaya cyan di tepi depan. */
-        box(g, 0, 0.72, 0, 1.35, 0.06, 0.72, 0xf8fafc, 0.32, 0.06, { cast: true });
-        box(g, 0, 0.7, 0.365, 1.35, 0.018, 0.018, 0x22d3ee, 0.4, 0.1, {
-            emissive: 0x22d3ee, emissiveIntensity: 0.9
-        });
-        box(g, 0, 0.675, 0, 1.05, 0.014, 0.4, 0x164e63, 0.4, 0.1, {
-            emissive: 0x0e7490, emissiveIntensity: 0.5
-        });
-        var legL = box(g, -0.56, 0.35, 0, 0.06, 0.68, 0.56, 0x334155, 0.32, 0.65);
-        legL.rotation.z = 0.08;
-        var legR = box(g, 0.56, 0.35, 0, 0.06, 0.68, 0.56, 0x334155, 0.32, 0.65);
-        legR.rotation.z = -0.08;
-        /* Monitor ultra-tipis + layar menyala + keyboard slab.
+        /* Workstation ala referensi: meja biru royal rangka-U dengan LED
+           strip putih menyala di tepi, triple monitor dashboard, PC tower
+           di bawah meja, kursi ergonomis biru.
            Agen duduk di sisi -z menghadap +z: keyboard dekat agen (-z),
            monitor lebih jauh (+z) dengan layar menghadap agen (-z). */
-        cyl(g, 0, 0.8, 0.18, 0.025, 0.14, 0x64748b, 0.28, 0.85);
-        box(g, 0, 0.94, 0.17, 0.54, 0.35, 0.018, 0x0f172a, 0.25, 0.4);
-        box(g, 0, 0.94, 0.158, 0.5, 0.31, 0.006, 0x38bdf8, 0.3, 0.05, {
-            emissive: 0x38bdf8,
-            emissiveIntensity: 0.55
+        var g = groupAt(parent, x, 0, z, rotY || 0);
+        var BLUE = 0x2242c8;
+        var LED = { emissive: 0xf8fafc, emissiveIntensity: 1.25 };
+        /* Permukaan meja biru matte + panel kaki samping (rangka U) */
+        box(g, 0, 0.73, 0, 1.5, 0.06, 0.7, BLUE, 0.38, 0.08, { cast: true });
+        box(g, -0.69, 0.36, 0, 0.07, 0.72, 0.64, BLUE, 0.38, 0.08);
+        box(g, 0.69, 0.36, 0, 0.07, 0.72, 0.64, BLUE, 0.38, 0.08);
+        /* LED strip putih: tepi depan permukaan + turun di kedua kaki depan */
+        box(g, 0, 0.715, 0.352, 1.5, 0.016, 0.016, 0xf8fafc, 0.4, 0.1, LED);
+        box(g, -0.69, 0.37, 0.328, 0.016, 0.68, 0.016, 0xf8fafc, 0.4, 0.1, LED);
+        box(g, 0.69, 0.37, 0.328, 0.016, 0.68, 0.016, 0xf8fafc, 0.4, 0.1, LED);
+        /* Alas meja (desk mat) gelap + manajemen kabel tersembunyi */
+        box(g, 0, 0.763, 0.03, 1.0, 0.01, 0.36, 0x0d1120, 0.6, 0.05);
+        box(g, 0, 0.6, 0.27, 0.9, 0.08, 0.06, 0x0d1120, 0.5, 0.2);
+        /* PC tower hitam di bawah meja kanan + slit LED cyan */
+        box(g, 0.44, 0.31, -0.02, 0.22, 0.56, 0.46, 0x0b0e14, 0.4, 0.3);
+        box(g, 0.44, 0.34, 0.212, 0.014, 0.34, 0.008, 0x22d3ee, 0.4, 0.1, {
+            emissive: 0x22d3ee, emissiveIntensity: 1.0
         });
-        box(g, 0, 0.758, -0.15, 0.44, 0.014, 0.17, 0x1e293b, 0.4, 0.3);
-        /* Kursi futuristik — sisi yang sama dengan posisi duduk agen (z - 0.68) */
+        /* Triple monitor dashboard (tengah + 2 sayap miring ke agen) */
+        function monitor(mx, mrot, screenColor) {
+            var mg = groupAt(g, mx, 0, 0.15, mrot);
+            box(mg, 0, 0.86, 0.03, 0.05, 0.22, 0.05, 0x11151c, 0.35, 0.5);
+            box(mg, 0, 0.766, 0.03, 0.2, 0.012, 0.14, 0x11151c, 0.35, 0.5);
+            box(mg, 0, 1.03, 0.02, 0.54, 0.35, 0.018, 0x0a0d13, 0.25, 0.4);
+            box(mg, 0, 1.03, 0.008, 0.5, 0.31, 0.006, screenColor, 0.3, 0.05, {
+                emissive: screenColor, emissiveIntensity: 0.6
+            });
+        }
+        monitor(-0.53, 0.3, 0x2dd4bf);
+        monitor(0, 0, 0x38bdf8);
+        monitor(0.53, -0.3, 0x818cf8);
+        /* Keyboard + mouse gelap di depan agen */
+        box(g, 0, 0.766, -0.14, 0.46, 0.014, 0.17, 0x11151c, 0.4, 0.3);
+        box(g, 0.33, 0.766, -0.14, 0.06, 0.012, 0.1, 0x11151c, 0.4, 0.3);
+        /* Kursi ergonomis biru — sisi yang sama dengan posisi duduk agen */
         addFutureChair(g, 0, -0.68, 0, seatColor);
-        addPlant(g, 0.52, 0.18, 0.35);
+        addPlant(g, 0.6, 0.2, 0.32);
     }
 
     function addCoffeeBar(parent, x, z) {
