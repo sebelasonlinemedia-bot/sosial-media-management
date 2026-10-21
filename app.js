@@ -2452,6 +2452,109 @@ app.renderOfficeSettings = function () {
         pauseBtn.classList.toggle('btn-danger', !s.emergencyPause);
         pauseBtn.classList.toggle('btn-secondary', !!s.emergencyPause);
     }
+    this.renderDepartmentStructure();
+};
+
+/* ---- Struktur Departemen & Spesialis (konsep tenaga kerja per studio) ---- */
+app._deptSkillByRole = {
+    manager: 'piks-digital-lab-ai-employee · general-tasks',
+    strategist: 'analytics-next-brief (penerus Bimo)',
+    copywriter: 'caption-hook',
+    'visual-producer': '— (brief & arahan Maya/Rani)',
+    'community-manager': '— (eskalasi ke Maya/manusia)',
+    analyst: 'analytics-next-brief',
+    compliance: 'compliance-check'
+};
+
+app.renderDepartmentStructure = async function () {
+    const treeEl = document.getElementById('dept-structure-tree');
+    if (!treeEl) return;
+    if (!appState.departments) {
+        try {
+            const data = await api.get('/api/ai/departments');
+            if (data.success) appState.departments = data.departments;
+        } catch { /* abaikan — tampilkan pesan di bawah */ }
+    }
+    const depts = appState.departments;
+    if (!depts) {
+        treeEl.innerHTML = '<p class="input-hint">Struktur belum bisa dimuat.</p>';
+        return;
+    }
+    const esc = (v) => this._escapeHtml(v == null ? '' : String(v));
+    const employees = appState.office?.employees || [];
+    treeEl.innerHTML = depts.map(d => `
+        <div class="dept-node" style="--dept-color:${esc(d.color)}">
+            <div class="dept-node-head">
+                <span class="dept-node-emoji">${esc(d.emoji)}</span>
+                <div class="dept-node-title"><strong>${esc(d.name)}</strong><span>${esc(d.studio)}</span></div>
+                ${d.comingSoon ? '<span class="badge badge-yellow">Segera hadir</span>' : `<span class="badge badge-indigo">${d.specialists.length} spesialis</span>`}
+            </div>
+            <p class="dept-node-desc">${esc(d.description)}</p>
+            ${d.comingSoon
+                ? '<p class="input-hint">Belum ada agen di studio ini. Tugas terkait masih ditangani Maya (Operations) sebagai tugas umum.</p>'
+                : `<div class="dept-specialists">${d.specialists.map(sp => {
+                    const emp = employees.find(e => e.id === sp.id);
+                    const status = emp?.status || emp?.state || '—';
+                    return `<button type="button" class="dept-specialist" data-role-id="${esc(sp.id)}">
+                        <span>${esc(sp.emoji)} <strong>${esc(sp.name)}</strong> — ${esc(sp.title)}</span>
+                        <span class="badge badge-indigo">${esc(status)}</span>
+                    </button>`;
+                }).join('')}</div>`}
+        </div>`).join('');
+    treeEl.querySelectorAll('.dept-specialist').forEach(btn => {
+        btn.addEventListener('click', () => this.openSpecialistProfile(btn.getAttribute('data-role-id')));
+    });
+};
+
+/** Profil spesialis + tombol chat (memakai Chat CEO existing dengan roleId). */
+app.openSpecialistProfile = function (roleId) {
+    const box = document.getElementById('dept-specialist-profile');
+    if (!box || !roleId) return;
+    const depts = appState.departments || [];
+    let dept = null;
+    let sp = null;
+    for (const d of depts) {
+        const found = (d.specialists || []).find(s => s.id === roleId);
+        if (found) { dept = d; sp = found; break; }
+    }
+    if (!sp) return;
+    const esc = (v) => this._escapeHtml(v == null ? '' : String(v));
+    const emp = (appState.office?.employees || []).find(e => e.id === roleId);
+    const status = emp?.status || emp?.state || '—';
+    const platforms = (sp.defaultPlatforms || []).length ? sp.defaultPlatforms.join(', ') : 'Lintas platform';
+    box.innerHTML = `
+        <div class="dept-profile">
+            <div class="dept-profile-head">
+                <span class="dept-node-emoji">${esc(sp.emoji)}</span>
+                <div><strong>${esc(sp.name)}</strong> — ${esc(sp.title)}<br>
+                <span class="input-hint">${esc(dept.emoji)} ${esc(dept.name)} · ${esc(dept.studio)} · status: ${esc(status)}</span></div>
+            </div>
+            <dl class="about-agent-meta">
+                <div><dt>Output</dt><dd>${esc(sp.outputs || '-')}</dd></div>
+                <div><dt>Platform bawaan</dt><dd>${esc(platforms)}</dd></div>
+                <div><dt>Skill</dt><dd><code>${esc(this._deptSkillByRole[roleId] || '—')}</code></dd></div>
+            </dl>
+            <div class="office-settings-actions">
+                <button type="button" class="btn btn-sm btn-primary" id="dept-profile-chat">💬 Chat dengan ${esc(sp.name)}</button>
+                <button type="button" class="btn btn-sm btn-secondary" id="dept-profile-close">Tutup profil</button>
+            </div>
+            <p class="input-hint">Chat memakai panel Chat CEO (butuh LLM terkonfigurasi). Hasil kerja tetap ditinjau manusia di Work Board — approve/force hanya admin/approver.</p>
+        </div>`;
+    const chatBtn = document.getElementById('dept-profile-chat');
+    if (chatBtn) {
+        chatBtn.addEventListener('click', () => {
+            const roleSelect = document.getElementById('ceo-chat-role');
+            if (roleSelect) roleSelect.value = roleId;
+            this.switchView('mission');
+            const chatBox = document.getElementById('ceo-chat');
+            if (chatBox) chatBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            const input = document.getElementById('ceo-chat-input');
+            if (input) input.focus();
+        });
+    }
+    const closeBtn = document.getElementById('dept-profile-close');
+    if (closeBtn) closeBtn.addEventListener('click', () => { box.innerHTML = ''; });
+    box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 };
 
 app.saveOfficeSettings = async function () {
@@ -3338,20 +3441,6 @@ app._renderJobDetailModal = function (job) {
 
     const answerBtn = document.getElementById('job-detail-answer-submit');
     if (answerBtn) answerBtn.addEventListener('click', () => this.submitJobDetailAnswers());
-    const deleteBtn = document.getElementById('job-detail-delete-btn');
-    if (deleteBtn) {
-        deleteBtn.addEventListener('click', async () => {
-            const removed = await this.deleteOfficeJob(job.id);
-            if (removed) this.closeJobDetailModal();
-        });
-    }
-    const executeBtn = document.getElementById('job-detail-execute-btn');
-    if (executeBtn) {
-        executeBtn.addEventListener('click', async () => {
-            await this.executeOfficeTask(job.id);
-            this._refreshJobDetailModal();
-        });
-    }
     const approveBtn = document.getElementById('job-detail-approve-btn');
     if (approveBtn) {
         approveBtn.addEventListener('click', async () => {
@@ -3363,6 +3452,20 @@ app._renderJobDetailModal = function (job) {
     if (revisionBtn) {
         revisionBtn.addEventListener('click', async () => {
             await this.requestJobRevision();
+            this._refreshJobDetailModal();
+        });
+    }
+    const deleteBtn = document.getElementById('job-detail-delete-btn');
+    if (deleteBtn) {
+        deleteBtn.addEventListener('click', async () => {
+            const removed = await this.deleteOfficeJob(job.id);
+            if (removed) this.closeJobDetailModal();
+        });
+    }
+    const executeBtn = document.getElementById('job-detail-execute-btn');
+    if (executeBtn) {
+        executeBtn.addEventListener('click', async () => {
+            await this.executeOfficeTask(job.id);
             this._refreshJobDetailModal();
         });
     }

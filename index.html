@@ -1173,6 +1173,25 @@
                                 <p class="input-hint mt-2" id="office-settings-status">Memuat settings…</p>
                             </div>
                         </div>
+
+                        <div class="card office-settings-card dept-structure-card">
+                            <div class="card-header">
+                                <h2>Struktur Departemen &amp; Spesialis</h2>
+                            </div>
+                            <p class="input-hint">Tenaga kerja AI per studio (10 departemen). Klik nama spesialis untuk melihat profil dan mulai chat. Departemen tanpa spesialis berstatus <strong>segera hadir</strong> — belum ada agen yang ditugaskan.</p>
+                            <div id="dept-structure-tree"><p class="input-hint">Memuat struktur…</p></div>
+                            <div id="dept-specialist-profile"></div>
+                            <div class="dept-onboarding">
+                                <h3 class="office-settings-subhead">Alur memakai spesialis (akuntabilitas tetap pada manusia)</h3>
+                                <ol class="about-flow">
+                                    <li><strong>Pilih peran</strong> — klik spesialis di pohon studio di atas.</li>
+                                    <li><strong>Beri konteks &amp; izin</strong> — lengkapi brand memory dan centang izin platform/skill per peran di kartu Otonomi &amp; Pengamanan.</li>
+                                    <li><strong>Delegasikan tugas terbatas</strong> — buat brief/job atau tugas umum dengan batasan jelas dari Kantor AI / Work Board.</li>
+                                    <li><strong>Tinjau hasil</strong> — periksa di Work Board; setujui, minta revisi, atau tolak. Approve &amp; force hanya admin/approver.</li>
+                                    <li><strong>Perluas cakupan bertahap</strong> — naikkan otonomi <code>suggest_only</code> → <code>require_approval</code> → <code>limited_autonomous</code> bila hasil konsisten baik.</li>
+                                </ol>
+                            </div>
+                        </div>
                     </div>
                 </section>
 
@@ -1344,7 +1363,7 @@
                     <div class="card about-hero">
                         <div class="about-hero-badge"><span class="badge badge-indigo">PiK's Digital Lab</span><span class="badge badge-emerald">v1.0.0</span></div>
                         <h2 class="about-hero-title">Pengelola Media Sosial Multi-Akun Profesional</h2>
-                        <p class="text-secondary about-hero-desc">PiK's Digital Lab membantu Anda merencanakan, membuat, menjadwalkan, dan menerbitkan konten ke berbagai platform sosial media dari satu tempat — dibantu <strong>Tim Konten AI (Kantor AI)</strong> berisi 7 agen berperan khusus yang bekerja lewat sistem brief &amp; job, dengan pengawasan dan persetujuan manusia.</p>
+                        <p class="text-secondary about-hero-desc">PiK's Digital Lab membantu Anda merencanakan, membuat, menjadwalkan, dan menerbitkan konten ke berbagai platform sosial media dari satu tempat — dibantu <strong>tenaga kerja AI per departemen/studio (Kantor AI)</strong> berisi 11 spesialis dalam 10 studio (Sales, Marketing, Support, Operations, Data, Finance, Product, Design, People, Legal) yang bekerja lewat sistem brief &amp; job, dengan pengawasan dan persetujuan manusia.</p>
                         <div class="about-hero-actions">
                             <button type="button" class="btn btn-primary" onclick="app.switchView('office')"><i data-lucide="building-2"></i><span>Buka Kantor AI</span></button>
                             <button type="button" class="btn btn-secondary" onclick="app.switchView('composer')"><i data-lucide="plus"></i><span>Buat Postingan</span></button>
@@ -1358,7 +1377,7 @@
                             <ul class="about-list">
                                 <li><strong>Multi-platform</strong> — terbitkan ke Instagram, Facebook, TikTok, dan YouTube dari satu composer.</li>
                                 <li><strong>Penjadwalan</strong> — antrean &amp; kalender konten, scheduler latar memeriksa setiap 60 detik.</li>
-                                <li><strong>Kantor AI 2D/3D</strong> — pantau 7 agen bekerja secara real-time di Mission Control.</li>
+                                <li><strong>Kantor AI 2D/3D</strong> — pantau 11 spesialis bekerja secara real-time di Mission Control.</li>
                                 <li><strong>Chat CEO</strong> — beri perintah dengan bahasa alami, mis. <em>“Suruh Dimas buat caption promo IG…”</em></li>
                                 <li><strong>Brand Memory</strong> — tone, kata terlarang, audiens, dan pillar konten jadi acuan semua agen.</li>
                                 <li><strong>Analisis Konten</strong> — pantau jangkauan, interaksi, dan kesehatan publikasi.</li>
@@ -1382,10 +1401,10 @@
                     <!-- Ringkasan tim -->
                     <div class="card mt-6">
                         <div class="card-header">
-                            <h2>Tim Konten AI — 7 Agen</h2>
-                            <span class="badge badge-violet font-xs">Registry: lib/ai-roles.js</span>
+                            <h2>Tenaga Kerja AI — 11 Spesialis, 10 Studio</h2>
+                            <span class="badge badge-violet font-xs">Registry: lib/ai-roles.js · lib/ai-departments.js</span>
                         </div>
-                        <p class="text-secondary font-sm" style="margin:0 0 16px;">Ketujuh agen adalah <em>peran</em> dengan instruksi, platform, dan output khas — bukan chatbot bebas. Mereka menerima brief, mengerjakan job (<code>roleId</code>), dan melaporkan status: <code>idle</code> · <code>needs_info</code> · <code>working</code> · <code>awaiting_approval</code> · <code>done</code> · <code>failed</code>.</p>
+                        <p class="text-secondary font-sm" style="margin:0 0 16px;">Kesebelas spesialis adalah <em>peran</em> dengan instruksi, platform, dan output khas — bukan chatbot bebas. Mereka terorganisir per departemen/studio (atur di <strong>Pengaturan → Struktur Departemen &amp; Spesialis</strong>), menerima brief, mengerjakan job (<code>roleId</code>), dan melaporkan status: <code>idle</code> · <code>needs_info</code> · <code>working</code> · <code>awaiting_approval</code> · <code>done</code> · <code>failed</code>.</p>
                         <div class="table-container">
                             <table class="analytics-table about-table">
                                 <thead>
@@ -1399,6 +1418,10 @@
                                     <tr><td>💬 <strong>Titin</strong></td><td>Community Manager</td><td>Interaksi audiens</td><td>Instagram, Facebook</td><td>Draft balasan komentar/DM + catatan eskalasi</td></tr>
                                     <tr><td>📊 <strong>Bimo</strong></td><td>Analyst</td><td>Analisis performa</td><td>Facebook, Instagram</td><td>Weekly insights + rekomendasi</td></tr>
                                     <tr><td>🛡️ <strong>Nadira</strong></td><td>Compliance / QA</td><td>Pemeriksaan akhir</td><td>Lintas platform</td><td><code>Pass</code> atau <code>Revision required</code> + alasan</td></tr>
+                                    <tr><td>🤝 <strong>Reno</strong></td><td>Sales Specialist</td><td>Prospek &amp; follow-up penjualan</td><td>Lintas platform</td><td>Daftar prospek, draf follow-up/outreach, ringkasan pipeline</td></tr>
+                                    <tr><td>💰 <strong>Fajar</strong></td><td>Finance Specialist</td><td>Rekap &amp; dokumen keuangan</td><td>Lintas platform</td><td>Rekap transaksi, draf invoice, ringkasan keuangan (CSV)</td></tr>
+                                    <tr><td>🧩 <strong>Prama</strong></td><td>Product Specialist</td><td>Riset produk &amp; masukan pengguna</td><td>Lintas platform</td><td>Riset produk, ringkasan masukan, draf roadmap/PRD ringkas</td></tr>
+                                    <tr><td>👥 <strong>Kirana</strong></td><td>People Specialist</td><td>Operasional SDM</td><td>Lintas platform</td><td>Deskripsi kerja, draf agenda &amp; SOP, dokumen people-ops</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -1408,8 +1431,9 @@
                     <div class="about-agents-grid mt-6">
                         <article class="card about-agent-card" style="--agent-color:#e11d48;">
                             <header class="about-agent-head"><span class="about-agent-avatar">🗂️</span><div><h3>Maya</h3><p>Manager (Orkestrator)</p></div></header>
-                            <p class="about-agent-desc">Menerima brief awal dari CEO/user, memecahnya menjadi tugas untuk Rani, Dimas, Salsa, Titin, Bimo, dan Nadira, lalu memonitor progres di work board.</p>
+                            <p class="about-agent-desc">Menerima brief awal dari CEO/user, memecahnya menjadi tugas untuk spesialis lintas studio (Rani, Dimas, Salsa, Titin, Bimo, Nadira, Reno, Fajar, Prama, Kirana), lalu memonitor progres di work board.</p>
                             <dl class="about-agent-meta">
+                                <div><dt>Studio</dt><dd>🗂️ Operations — Studio Operasi</dd></div>
                                 <div><dt>Output</dt><dd>Rencana kerja, pecahan tugas per peran</dd></div>
                                 <div><dt>Platform</dt><dd>Lintas platform</dd></div>
                                 <div><dt>Skill khusus</dt><dd><code>piks-digital-lab-ai-employee</code></dd></div>
@@ -1422,6 +1446,7 @@
                             <header class="about-agent-head"><span class="about-agent-avatar">🎯</span><div><h3>Rani</h3><p>Strategist</p></div></header>
                             <p class="about-agent-desc">Menyusun kalender konten mingguan/bulanan, menentukan content pillars, dan jadwal posting berdasarkan data analitik bila tersedia — termasuk rekomendasi dari Bimo untuk siklus berikutnya.</p>
                             <dl class="about-agent-meta">
+                                <div><dt>Studio</dt><dd>🎯 Marketing — Studio Marketing</dd></div>
                                 <div><dt>Output</dt><dd>Rencana mingguan/bulanan, pillars, jadwal posting</dd></div>
                                 <div><dt>Platform</dt><dd>Instagram, Facebook, TikTok</dd></div>
                                 <div><dt>Skill khusus</dt><dd>Penerus brief dari <code>analytics-next-brief</code> (Bimo → Rani)</dd></div>
@@ -1434,6 +1459,7 @@
                             <header class="about-agent-head"><span class="about-agent-avatar">✍️</span><div><h3>Dimas</h3><p>Copywriter</p></div></header>
                             <p class="about-agent-desc">Menulis caption, hook pembuka, dan CTA yang disesuaikan per platform — menghormati brand voice, batas karakter platform, serta brand memory (tone, banned words, aturan emoji).</p>
                             <dl class="about-agent-meta">
+                                <div><dt>Studio</dt><dd>🎯 Marketing — Studio Marketing</dd></div>
                                 <div><dt>Output</dt><dd>Draft caption per platform (hook, isi, CTA)</dd></div>
                                 <div><dt>Platform</dt><dd>Instagram, Facebook, YouTube</dd></div>
                                 <div><dt>Skill khusus</dt><dd><code>caption-hook</code></dd></div>
@@ -1446,6 +1472,7 @@
                             <header class="about-agent-head"><span class="about-agent-avatar">🎬</span><div><h3>Salsa</h3><p>Visual / Video Producer</p></div></header>
                             <p class="about-agent-desc">Membuat design brief, skrip video pendek (Reels/TikTok/Shorts), dan shot list yang bisa langsung dieksekusi tim produksi.</p>
                             <dl class="about-agent-meta">
+                                <div><dt>Studio</dt><dd>🎬 Design — Studio Kreatif</dd></div>
                                 <div><dt>Output</dt><dd>Brief visual, skrip Reels/TikTok/Shorts, shot list</dd></div>
                                 <div><dt>Platform</dt><dd>Instagram, TikTok, YouTube</dd></div>
                                 <div><dt>Skill khusus</dt><dd>— (mengikuti brief &amp; arahan Maya/Rani)</dd></div>
@@ -1458,6 +1485,7 @@
                             <header class="about-agent-head"><span class="about-agent-avatar">💬</span><div><h3>Titin</h3><p>Community Manager</p></div></header>
                             <p class="about-agent-desc">Menyusun draft balasan komentar dan DM dengan nada hangat dan konkret, serta menyortir pertanyaan, keluhan, dan spam.</p>
                             <dl class="about-agent-meta">
+                                <div><dt>Studio</dt><dd>💬 Support — Studio Community</dd></div>
                                 <div><dt>Output</dt><dd>Draft balasan komentar/DM + catatan eskalasi</dd></div>
                                 <div><dt>Platform</dt><dd>Instagram, Facebook</dd></div>
                                 <div><dt>Skill khusus</dt><dd>— (eskalasi diteruskan ke Maya/manusia)</dd></div>
@@ -1470,6 +1498,7 @@
                             <header class="about-agent-head"><span class="about-agent-avatar">📊</span><div><h3>Bimo</h3><p>Analyst</p></div></header>
                             <p class="about-agent-desc">Membuat laporan performa konten (weekly insights) dan rekomendasi perbaikan. Hasilnya menjadi input Rani untuk brief/strategi siklus berikutnya — membentuk loop analytics → brief.</p>
                             <dl class="about-agent-meta">
+                                <div><dt>Studio</dt><dd>📊 Data — Studio Analitik</dd></div>
                                 <div><dt>Output</dt><dd>Weekly insights + rekomendasi untuk Strategist</dd></div>
                                 <div><dt>Platform</dt><dd>Facebook, Instagram</dd></div>
                                 <div><dt>Skill khusus</dt><dd><code>analytics-next-brief</code> (Bimo → Rani)</dd></div>
@@ -1482,12 +1511,61 @@
                             <header class="about-agent-head"><span class="about-agent-avatar">🛡️</span><div><h3>Nadira</h3><p>Compliance / QA</p></div></header>
                             <p class="about-agent-desc">Pemeriksa terakhir sebelum publish: keselarasan brand, klaim berlebihan, copyright, kata sensitif, dan konsistensi konten.</p>
                             <dl class="about-agent-meta">
+                                <div><dt>Studio</dt><dd>🛡️ Legal — Studio Compliance</dd></div>
                                 <div><dt>Output</dt><dd><code>Pass</code> atau <code>Revision required</code> + alasan singkat</dd></div>
                                 <div><dt>Platform</dt><dd>Lintas platform</dd></div>
                                 <div><dt>Skill khusus</dt><dd><code>compliance-check</code></dd></div>
                                 <div><dt>Batasan</dt><dd>Konten high-risk selalu di-flag untuk approval manusia</dd></div>
                             </dl>
                             <p class="about-agent-example">“Nadira, cek compliance caption ini sebelum tayang.”</p>
+                        </article>
+
+                        <article class="card about-agent-card" style="--agent-color:#0284c7;">
+                            <header class="about-agent-head"><span class="about-agent-avatar">🤝</span><div><h3>Reno</h3><p>Sales Specialist</p></div></header>
+                            <p class="about-agent-desc">Menyusun daftar prospek, naskah outreach/follow-up penjualan untuk email/WhatsApp, dan ringkasan pipeline yang rapi.</p>
+                            <dl class="about-agent-meta">
+                                <div><dt>Studio</dt><dd>🤝 Sales — Studio Sales</dd></div>
+                                <div><dt>Output</dt><dd>Daftar prospek, draf follow-up/outreach, ringkasan pipeline</dd></div>
+                                <div><dt>Platform</dt><dd>Lintas platform (email/WhatsApp via tugas umum)</dd></div>
+                                <div><dt>Batasan</dt><dd>Tidak menjanjikan harga/diskon tanpa fakta; kirim pesan tetap lewat approval</dd></div>
+                            </dl>
+                            <p class="about-agent-example">“Reno, susun daftar prospek dari data ini dan drafkan follow-up-nya.”</p>
+                        </article>
+
+                        <article class="card about-agent-card" style="--agent-color:#65a30d;">
+                            <header class="about-agent-head"><span class="about-agent-avatar">💰</span><div><h3>Fajar</h3><p>Finance Specialist</p></div></header>
+                            <p class="about-agent-desc">Merekap transaksi dari data CSV, menyusun draf invoice, dan merangkum angka keuangan yang bisa diperiksa manusia.</p>
+                            <dl class="about-agent-meta">
+                                <div><dt>Studio</dt><dd>💰 Finance — Studio Finance</dd></div>
+                                <div><dt>Output</dt><dd>Rekap transaksi, draf invoice, ringkasan keuangan (CSV/dokumen)</dd></div>
+                                <div><dt>Platform</dt><dd>Lintas platform</dd></div>
+                                <div><dt>Batasan</dt><dd>Tidak mengarang angka; asumsi dan field kurang selalu ditandai</dd></div>
+                            </dl>
+                            <p class="about-agent-example">“Fajar, rekap transaksi bulan ini dari CSV ini.”</p>
+                        </article>
+
+                        <article class="card about-agent-card" style="--agent-color:#db2777;">
+                            <header class="about-agent-head"><span class="about-agent-avatar">🧩</span><div><h3>Prama</h3><p>Product Specialist</p></div></header>
+                            <p class="about-agent-desc">Melakukan riset produk/kompetitor dari sumber yang diberikan, merangkum masukan pengguna, dan menyusun draf roadmap/PRD ringkas.</p>
+                            <dl class="about-agent-meta">
+                                <div><dt>Studio</dt><dd>🧩 Product — Studio Produk</dd></div>
+                                <div><dt>Output</dt><dd>Riset produk, ringkasan masukan pengguna, draf roadmap/PRD ringkas</dd></div>
+                                <div><dt>Platform</dt><dd>Lintas platform</dd></div>
+                                <div><dt>Batasan</dt><dd>Fakta dipisahkan dari asumsi; keputusan produk final pada manusia</dd></div>
+                            </dl>
+                            <p class="about-agent-example">“Prama, riset kompetitor dari 3 situs ini dan rangkum temuan.”</p>
+                        </article>
+
+                        <article class="card about-agent-card" style="--agent-color:#9333ea;">
+                            <header class="about-agent-head"><span class="about-agent-avatar">👥</span><div><h3>Kirana</h3><p>People Specialist</p></div></header>
+                            <p class="about-agent-desc">Membantu operasional SDM: deskripsi kerja, draf agenda, SOP, dan dokumen people-ops yang rapi untuk ditinjau manusia.</p>
+                            <dl class="about-agent-meta">
+                                <div><dt>Studio</dt><dd>👥 People — Studio People</dd></div>
+                                <div><dt>Output</dt><dd>Deskripsi kerja, draf agenda &amp; SOP, dokumen people-ops</dd></div>
+                                <div><dt>Platform</dt><dd>Lintas platform</dd></div>
+                                <div><dt>Batasan</dt><dd>Tidak membuat keputusan kepegawaian — hanya draf pendukung</dd></div>
+                            </dl>
+                            <p class="about-agent-example">“Kirana, buatkan deskripsi kerja untuk posisi admin sosmed.”</p>
                         </article>
                     </div>
 
@@ -1532,7 +1610,7 @@
                         </div>
                     </div>
 
-                    <p class="font-xs text-secondary text-center mt-6" style="margin-bottom:8px;">PiK's Digital Lab v1.0.0 — Tim Konten AI: Maya · Rani · Dimas · Salsa · Titin · Bimo · Nadira</p>
+                    <p class="font-xs text-secondary text-center mt-6" style="margin-bottom:8px;">PiK's Digital Lab v1.0.0 — Tenaga Kerja AI: Maya · Rani · Dimas · Salsa · Titin · Bimo · Nadira · Reno · Fajar · Prama · Kirana</p>
                 </section>
 
             </div>

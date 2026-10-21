@@ -5065,6 +5065,20 @@ button.mission-cal-day:hover {
 .about-agent-meta dd { margin: 0; }
 .about-agent-example { margin: auto 0 0; padding: 10px 12px; border-radius: 10px; background: rgba(99, 102, 241, 0.07); border: 1px solid rgba(99, 102, 241, 0.16); font-size: 0.82rem; font-style: italic; line-height: 1.5; }
 
+/* Struktur Departemen & Spesialis (Pengaturan) — pohon studio */
+.dept-node { border: 1px solid var(--border-color); border-left: 4px solid var(--dept-color, var(--indigo)); border-radius: 12px; padding: 12px 14px; margin-top: 12px; background: var(--surface-faint, rgba(255,255,255,0.03)); }
+.dept-node-head { display: flex; align-items: center; gap: 10px; }
+.dept-node-emoji { font-size: 1.3rem; }
+.dept-node-title { display: flex; flex-direction: column; margin-right: auto; }
+.dept-node-title span { font-size: 0.75rem; color: var(--text-muted); }
+.dept-node-desc { margin: 8px 0 0; font-size: 0.82rem; line-height: 1.5; color: var(--text-secondary); }
+.dept-specialists { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.dept-specialist { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; text-align: left; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--border-color); background: transparent; color: inherit; font: inherit; font-size: 0.85rem; cursor: pointer; }
+.dept-specialist:hover { border-color: var(--dept-color, var(--indigo)); }
+.dept-profile { margin-top: 14px; border: 1px solid var(--border-color); border-radius: 12px; padding: 14px; }
+.dept-profile-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.dept-onboarding { margin-top: 16px; }
+
 /* Riwayat draf & versi (modal detail job) */
 .draft-history-list { display: flex; flex-direction: column; gap: 10px; max-height: 320px; overflow-y: auto; }
 .draft-history-item { border: 1px solid var(--border-color); border-radius: 10px; padding: 10px 12px; background: var(--surface-faint, rgba(255,255,255,0.03)); }
@@ -5083,3 +5097,6 @@ button.mission-cal-day:hover {
 .office-3d-labels.is-overview .office-3d-role-badge { font-size: 0.52rem; padding: 1px 6px; max-width: 84px; }
 .office-3d-label.is-focused .office-3d-role-badge { background: #0f766e; outline: 1px solid #2dd4bf; }
 .office-3d-label.is-focused .office-3d-status-pill { border-color: #2dd4bf; color: #5eead4; }
+
+/* Label zona studio (departemen) di kantor 3D — hanya overview, tanpa klik */
+.office-3d-zone-label { position: absolute; left: 0; top: 0; display: none; pointer-events: none; z-index: 1; padding: 4px 10px; border-radius: 999px; font-size: 0.62rem; font-weight: 700; letter-spacing: 0.04em; color: #99f6e4; background: rgba(4, 47, 46, 0.55); border: 1px solid rgba(45, 212, 191, 0.5); backdrop-filter: blur(2px); white-space: nowrap; }

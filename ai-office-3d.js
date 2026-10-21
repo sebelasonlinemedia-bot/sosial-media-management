@@ -161,7 +161,7 @@
         return {
             wallHeight: 2.55,
             building: { minX: DEFAULT_BUILDING.minX, maxX: DEFAULT_BUILDING.maxX, minZ: DEFAULT_BUILDING.minZ, maxZ: DEFAULT_BUILDING.maxZ },
-            /* Urutan A1..A7 seperti label editor. Rotasi tersimpan mengikuti
+            /* Urutan A1..A11 seperti label editor. Rotasi tersimpan mengikuti
                konvensi deskSeatSpot (kursi di lokal (0,-0.78) yang diputar):
                A1-A3 kursi di barat → +90°, A4 kursi di barat-laut → +45°
                (di kanvas tampak miring -45° karena editor menggambar
@@ -170,7 +170,12 @@
             desks: [
                 [-9.0, 3.6, Math.PI / 2], [-9.1, 1.1, Math.PI / 2], [-9.2, -1.5, Math.PI / 2],
                 [-8.5, -3.8, Math.PI / 4], [-5.9, -4.3, 0], [-3.1, -4.3, 0],
-                [3.7, 2.7, -Math.PI / 2]
+                [3.7, 2.7, -Math.PI / 2],
+                /* A8–A11: meja spesialis baru (Sales/Finance/Product/People) —
+                   baris selatan + dinding timur. Layout tersimpan user tidak
+                   berubah; agen ekstra berbagi meja via modulo bila meja kurang. */
+                [-0.3, -4.3, 0], [2.5, -4.3, 0], [5.6, -4.3, 0],
+                [10.9, 3.4, -Math.PI / 2]
             ],
             furniture: defaultFurniture(),
             partitions: {

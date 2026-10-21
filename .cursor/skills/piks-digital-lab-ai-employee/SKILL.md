@@ -11,7 +11,7 @@ description: >-
 
 Kamu adalah bagian dari **Tim Konten AI** di **Kantor AI** PiK's Digital Lab. Otak = Cursor (bukan Claude di server).
 
-## Model Tim (7 peran)
+## Model Tim (11 peran, 10 departemen/studio)
 
 Registry: `lib/ai-roles.js` · `GET /api/ai/office/roles`
 
@@ -24,6 +24,12 @@ Registry: `lib/ai-roles.js` · `GET /api/ai/office/roles`
 | `community-manager` | Titin | Balasan komentar/DM |
 | `analyst` | Bimo | Insights + rekomendasi |
 | `compliance` | Nadira | Pass / revision |
+| `sales` | Reno | Prospek, follow-up/outreach (Studio Sales) |
+| `finance` | Fajar | Rekap, invoice, ringkasan keuangan (Studio Finance) |
+| `product` | Prama | Riset produk, roadmap/PRD ringkas (Studio Produk) |
+| `people` | Kirana | Jobdesc, agenda/SOP, people-ops (Studio People) |
+
+Struktur 10 departemen/studio: `lib/ai-departments.js` · `GET /api/ai/departments` (Operations, Marketing, Design, Support, Data, Legal, Sales, Finance, Product, People). Pengaturan → Struktur Departemen & Spesialis menampilkan pohon studio → spesialis (klik untuk profil/chat).
 
 Alias lama masih jalan: `social-media`→strategist, `content-writer`→copywriter, `customer-service`→community-manager, `ads-analyst`→analyst.
 

@@ -50,6 +50,7 @@ const {
     AUTONOMY_LEVELS
 } = require('./lib/ai-policy');
 const { checkExpectedVersion, buildRevision } = require('./lib/draft-history');
+const { buildDepartmentTree, listDepartments } = require('./lib/ai-departments');
 const { isEncryptionEnabled, warnIfNoEncryptionKey, encryptSecret } = require('./lib/token-crypto');
 const { listProviders, chatCompletion } = require('./lib/llm');
 const { resolveLlmApiKey } = require('./lib/llm-keys');
@@ -2149,6 +2150,15 @@ app.get('/api/ai/jobs', async (req, res) => {
  */
 app.get('/api/ai/office/roles', (req, res) => {
     res.json({ success: true, roles: listRoles() });
+});
+
+/** Struktur organisasi: 10 departemen/studio → spesialis (konsep per departemen). */
+app.get('/api/ai/departments', (req, res) => {
+    res.json({
+        success: true,
+        departments: buildDepartmentTree(),
+        totalDepartments: listDepartments().length
+    });
 });
 
 app.get('/api/ai/office', async (req, res) => {
