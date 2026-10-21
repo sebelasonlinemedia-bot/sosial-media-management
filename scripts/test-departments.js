@@ -142,6 +142,12 @@ function ok(name, fn) {
         assert.strictEqual(mig.layout.partitions.segments.length, 4, 'hasil migrasi: 4 pembatas kaca');
         const customCfg = globalThis.AiOffice3D.migrateLegacyLayout({ desks: [[0, 0, 0]] });
         assert.strictEqual(customCfg.migrated, false, 'layout kustom tidak dimigrasi');
+
+        // Gedung lebar 50 m (slider sumbu X editor): batas pan kamera mengikuti gedung
+        const wide = globalThis.AiOffice3D.__test.buildLayout(11, {
+            building: { minX: -24.3, maxX: 25.7, minZ: -5.9, maxZ: 5.1 }
+        });
+        assert.ok(wide.pan.minX <= -24.3 && wide.pan.maxX >= 25.7, 'pan kamera mencakup gedung 50 m');
     });
 
     console.log(`\n${passed} grup asserts lolos.`);

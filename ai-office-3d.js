@@ -614,7 +614,14 @@
             meetingTable: meetingTable,
             cameraTarget: [0.7, 0.4, -0.4],
             cameraOffset: [-8, 18, 19],
-            pan: { minX: -12.5, maxX: 13.5, minZ: -8, maxZ: 8 },
+            /* Batas geser kamera mengikuti ukuran gedung aktif agar gedung
+               lebar (slider editor kini sampai 50 m) tetap bisa dijelajahi. */
+            pan: {
+                minX: Math.round((building.minX - 2) * 100) / 100,
+                maxX: Math.round((building.maxX + 2) * 100) / 100,
+                minZ: Math.round((building.minZ - 3) * 100) / 100,
+                maxZ: Math.round((building.maxZ + 3) * 100) / 100
+            },
             idleStops: idleStops,
             idleRoute: idleRoute
         };
