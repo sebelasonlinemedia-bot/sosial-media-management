@@ -48,6 +48,7 @@ const {
     ALL_PLATFORMS,
     AUTONOMY_LEVELS
 } = require('./lib/ai-policy');
+const { checkExpectedVersion, buildRevision } = require('./lib/draft-history');
 const { isEncryptionEnabled, warnIfNoEncryptionKey, encryptSecret } = require('./lib/token-crypto');
 const { listProviders } = require('./lib/llm');
 const { runCeoChatTurn } = require('./lib/ceo-chat');
@@ -2644,6 +2645,68 @@ app.post('/api/ai/jobs/:id/answer', async (req, res) => {
 });
 
 /**
+ * Minta revisi draf (adopsi kantor-ai): komentar revisi terikat ke versi draf,
+ * draf sebelumnya tersimpan di draftHistory, job kembali ke antrean (queued)
+ * menunggu draf baru dari agen. Body: { note, expectedVersion? }
+ */
+app.post('/api/ai/jobs/:id/revision', async (req, res) => {
+    try {
+        const job = await db.getAiJobById(req.params.id);
+        if (!job) return res.status(404).json({ success: false, message: 'Job tidak ditemukan.' });
+
+        if (!['awaiting_approval', 'queued', 'failed'].includes(job.status)) {
+            return res.status(400).json({
+                success: false,
+                message: `Status ${job.status} tidak bisa diminta revisi.`
+            });
+        }
+
+        const stale = checkExpectedVersion(job, req.body?.expectedVersion);
+        if (!stale.ok) {
+            return res.status(409).json({ success: false, message: stale.message, version: stale.current });
+        }
+
+        const actor = req.user?.email || 'user';
+        const built = buildRevision(job, { note: req.body?.note, actor });
+        if (!built.ok) {
+            return res.status(400).json({ success: false, message: built.message });
+        }
+
+        const history = Array.isArray(job.draftHistory) ? [...job.draftHistory, built.entry] : [built.entry];
+        const decisionLog = appendDecision(job.decisionLog, {
+            actor,
+            reason: `Revisi diminta (${built.entry.version}): ${built.revisionNote.slice(0, 160)}`,
+            status: 'revision_requested'
+        });
+
+        const updated = await db.updateAiJob(job.id, {
+            status: 'queued',
+            draftHistory: history,
+            decisionLog,
+            version: built.nextVersion,
+            revisionNote: built.revisionNote,
+            revisionRequestedAt: built.entry.at,
+            approvedAt: null,
+            approvedBy: null,
+            lastError: null
+        });
+
+        await db.appendAuditLog({
+            actor,
+            action: 'job_revision_requested',
+            target: job.id,
+            detail: { version: built.nextVersion, note: built.revisionNote.slice(0, 200) }
+        });
+
+        console.log(`📋 [AI-JOB] ${job.id} revision requested → queued (${built.entry.version})`);
+        res.json({ success: true, job: updated, message: 'Revisi diminta — job kembali ke antrean dengan draf sebelumnya tersimpan di riwayat.' });
+    } catch (err) {
+        console.error('📋 [AI-JOB] revision error:', err.message);
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+/**
  * Setujui job awaiting_approval; default autoRun=true → publish atomik via /run (approvedAt).
  * Body: { note?, autoRun?: boolean, caption?, ... } — autoRun false hanya menandai approved.
  */
@@ -2657,6 +2720,12 @@ app.post('/api/ai/jobs/:id/approve', rateLimitPublish, async (req, res) => {
                 success: false,
                 message: `Status ${job.status} tidak bisa di-approve.`
             });
+        }
+
+        // Penjaga versi basi: jangan setujui draf yang sudah berubah sejak halaman dibuka.
+        const stale = checkExpectedVersion(job, req.body?.expectedVersion);
+        if (!stale.ok) {
+            return res.status(409).json({ success: false, message: stale.message, version: stale.current });
         }
 
         const actor = req.user?.email || 'user';
@@ -2850,6 +2919,8 @@ async function runAiJobHandler(req, res) {
                 variantB: nextVariantB,
                 abWinner: nextWinner,
                 version: nextVersion,
+                revisionNote: null,
+                revisionRequestedAt: null,
                 lastError: null
             });
             await db.appendAuditLog({
@@ -2908,6 +2979,8 @@ async function runAiJobHandler(req, res) {
             variantB: nextVariantB,
             abWinner: nextWinner,
             version: nextVersion,
+            revisionNote: null,
+            revisionRequestedAt: null,
             lastError: null,
             approvedAt: null
         });

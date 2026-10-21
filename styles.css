@@ -5061,3 +5061,13 @@ button.mission-cal-day:hover {
 .about-agent-meta dt { font-weight: 700; color: var(--text-muted); }
 .about-agent-meta dd { margin: 0; }
 .about-agent-example { margin: auto 0 0; padding: 10px 12px; border-radius: 10px; background: rgba(99, 102, 241, 0.07); border: 1px solid rgba(99, 102, 241, 0.16); font-size: 0.82rem; font-style: italic; line-height: 1.5; }
+
+/* Riwayat draf & versi (modal detail job) */
+.draft-history-list { display: flex; flex-direction: column; gap: 10px; max-height: 320px; overflow-y: auto; }
+.draft-history-item { border: 1px solid var(--border-color); border-radius: 10px; padding: 10px 12px; background: var(--surface-faint, rgba(255,255,255,0.03)); }
+.draft-history-item.is-active { border-color: rgba(16, 185, 129, 0.55); }
+.draft-history-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 0.82rem; }
+.draft-history-date { margin-left: auto; font-size: 0.72rem; color: var(--text-muted); }
+.draft-history-text { margin: 6px 0 0; font-size: 0.82rem; line-height: 1.55; white-space: pre-wrap; word-break: break-word; }
+.draft-history-prev { color: var(--text-secondary); font-style: italic; }
+.draft-revision-banner { border: 1px solid rgba(245, 158, 11, 0.45); background: rgba(245, 158, 11, 0.08); border-radius: 10px; padding: 12px 14px; }

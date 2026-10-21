@@ -3238,6 +3238,54 @@ app._renderJobDetailModal = function (job) {
             </div>`
         : '';
 
+    // Riwayat draf & versi (adopsi kantor-ai) — backend sudah menyimpan draftHistory.
+    const historyLabels = {
+        created: 'Job dibuat', answer: 'Jawaban klarifikasi', draft: 'Draf diserahkan',
+        revision: 'Revisi diminta', approved: 'Disetujui',
+        run_start: 'Mulai publish', run_done: 'Publish selesai', run_failed: 'Publish gagal'
+    };
+    const historyEntries = (Array.isArray(job.draftHistory) ? job.draftHistory : [])
+        .filter(h => h && typeof h === 'object')
+        .slice()
+        .reverse();
+    const activeVersionLabel = `v${job.version || 1}`;
+    const historyHtml = historyEntries.length
+        ? `<div class="job-detail-section">
+                <p class="details-meta-label">Riwayat Draf &amp; Versi (${historyEntries.length})</p>
+                <div class="draft-history-list">
+                    ${historyEntries.map(h => {
+                        const isActive = h.version === activeVersionLabel;
+                        const text = h.revisionNote || h.caption || h.brief || (Array.isArray(h.answers) ? h.answers.join(' · ') : '') || h.lastError || '';
+                        return `<div class="draft-history-item${isActive ? ' is-active' : ''}">
+                            <div class="draft-history-head">
+                                <span class="badge ${isActive ? 'badge-emerald' : 'badge-indigo'}">${esc(h.version || '—')}</span>
+                                <strong>${esc(historyLabels[h.type] || h.type || 'Draf')}</strong>
+                                ${isActive ? '<span class="badge badge-amber">versi aktif</span>' : ''}
+                                <span class="draft-history-date">${esc(fmtDate(h.at))}</span>
+                            </div>
+                            ${text ? `<p class="draft-history-text">${esc(text.length > 280 ? text.slice(0, 277) + '…' : text)}</p>` : ''}
+                            ${h.type === 'revision' && h.previousCaption && h.previousCaption !== text ? `<p class="draft-history-text draft-history-prev">Draf sebelumnya: ${esc(h.previousCaption.length > 180 ? h.previousCaption.slice(0, 177) + '…' : h.previousCaption)}</p>` : ''}
+                        </div>`;
+                    }).join('')}
+                </div>
+            </div>`
+        : '';
+
+    const revisionBannerHtml = job.revisionNote && job.status === 'queued'
+        ? `<div class="job-detail-section draft-revision-banner">
+                <p class="details-meta-label">Revisi diminta — catatan untuk agen</p>
+                <p class="font-sm">${esc(job.revisionNote)}</p>
+            </div>`
+        : '';
+
+    const revisionFormHtml = job.status === 'awaiting_approval'
+        ? `<div class="job-detail-section">
+                <p class="details-meta-label">Minta revisi draf ${esc(activeVersionLabel)}</p>
+                <textarea id="job-detail-revision-note" class="form-control" rows="2" placeholder="Tulis apa yang harus diubah agen pada draf ini…"></textarea>
+                <p class="font-xs text-secondary" style="margin:6px 0 0;">Job kembali ke antrean; draf ${esc(activeVersionLabel)} tetap tersimpan di riwayat di bawah.</p>
+            </div>`
+        : '';
+
     body.innerHTML = `
         <div class="job-detail-section">
             <p class="details-meta-label">Brief</p>
@@ -3253,13 +3301,18 @@ app._renderJobDetailModal = function (job) {
             <div class="details-meta-item"><span class="details-meta-label">Diperbarui</span><span class="details-meta-value">${esc(fmtDate(job.updatedAt || job.createdAt))}</span></div>
         </div>
         ${job.lastError ? `<p class="font-sm text-danger job-detail-error">Error: ${esc(job.lastError)}</p>` : ''}
-        ${statusHtml}`;
+        ${statusHtml}
+        ${revisionBannerHtml}
+        ${revisionFormHtml}
+        ${historyHtml}`;
 
     let actionsHtml = '';
     if (job.status === 'needs_info') {
         actionsHtml = '<button type="button" class="btn btn-primary" id="job-detail-answer-submit">Kirim Jawaban → Antri</button>';
     } else if (job.status === 'awaiting_approval') {
-        actionsHtml = '<button type="button" class="btn btn-primary" id="job-detail-approve-btn"><i data-lucide="shield-check"></i><span>Setujui &amp; Publish</span></button>';
+        actionsHtml = `
+            <button type="button" class="btn btn-secondary" id="job-detail-revision-btn"><i data-lucide="undo-2"></i><span>Minta Revisi</span></button>
+            <button type="button" class="btn btn-primary" id="job-detail-approve-btn"><i data-lucide="shield-check"></i><span>Setujui &amp; Publish</span></button>`;
     } else if (job.status === 'failed') {
         actionsHtml = `
             <button type="button" class="btn btn-secondary" id="job-detail-run-btn">Jalankan Publish</button>
@@ -3277,6 +3330,13 @@ app._renderJobDetailModal = function (job) {
     if (approveBtn) {
         approveBtn.addEventListener('click', async () => {
             await this.approveOfficeJob();
+            this._refreshJobDetailModal();
+        });
+    }
+    const revisionBtn = document.getElementById('job-detail-revision-btn');
+    if (revisionBtn) {
+        revisionBtn.addEventListener('click', async () => {
+            await this.requestJobRevision();
             this._refreshJobDetailModal();
         });
     }
@@ -3321,6 +3381,33 @@ app.submitJobDetailAnswers = async function () {
         this._refreshJobDetailModal();
     } catch (e) {
         this.showToast('Gagal mengirim jawaban.', 'red');
+    }
+};
+
+/** Minta revisi draf dari modal: komentar wajib, versi dikirim sebagai stale guard. */
+app.requestJobRevision = async function () {
+    const jobId = appState.office.selectedJobId;
+    if (!jobId) return;
+    const note = document.getElementById('job-detail-revision-note')?.value?.trim();
+    if (!note) {
+        this.showToast('Isi komentar revisi dulu — agen perlu tahu apa yang diubah.', 'yellow');
+        return;
+    }
+    const job = this._findOfficeJob(jobId);
+    try {
+        const data = await api.post(`/api/ai/jobs/${jobId}/revision`, {
+            note,
+            expectedVersion: job?.version
+        });
+        if (!data.success) {
+            this.showToast(data.message || 'Gagal meminta revisi.', 'red');
+            return;
+        }
+        this.showToast('Revisi diminta — job kembali antri, draf lama tersimpan di riwayat.', 'emerald');
+        await this.renderOffice();
+        this.renderAiJobs();
+    } catch (e) {
+        this.showToast(e.message || 'Gagal meminta revisi.', 'red');
     }
 };
 
@@ -3448,7 +3535,11 @@ app.approveOfficeJob = async function () {
     const jobId = appState.office.selectedJobId;
     if (!jobId) return;
     try {
-        const approve = await api.post(`/api/ai/jobs/${jobId}/approve`, { note: 'Disetujui dari UI Kantor AI' });
+        const currentJob = (appState.aiJobs || []).find(j => j.id === jobId);
+        const approve = await api.post(`/api/ai/jobs/${jobId}/approve`, {
+            note: 'Disetujui dari UI Kantor AI',
+            expectedVersion: currentJob?.version
+        });
         if (!approve.success) {
             this.showToast(approve.message || 'Gagal approve.', 'red');
             return;
