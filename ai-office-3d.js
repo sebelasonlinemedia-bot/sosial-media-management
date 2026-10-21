@@ -41,6 +41,49 @@
         failed: 'Failed'
     };
 
+    /* --- Kehidupan kantor (adopsi kantor-ai, Fase 1) ---
+       Pencahayaan mengikuti jam perangkat (bisa override manual) dan rutinitas
+       sosial agen idle: ngobrol berpasangan, telepon, minum kopi, peregangan.
+       Maksimal 4 agen meninggalkan meja sekaligus; agen sibuk tidak ikut rutinitas. */
+    var LIGHTING_STORAGE_KEY = 'piks-office-lighting-mode';
+    var ROUTINE_STORAGE_KEY = 'piks-office-routine';
+    var MAX_ROUTINE_AWAY = 4;
+    var LIGHTING_PALETTES = {
+        pagi: { bg: 0xa8d4ec, clear: 0xb8d4e8, ambient: [0xffffff, 0.72], key: [0xfff5e8, 1.05], fill: [0xa8c8e0, 0.4], hemi: [0xd8ecff, 0x8fbc8f, 0.35] },
+        siang: { bg: 0x9ccdf2, clear: 0xa9d6f2, ambient: [0xffffff, 0.84], key: [0xffffff, 1.28], fill: [0xbdd8ee, 0.48], hemi: [0xe2f2ff, 0x9cc48f, 0.42] },
+        sore: { bg: 0xf4c795, clear: 0xf0c090, ambient: [0xffe3c2, 0.6], key: [0xffa95e, 0.98], fill: [0xe8a37c, 0.32], hemi: [0xffd9ae, 0xb98a5a, 0.28] },
+        malam: { bg: 0x22344d, clear: 0x1d2c42, ambient: [0xbdd2ff, 0.46], key: [0x8fb4ff, 0.55], fill: [0x46586e, 0.28], hemi: [0x8fb0e8, 0x2c3a2a, 0.2] }
+    };
+
+    function resolveLightingPeriod(date) {
+        var h = (date instanceof Date ? date : new Date(date || Date.now())).getHours();
+        if (h >= 6 && h < 12) return 'pagi';
+        if (h >= 12 && h < 16) return 'siang';
+        if (h >= 16 && h < 19) return 'sore';
+        return 'malam';
+    }
+
+    function loadLightingMode() {
+        try {
+            var raw = localStorage.getItem(LIGHTING_STORAGE_KEY);
+            if (raw && (raw === 'auto' || LIGHTING_PALETTES[raw])) return raw;
+        } catch (_) { /* ignore */ }
+        return 'auto';
+    }
+
+    function loadRoutinePreference() {
+        try {
+            var raw = localStorage.getItem(ROUTINE_STORAGE_KEY);
+            if (raw === '0') return false;
+            if (raw === '1') return true;
+        } catch (_) { /* ignore */ }
+        if (typeof matchMedia === 'function' &&
+            matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            return false;
+        }
+        return true;
+    }
+
     /* Startup office — match illustration (y-up, +z toward front). */
     var PARTITION_X = 0.7;
     var AISLE_Z = -0.1;
@@ -413,6 +456,11 @@
     var lastActivityDigest = '';
     var lastIdleStep = -1;
     var employeesCache = [];
+    var lightRefs = null;
+    var lightingMode = (typeof localStorage !== 'undefined') ? loadLightingMode() : 'auto';
+    var lightingPeriodApplied = '';
+    var lastLightingMinute = -1;
+    var routineOn = (typeof localStorage !== 'undefined') ? loadRoutinePreference() : true;
 
     /* Orbit / pan / zoom (Ruang-like OrbitControls subset) */
     var orbit = {
@@ -444,6 +492,56 @@
         try {
             localStorage.setItem(STORAGE_KEY, on ? '1' : '0');
         } catch (_) { /* ignore */ }
+    }
+
+    /** Terapkan palet pencahayaan periode aktif (auto = ikut jam perangkat). */
+    function applyLighting(force) {
+        if (!scene) return '';
+        var period = lightingMode === 'auto' ? resolveLightingPeriod(new Date()) : lightingMode;
+        if (!force && period === lightingPeriodApplied) return period;
+        var pal = LIGHTING_PALETTES[period];
+        if (!pal) return period;
+        lightingPeriodApplied = period;
+        if (scene.background && scene.background.set) scene.background.set(pal.bg);
+        else scene.background = new THREE.Color(pal.bg);
+        if (scene.fog && scene.fog.color) scene.fog.color.set(pal.bg);
+        if (renderer) renderer.setClearColor(pal.clear, 1);
+        if (lightRefs) {
+            lightRefs.ambient.color.set(pal.ambient[0]);
+            lightRefs.ambient.intensity = pal.ambient[1];
+            lightRefs.key.color.set(pal.key[0]);
+            lightRefs.key.intensity = pal.key[1];
+            lightRefs.fill.color.set(pal.fill[0]);
+            lightRefs.fill.intensity = pal.fill[1];
+            lightRefs.hemi.color.set(pal.hemi[0]);
+            lightRefs.hemi.groundColor.set(pal.hemi[1]);
+            lightRefs.hemi.intensity = pal.hemi[2];
+        }
+        return period;
+    }
+
+    function setLightingMode(mode) {
+        var next = (mode && (mode === 'auto' || LIGHTING_PALETTES[mode])) ? mode : 'auto';
+        lightingMode = next;
+        try { localStorage.setItem(LIGHTING_STORAGE_KEY, next); } catch (_) { /* ignore */ }
+        lightingPeriodApplied = '';
+        applyLighting(true);
+        var sel = container ? container.querySelector('#office-3d-lighting') : null;
+        if (sel) sel.value = next;
+        return next;
+    }
+
+    function setRoutineEnabled(on) {
+        routineOn = !!on;
+        try { localStorage.setItem(ROUTINE_STORAGE_KEY, routineOn ? '1' : '0'); } catch (_) { /* ignore */ }
+        var btn = container ? container.querySelector('#office-3d-routine') : null;
+        if (btn) {
+            btn.textContent = routineOn ? 'Routine: On' : 'Routine: Off';
+            btn.setAttribute('aria-pressed', routineOn ? 'true' : 'false');
+        }
+        lastIdleStep = -1;
+        recomputePlacements();
+        return routineOn;
     }
 
     function escapeHtml(str) {
@@ -478,13 +576,31 @@
 
     function idlePlan(seatIndexes, nowMs) {
         var plan = new Map();
+        if (!routineOn) return plan;
         var taken = new Map();
         var step = Math.floor(nowMs / IDLE_STOP_MS);
         function stopAt(index) {
             var key = LAYOUT.idleRoute[index % LAYOUT.idleRoute.length];
             return LAYOUT.idleStops.find(function (s) { return s.key === key; });
         }
-        seatIndexes.slice().sort(function (a, b) { return a - b; }).forEach(function (seat) {
+        /* Maksimal MAX_ROUTINE_AWAY agen meninggalkan meja sekaligus (pola kantor-ai);
+           sisanya tetap siaga di meja. Agen sibuk tidak masuk daftar ini sama sekali. */
+        var away = seatIndexes.slice().sort(function (a, b) { return a - b; }).slice(0, MAX_ROUTINE_AWAY);
+        /* Setiap langkah genap, dua agen pertama dipasangkan di stop chat
+           (dua spot saling berhadapan) agar ngobrol benar-benar berpasangan. */
+        var paired = {};
+        if (step % 2 === 0 && away.length >= 2) {
+            var chatStop = LAYOUT.idleStops.find(function (s) { return s.key === 'chat'; });
+            if (chatStop && chatStop.spots.length >= 2) {
+                plan.set(away[0], { stop: chatStop, spot: chatStop.spots[0], activity: 'social', speech: 'Chatting with a teammate' });
+                plan.set(away[1], { stop: chatStop, spot: chatStop.spots[1], activity: 'social', speech: 'Chatting with a teammate' });
+                paired[away[0]] = true;
+                paired[away[1]] = true;
+                taken.set('chat', 2);
+            }
+        }
+        away.forEach(function (seat) {
+            if (paired[seat]) return;
             var start = step + seat * 2;
             var stop = stopAt(start);
             var offset;
@@ -497,7 +613,24 @@
             }
             var used = taken.get(stop.key) || 0;
             taken.set(stop.key, used + 1);
-            plan.set(seat, { stop: stop, spot: stop.spots[used % stop.spots.length] });
+            /* Aktivitas sosial diturunkan dari zona tujuan + rotasi langkah:
+               coffee/kitchen → minum; chat → ngobrol; jalan → bergantian
+               telepon / peregangan / ngobrol. */
+            var activity = stop.key;
+            var speech = stop.label;
+            if (stop.key === 'coffee' || stop.key === 'kitchen') {
+                activity = 'coffee';
+                speech = stop.key === 'coffee' ? 'Coffee break' : 'Getting a drink';
+            } else if (stop.key === 'chat') {
+                activity = 'social';
+                speech = 'Chatting with a teammate';
+            } else if (stop.key === 'jalan') {
+                var pick = (step + seat) % 3;
+                if (pick === 0) { activity = 'phone'; speech = 'On a quick call'; }
+                else if (pick === 1) { activity = 'stretch'; speech = 'Stretching a bit'; }
+                else { activity = 'social'; speech = 'Chatting with a teammate'; }
+            }
+            plan.set(seat, { stop: stop, spot: stop.spots[used % stop.spots.length], activity: activity, speech: speech });
         });
         return plan;
     }
@@ -885,8 +1018,8 @@
                 x: spot.x, z: spot.z, facing: spot.facing, seatY: spot.seatY || 0,
                 seated: !!spot.seated,
                 pose: spot.seated ? 'sit' : 'stand',
-                activity: idleAssignment.stop.key,
-                speech: idleAssignment.stop.label,
+                activity: idleAssignment.activity || idleAssignment.stop.key,
+                speech: idleAssignment.speech || idleAssignment.stop.label,
                 label: STATUS_LABEL.idle,
                 idleKey: idleAssignment.stop.key
             };
@@ -1287,7 +1420,8 @@
         orbit.spherical.radius = orbit.defaults.radius;
         applyOrbitToCamera();
 
-        scene.add(new THREE.AmbientLight(0xffffff, 0.72));
+        var ambientLight = new THREE.AmbientLight(0xffffff, 0.72);
+        scene.add(ambientLight);
         var key = new THREE.DirectionalLight(0xfff5e8, 1.05);
         key.position.set(8, 18, 10);
         scene.add(key);
@@ -1296,6 +1430,9 @@
         scene.add(fill);
         var hemi = new THREE.HemisphereLight(0xd8ecff, 0x8fbc8f, 0.35);
         scene.add(hemi);
+        lightRefs = { ambient: ambientLight, key: key, fill: fill, hemi: hemi };
+        lightingPeriodApplied = '';
+        applyLighting(true);
 
         roomRoot = new THREE.Group();
         scene.add(roomRoot);
@@ -1865,7 +2002,43 @@
             return;
         }
 
-        if (activity === 'chat' || activity === 'game' || activity === 'arcade') {
+        if (activity === 'coffee') {
+            /* Minum: tangan kanan naik ke mulut berkala, tangan kiri santai. */
+            parts.leftLeg.rotation.x = seated ? -Math.PI / 2.2 : 0;
+            parts.rightLeg.rotation.x = seated ? -Math.PI / 2.2 : 0;
+            parts.leftArm.rotation.x = -0.25;
+            parts.rightArm.rotation.x = -1.85 + Math.sin(t * 1.1 + ud.phase) * 0.22;
+            parts.head.rotation.y = Math.sin(t * 0.8 + ud.phase) * 0.1;
+            parts.body.position.y = seated ? -0.14 : 0;
+            parts.torso.rotation.z = 0;
+            return;
+        }
+
+        if (activity === 'phone') {
+            /* Telepon: tangan kanan di telinga, kepala sedikit miring. */
+            parts.leftLeg.rotation.x = 0;
+            parts.rightLeg.rotation.x = 0;
+            parts.leftArm.rotation.x = -0.3 + Math.sin(t * 1.6 + ud.phase) * 0.06;
+            parts.rightArm.rotation.x = -2.25;
+            parts.head.rotation.y = Math.sin(t * 1.2 + ud.phase) * 0.08;
+            parts.body.position.y = Math.sin(t * 1.6 + ud.phase) * 0.006;
+            parts.torso.rotation.z = 0.05;
+            return;
+        }
+
+        if (activity === 'stretch') {
+            /* Peregangan: kedua tangan ke atas dengan ayunan halus. */
+            parts.leftLeg.rotation.x = 0;
+            parts.rightLeg.rotation.x = 0;
+            parts.leftArm.rotation.x = -2.65 + Math.sin(t * 1.8 + ud.phase) * 0.12;
+            parts.rightArm.rotation.x = -2.5 - Math.sin(t * 1.8 + ud.phase) * 0.12;
+            parts.head.rotation.y = 0;
+            parts.body.position.y = Math.abs(Math.sin(t * 1.8 + ud.phase)) * 0.02;
+            parts.torso.rotation.z = Math.sin(t * 0.9 + ud.phase) * 0.04;
+            return;
+        }
+
+        if (activity === 'chat' || activity === 'social' || activity === 'game' || activity === 'arcade') {
             parts.leftLeg.rotation.x = seated ? -Math.PI / 2.2 : 0;
             parts.rightLeg.rotation.x = seated ? -Math.PI / 2.2 : 0;
             parts.leftArm.rotation.x = -0.45 + Math.sin(t * 3.2) * 0.28;
@@ -2227,6 +2400,13 @@
             recomputePlacements();
         }
 
+        /* Pencahayaan mode auto diperiksa ulang tiap menit (transisi jam). */
+        var minute = Math.floor(Date.now() / 60000);
+        if (minute !== lastLightingMinute) {
+            lastLightingMinute = minute;
+            applyLighting(false);
+        }
+
         characters.forEach(function (ch) { animateCharacter(ch, t, dt); });
         updateLabelPositions();
         renderer.render(scene, camera);
@@ -2350,6 +2530,23 @@
             });
         }
 
+        var lightingSel = container.querySelector('#office-3d-lighting');
+        if (lightingSel) {
+            lightingSel.value = lightingMode;
+            lightingSel.addEventListener('change', function () {
+                setLightingMode(lightingSel.value);
+            });
+        }
+        var routineBtn = container.querySelector('#office-3d-routine');
+        if (routineBtn) {
+            routineBtn.textContent = routineOn ? 'Routine: On' : 'Routine: Off';
+            routineBtn.setAttribute('aria-pressed', routineOn ? 'true' : 'false');
+            routineBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                setRoutineEnabled(!routineOn);
+            });
+        }
+
         if (typeof ResizeObserver !== 'undefined') {
             resizeObserver = new ResizeObserver(function () { handleResize(); });
             resizeObserver.observe(container);
@@ -2457,6 +2654,9 @@
         scene = null;
         camera = null;
         clock = null;
+        lightRefs = null;
+        lightingPeriodApplied = '';
+        lastLightingMinute = -1;
         container = null;
         canvas = null;
         labelsRoot = null;
@@ -2479,9 +2679,15 @@
         isPanMode: isPanMode,
         setLayout: setLayout,
         getLayout: getLayout,
+        setLightingMode: setLightingMode,
+        getLightingMode: function () { return lightingMode; },
+        getLightingPeriod: function () { return lightingPeriodApplied; },
+        setRoutineEnabled: setRoutineEnabled,
+        isRoutineEnabled: function () { return routineOn; },
         __test: {
             buildLayout: buildLayout, deskSeatSpot: deskSeatSpot, deskInfo: deskInfo,
             deriveIdleStops: deriveIdleStops, navPath: navPath, pointBlocked: pointBlocked,
+            resolveLightingPeriod: resolveLightingPeriod,
             getLayoutRef: function () { return LAYOUT; }
         },
         getDefaultLayout: defaultLayoutData

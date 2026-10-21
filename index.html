@@ -139,6 +139,14 @@
                     </div>
                     <div class="office-3d-labels" id="office-3d-labels" aria-hidden="true"></div>
                     <div class="office-3d-tools mission-3d-tools-hidden">
+                        <select id="office-3d-lighting" class="office-3d-tool-btn office-3d-tool-select" title="Pencahayaan kantor (otomatis mengikuti jam perangkat)" aria-label="Pencahayaan kantor">
+                            <option value="auto">💡 Otomatis (jam)</option>
+                            <option value="pagi">🌅 Pagi</option>
+                            <option value="siang">☀️ Siang</option>
+                            <option value="sore">🌇 Sore</option>
+                            <option value="malam">🌙 Malam</option>
+                        </select>
+                        <button type="button" class="office-3d-tool-btn" id="office-3d-routine" title="Rutinitas sosial agen idle (ngobrol, telepon, minum, peregangan)" aria-pressed="true">Routine: On</button>
                         <button type="button" class="office-3d-tool-btn" id="office-3d-reset" title="Kembali ke sudut pandang awal">Reset view</button>
                     </div>
                     <p class="office-3d-hint mission-3d-hint-hidden">Drag to rotate · right-drag / Shift-drag to pan · scroll to zoom · klik agen untuk detail</p>
@@ -1343,6 +1351,7 @@
                                 <li><strong>Brand Memory</strong> — tone, kata terlarang, audiens, dan pillar konten jadi acuan semua agen.</li>
                                 <li><strong>Analisis Konten</strong> — pantau jangkauan, interaksi, dan kesehatan publikasi.</li>
                                 <li><strong>Riwayat Draf &amp; Versi</strong> — setiap draf job tersimpan per versi di detail job; minta revisi dengan komentar (draf lama tidak hilang) dan approve terlindung dari versi basi.</li>
+                                <li><strong>Kantor 3D yang Hidup</strong> — pencahayaan mengikuti jam (pagi/siang/sore/malam, bisa diatur manual) dan rutinitas sosial agen idle: ngobrol, telepon, minum kopi, peregangan — maksimal 4 agen meninggalkan meja sekaligus, bisa dimatikan lewat tombol Routine.</li>
                             </ul>
                         </div>
                         <div class="card">

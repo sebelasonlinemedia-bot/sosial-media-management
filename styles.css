@@ -5071,3 +5071,6 @@ button.mission-cal-day:hover {
 .draft-history-text { margin: 6px 0 0; font-size: 0.82rem; line-height: 1.55; white-space: pre-wrap; word-break: break-word; }
 .draft-history-prev { color: var(--text-secondary); font-style: italic; }
 .draft-revision-banner { border: 1px solid rgba(245, 158, 11, 0.45); background: rgba(245, 158, 11, 0.08); border-radius: 10px; padding: 12px 14px; }
+
+.office-3d-tool-select { appearance: auto; }
+.office-3d-tool-select option { color: #0f172a; }
