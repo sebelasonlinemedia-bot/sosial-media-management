@@ -108,9 +108,22 @@ function ok(name, fn) {
             [-9.0, 3.6, Math.PI / 2], [-9.1, 1.1, Math.PI / 2], [-9.2, -1.5, Math.PI / 2],
             [-8.5, -3.8, Math.PI / 4], [-5.9, -4.3, 0], [-3.1, -4.3, 0], [3.7, 2.7, -Math.PI / 2]
         ];
-        assert.strictEqual(isLegacy(legacy), true, 'layout bawaan lama terdeteksi untuk migrasi');
+        assert.strictEqual(isLegacy(legacy), true, 'layout bawaan lama (7) terdeteksi untuk migrasi');
+        const scattered11 = [...legacy, [-0.3, -4.3, 0], [2.5, -4.3, 0], [5.6, -4.3, 0], [10.9, 3.4, -Math.PI / 2]];
+        assert.strictEqual(isLegacy(scattered11), true, 'layout 11 meja menyebar terdeteksi untuk migrasi');
         const custom = legacy.map(d => [...d]); custom[0] = [0, 0, 0];
         assert.strictEqual(isLegacy(custom), false, 'layout kustom tidak ditimpa migrasi');
+
+        const isLegacySeg = globalThis.AiOffice3D.__test.isLegacyDefaultSegments;
+        assert.strictEqual(isLegacySeg([
+            { axis: 'v', at: -1.4, from: -5.9, to: -2.9 }, { axis: 'v', at: 7.2, from: -5.9, to: -1.8 },
+            { axis: 'h', at: 0.3, from: 7.4, to: 12.1 }, { axis: 'v', at: 5.3, from: 1.0, to: 5.1 }
+        ]), true, 'partisi bawaan lama terdeteksi');
+        assert.strictEqual(isLegacySeg([{ axis: 'h', at: -2.95, from: -8.1, to: 3.3 }]), false, 'partisi baru/kustom aman');
+
+        const defLayout = globalThis.AiOffice3D.getDefaultLayout();
+        assert.strictEqual(defLayout.desks.length, 11, 'denah pod baru: 11 meja');
+        assert.strictEqual(defLayout.partitions.segments.length, 3, 'denah pod baru: 3 segmen kaca');
     });
 
     console.log(`\n${passed} grup asserts lolos.`);

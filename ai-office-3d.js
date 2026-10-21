@@ -91,8 +91,8 @@
     /* Dinding belakang selalu tinggi penuh — slider layout hanya
        berlaku untuk dinding kiri & kanan (dan partisi interior). */
     var BACK_WALL_H = 2.55;
-    var WALL = 0xffffff;
-    var WALL_TOP = 0xf1f5f9;
+    var WALL = 0x2b3648;
+    var WALL_TOP = 0x14b8a6;
     var TEAL = 0x2dd4bf;
     var YELLOW = 0xfbbf24;
     var ORANGE = 0xfb923c;
@@ -104,7 +104,7 @@
        DAPUR/kopi kanan-bawah.
        Dideklarasikan SEBELUM buildLayout pertama agar tidak undefined. */
     var DEFAULT_BUILDING = { minX: -10.7, maxX: 12.1, minZ: -5.9, maxZ: 5.1 };
-    var DEFAULT_MEETING = { x: 3.0, z: -3.1, radius: 1.05, enabled: true };
+    var DEFAULT_MEETING = { x: -6.0, z: 2.0, radius: 1.05, enabled: true };
     /* Meja meeting MEMANJANG (elips sumbu-X): radius = skala lebar;
        setengah-panjang a = radius*1.6 (±3.2x lebar), setengah-lebar b. */
     var MEETING_LONG = 'elongated-meeting-v1';
@@ -135,20 +135,21 @@
     var LAYOUT = buildLayout(7, null);
     var CUSTOM_LAYOUT = null;
 
-    /** Mebel bawaan scene (posisi mengikuti denah screenshot). */
+    /** Mebel bawaan scene (denah studio futuristik ala referensi:
+       pod meja di utara, meeting bundar tengah-kiri, lounge timur,
+       koridor rekreasi di kanan). */
     function defaultFurniture() {
         return [
-            /* Lounge sofa-U tengah-kiri: sofa horizontal di utara, dua sofa
-               vertikal mengapit meja kopi. */
-            { id: 'sofa-1', type: 'sofa', x: -3.1, z: -0.2, rotY: 0 },
-            { id: 'sofa-2', type: 'sofa', x: -5.0, z: 1.9, rotY: Math.PI / 2 },
-            { id: 'sofa-3', type: 'sofa', x: -1.2, z: 1.9, rotY: Math.PI / 2 },
-            { id: 'coffee-table', type: 'coffeetable', x: -3.1, z: 1.9, rotY: Math.PI / 2 },
-            /* TV di dinding belakang (utara) tengah, di antara dua rak buku:
-               stop idle sofa-TV menghadap TV ini — lihat deriveIdleStops. */
-            { id: 'tv-1', type: 'tv', x: 3.0, z: -5.7, rotY: 0 },
-            { id: 'bookshelf-1', type: 'bookshelf', x: 0.5, z: -5.7, rotY: 0 },
-            { id: 'bookshelf-2', type: 'bookshelf', x: 5.5, z: -5.7, rotY: 0 },
+            /* Lounge sofa-U di timur-tengah menghadap meja kopi. */
+            { id: 'sofa-1', type: 'sofa', x: 5.6, z: 1.2, rotY: 0 },
+            { id: 'sofa-2', type: 'sofa', x: 3.9, z: 2.9, rotY: Math.PI / 2 },
+            { id: 'sofa-3', type: 'sofa', x: 7.3, z: 2.9, rotY: Math.PI / 2 },
+            { id: 'coffee-table', type: 'coffeetable', x: 5.6, z: 2.9, rotY: Math.PI / 2 },
+            /* TV + rak di dinding belakang (utara); rak barat berperan rak
+               server Operations. Stop idle sofa-TV menghadap TV ini. */
+            { id: 'tv-1', type: 'tv', x: 3.4, z: -5.7, rotY: 0 },
+            { id: 'bookshelf-1', type: 'bookshelf', x: -9.9, z: -5.7, rotY: 0 },
+            { id: 'bookshelf-2', type: 'bookshelf', x: 6.4, z: -5.7, rotY: 0 },
             { id: 'arcade-1', type: 'arcade', x: 7.9, z: -5.6, rotY: 0 },
             /* Pingpong vertikal (panjang meja sejajar sumbu Z) di kanan. */
             { id: 'pingpong', type: 'pingpong', x: 10.0, z: -3.3, rotY: Math.PI / 2 },
@@ -180,33 +181,27 @@
         return {
             wallHeight: 2.55,
             building: { minX: DEFAULT_BUILDING.minX, maxX: DEFAULT_BUILDING.maxX, minZ: DEFAULT_BUILDING.minZ, maxZ: DEFAULT_BUILDING.maxZ },
-            /* Urutan A1..A11 seperti label editor. Rotasi tersimpan mengikuti
-               konvensi deskSeatSpot (kursi di lokal (0,-0.78) yang diputar):
-               A1-A3 kursi di barat → +90°, A4 kursi di barat-laut → +45°
-               (di kanvas tampak miring -45° karena editor menggambar
-               rotate(-rotY)), A5-A6 kursi di utara → 0°, A7 kursi di
-               timur → -90° (sesuai info panel editor untuk meja #7). */
+            /* Denah pod studio ala referensi: dua baris pod menghadap selatan
+               (rot 0 — kursi di utara meja, agen menghadap ruang), dikelompokkan
+               per studio. Urutan meja = urutan peran: baris belakang (z=-4.35)
+               Maya, Rani, Dimas, Salsa, Titin, Kirana; baris depan (z=-1.55)
+               Bimo, Nadira, Reno, Fajar, Prama. Timur (x>6) koridor rekreasi. */
             desks: [
-                [-9.0, 3.6, Math.PI / 2], [-9.1, 1.1, Math.PI / 2], [-9.2, -1.5, Math.PI / 2],
-                [-8.5, -3.8, Math.PI / 4], [-5.9, -4.3, 0], [-3.1, -4.3, 0],
-                [3.7, 2.7, -Math.PI / 2],
-                /* A8–A11: meja spesialis baru (Sales/Finance/Product/People) —
-                   baris selatan + dinding timur. Layout tersimpan user tidak
-                   berubah; agen ekstra berbagi meja via modulo bila meja kurang. */
-                [-0.3, -4.3, 0], [2.5, -4.3, 0], [5.6, -4.3, 0],
-                [10.9, 3.4, -Math.PI / 2]
+                [-9.3, -4.35, 0], [-6.5, -4.35, 0], [-3.7, -4.35, 0],
+                [-0.9, -4.35, 0], [1.9, -4.35, 0], [4.7, -4.35, 0],
+                [-9.3, -1.55, 0], [-6.5, -1.55, 0], [-3.7, -1.55, 0],
+                [-0.9, -1.55, 0], [1.9, -1.55, 0]
             ],
             furniture: defaultFurniture(),
             partitions: {
-                /* Celah pintu sengaja dibiarkan: ujung selatan partisi
-                   x=-1.4 (z>-2.9), ujung selatan partisi x=7.2 (z>-1.8),
-                   barat partisi z=0.3 (x<7.4), dan ujung utara partisi
-                   x=5.3 (z<1.0) — semua zona tetap saling terjangkau. */
+                /* Kaca studio: pembatas horizontal antar baris pod + dua
+                   pembatas pendek di dinding belakang. Celah lebar dibiarkan
+                   di ujung barat/timur dan selatan segmen pendek agar semua
+                   zona tetap terjangkau agen. */
                 segments: [
-                    { axis: 'v', at: -1.4, from: -5.9, to: -2.9 },
-                    { axis: 'v', at: 7.2, from: -5.9, to: -1.8 },
-                    { axis: 'h', at: 0.3, from: 7.4, to: 12.1 },
-                    { axis: 'v', at: 5.3, from: 1.0, to: 5.1 }
+                    { axis: 'h', at: -2.95, from: -8.1, to: 3.3 },
+                    { axis: 'v', at: 3.3, from: -5.6, to: -3.3 },
+                    { axis: 'v', at: 6.05, from: -5.6, to: -3.3 }
                 ]
             },
             meetingTable: { x: DEFAULT_MEETING.x, z: DEFAULT_MEETING.z, radius: DEFAULT_MEETING.radius, enabled: true }
@@ -432,18 +427,69 @@
         return stops;
     }
 
-    /* Bawaan meja lama (7) sebelum spesialis Sales/Finance/Product/People. */
-    var LEGACY_DEFAULT_DESKS = [
-        [-9.0, 3.6, Math.PI / 2], [-9.1, 1.1, Math.PI / 2], [-9.2, -1.5, Math.PI / 2],
-        [-8.5, -3.8, Math.PI / 4], [-5.9, -4.3, 0], [-3.1, -4.3, 0],
-        [3.7, 2.7, -Math.PI / 2]
+    /* Bawaan meja generasi lama: (a) 7 meja sebelum spesialis baru,
+       (b) 11 meja menyebar sebelum denah pod studio. Layout yang masih
+       persis salah satu bawaan ini (belum dikustom user) dimigrasikan. */
+    var LEGACY_DESK_SETS = [
+        [
+            [-9.0, 3.6, Math.PI / 2], [-9.1, 1.1, Math.PI / 2], [-9.2, -1.5, Math.PI / 2],
+            [-8.5, -3.8, Math.PI / 4], [-5.9, -4.3, 0], [-3.1, -4.3, 0],
+            [3.7, 2.7, -Math.PI / 2]
+        ],
+        [
+            [-9.0, 3.6, Math.PI / 2], [-9.1, 1.1, Math.PI / 2], [-9.2, -1.5, Math.PI / 2],
+            [-8.5, -3.8, Math.PI / 4], [-5.9, -4.3, 0], [-3.1, -4.3, 0],
+            [3.7, 2.7, -Math.PI / 2], [-0.3, -4.3, 0], [2.5, -4.3, 0],
+            [5.6, -4.3, 0], [10.9, 3.4, -Math.PI / 2]
+        ]
     ];
     function isLegacyDefaultDesks(desks) {
-        if (!Array.isArray(desks) || desks.length !== LEGACY_DEFAULT_DESKS.length) return false;
-        return desks.every(function (d, i) {
-            var a = deskInfo(d);
-            var b = LEGACY_DEFAULT_DESKS[i];
-            return Math.abs(a.x - b[0]) < 0.02 && Math.abs(a.z - b[1]) < 0.02 && Math.abs(a.rot - b[2]) < 0.02;
+        if (!Array.isArray(desks)) return false;
+        return LEGACY_DESK_SETS.some(function (set) {
+            if (desks.length !== set.length) return false;
+            return desks.every(function (d, i) {
+                var a = deskInfo(d);
+                var b = set[i];
+                return Math.abs(a.x - b[0]) < 0.02 && Math.abs(a.z - b[1]) < 0.02 && Math.abs(a.rot - b[2]) < 0.02;
+            });
+        });
+    }
+    /* Partisi bawaan generasi sebelumnya (sebelum kaca studio). */
+    var LEGACY_DEFAULT_SEGMENTS = [
+        { axis: 'v', at: -1.4, from: -5.9, to: -2.9 },
+        { axis: 'v', at: 7.2, from: -5.9, to: -1.8 },
+        { axis: 'h', at: 0.3, from: 7.4, to: 12.1 },
+        { axis: 'v', at: 5.3, from: 1.0, to: 5.1 }
+    ];
+    function isLegacyDefaultSegments(segs) {
+        if (!Array.isArray(segs) || segs.length !== LEGACY_DEFAULT_SEGMENTS.length) return false;
+        return segs.every(function (s, i) {
+            var b = LEGACY_DEFAULT_SEGMENTS[i];
+            return s.axis === b.axis && Math.abs(s.at - b.at) < 0.02 &&
+                Math.abs(s.from - b.from) < 0.02 && Math.abs(s.to - b.to) < 0.02;
+        });
+    }
+    /* Tanda tangan furniture bawaan generasi sebelumnya [id, type, x, z]. */
+    var LEGACY_FURNITURE_SIG = [
+        ['sofa-1', 'sofa', -3.1, -0.2], ['sofa-2', 'sofa', -5.0, 1.9], ['sofa-3', 'sofa', -1.2, 1.9],
+        ['coffee-table', 'coffeetable', -3.1, 1.9], ['tv-1', 'tv', 3.0, -5.7],
+        ['bookshelf-1', 'bookshelf', 0.5, -5.7], ['bookshelf-2', 'bookshelf', 5.5, -5.7],
+        ['arcade-1', 'arcade', 7.9, -5.6], ['pingpong', 'pingpong', 10.0, -3.3],
+        ['beanbag-1', 'beanbag', 9.0, -0.7], ['beanbag-2', 'beanbag', 11.1, -0.7],
+        ['coffeebar', 'coffeebar', 8.1, 4.6], ['stool-1', 'stool', 7.4, 3.9], ['stool-2', 'stool', 8.8, 3.9],
+        ['pantry', 'pantry', 11.9, 3.0], ['fridge', 'fridge', 11.0, 4.4], ['galon', 'galon', 10.6, 2.7],
+        ['plant-1', 'plant', -10.4, -5.8], ['plant-2', 'plant', -10.5, 4.8], ['plant-3', 'plant', 11.8, -5.7],
+        ['tree-1', 'tree', -8.2, -9.5], ['tree-2', 'tree', -2.9, -9.3], ['tree-3', 'tree', 3.0, -9.2],
+        ['tree-4', 'tree', 8.2, -9.2], ['tree-5', 'tree', -14.0, -0.6], ['tree-6', 'tree', 15.2, -0.6],
+        ['lamp-1', 'lamp', -13.5, 6.7], ['lamp-2', 'lamp', 14.7, 6.5], ['lamp-3', 'lamp', 13.2, -7.1]
+    ];
+    function isLegacyDefaultFurniture(list) {
+        if (!Array.isArray(list) || list.length !== LEGACY_FURNITURE_SIG.length) return false;
+        return LEGACY_FURNITURE_SIG.every(function (sig) {
+            return list.some(function (f) {
+                return f.id === sig[0] && f.type === sig[1] &&
+                    Math.abs((Number(f.x) || 0) - sig[2]) < 0.02 && Math.abs((Number(f.z) || 0) - sig[3]) < 0.02;
+            });
         });
     }
 
@@ -456,15 +502,18 @@
             })
             : defaultLayoutData().desks
         );
-        /* Migrasi: layout yang masih persis bawaan lama (belum dikustom user)
-           dinaikkan ke bawaan 11 meja; layout kustom tidak disentuh. */
+        /* Migrasi denah pod studio: layout yang masih persis bawaan lama
+           (meja + partisi generasi sebelumnya, belum dikustom user) dinaikkan
+           utuh ke denah baru; layout kustom tidak disentuh sama sekali. */
         var migrated = false;
+        var migrateFull = false;
         if (cfg && isLegacyDefaultDesks(desks)) {
             desks = defaultLayoutData().desks.map(function (d) {
                 var info = deskInfo(d);
                 return [info.x, info.z, round2(info.rot)];
             });
             migrated = true;
+            migrateFull = isLegacyDefaultSegments(cfg.partitions && cfg.partitions.segments);
         }
         /* Layout bawaan/migrasi mempertahankan meja untuk semua peran yang
            dikenal (setLayout bisa dipanggil sebelum daftar karyawan dimuat). */
@@ -483,6 +532,9 @@
             : { minX: DEFAULT_BUILDING.minX, maxX: DEFAULT_BUILDING.maxX, minZ: DEFAULT_BUILDING.minZ, maxZ: DEFAULT_BUILDING.maxZ };
 
         var furniture = cfg && Array.isArray(cfg.furniture) ? cfg.furniture : defaultFurniture();
+        if (migrateFull && isLegacyDefaultFurniture(cfg && cfg.furniture)) {
+            furniture = defaultFurniture();
+        }
         var wallHeight = cfg && Number(cfg.wallHeight) ? Number(cfg.wallHeight) : 2.55;
 
         var meetingTable = cfg && cfg.meetingTable && typeof cfg.meetingTable === 'object'
@@ -493,11 +545,15 @@
                 enabled: cfg.meetingTable.enabled !== false
             }
             : { x: DEFAULT_MEETING.x, z: DEFAULT_MEETING.z, radius: DEFAULT_MEETING.radius, enabled: true };
+        if (migrateFull) {
+            meetingTable = { x: DEFAULT_MEETING.x, z: DEFAULT_MEETING.z, radius: DEFAULT_MEETING.radius, enabled: true };
+        }
         var meeting = meetingSpotsAround(meetingTable, agentCount);
 
         var partitions = cfg && cfg.partitions && Array.isArray(cfg.partitions.segments)
             ? cfg.partitions
             : defaultLayoutData().partitions;
+        if (migrateFull) partitions = defaultLayoutData().partitions;
 
         /* Spot idle diturunkan dari furnitur layout aktif (deriveIdleStops):
            bean bag/sofa/stool persis di dudukannya, pingpong/dapur titik berdiri. */
@@ -1234,12 +1290,12 @@
         studioZones.forEach(function (zone) {
             var pad = box(parent, zone.cx, 0.017, zone.cz, zone.w, 0.012, zone.d,
                 zone.color, 0.6, 0.05, {
-                    opacity: 0.15, emissive: zone.color, emissiveIntensity: 0.1
+                    opacity: 0.22, emissive: zone.color, emissiveIntensity: 0.16
                 });
             pad.castShadow = false;
             var edgeGeo = new THREE.EdgesGeometry(new THREE.BoxGeometry(zone.w, 0.014, zone.d));
             var edge = new THREE.LineSegments(edgeGeo, new THREE.LineBasicMaterial({
-                color: zone.color, transparent: true, opacity: 0.55
+                color: zone.color, transparent: true, opacity: 0.75
             }));
             edge.position.set(zone.cx, 0.02, zone.cz);
             parent.add(edge);
@@ -1618,16 +1674,16 @@
         }
         /* Pohon, lampu jalan & gerobak digambar dari daftar mebel layout (bisa custom). */
 
-        /* --- Lantai futuristik: panel terang + grid halus + strip cahaya --- */
+        /* --- Lantai futuristik gelap ala referensi: ubin slate + grid --- */
         addFloorPlane(roomRoot, cx, 0.004, cz,
-            b.maxX - b.minX, b.maxZ - b.minZ, 0xdfe8ef, 0.55);
+            b.maxX - b.minX, b.maxZ - b.minZ, 0x232c38, 0.85);
         var gridZ;
         for (gridZ = b.minZ + 1.1; gridZ < b.maxZ - 0.2; gridZ += 1.1) {
-            box(roomRoot, cx, 0.012, gridZ, b.maxX - b.minX - 0.1, 0.006, 0.02, 0xb7c8d4, 0.7);
+            box(roomRoot, cx, 0.012, gridZ, b.maxX - b.minX - 0.1, 0.006, 0.02, 0x31405a, 0.8);
         }
         var gridX;
         for (gridX = b.minX + 1.1; gridX < b.maxX - 0.2; gridX += 1.1) {
-            box(roomRoot, gridX, 0.012, cz, 0.02, 0.006, b.maxZ - b.minZ - 0.1, 0xc3d2dc, 0.7);
+            box(roomRoot, gridX, 0.012, cz, 0.02, 0.006, b.maxZ - b.minZ - 0.1, 0x2c3a4f, 0.8);
         }
         /* Strip cahaya cyan di jalur masuk (sisi terbuka +z) */
         var glowX;
@@ -2052,7 +2108,7 @@
             var el = document.createElement('div');
             el.className = 'office-3d-zone-label';
             el.dataset.studio = zone.id;
-            el.textContent = zone.studio;
+            el.textContent = zone.studio.toUpperCase() + ' STUDIO';
             el.style.display = 'none';
             labelsRoot.appendChild(el);
             zoneLabelEls.push(el);
@@ -3401,6 +3457,8 @@
             resolveLightingPeriod: resolveLightingPeriod,
             computeStudioZones: computeStudioZones,
             isLegacyDefaultDesks: isLegacyDefaultDesks,
+            isLegacyDefaultSegments: isLegacyDefaultSegments,
+            isLegacyDefaultFurniture: isLegacyDefaultFurniture,
             getLayoutRef: function () { return LAYOUT; }
         },
         getDefaultLayout: defaultLayoutData
