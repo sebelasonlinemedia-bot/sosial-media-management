@@ -161,6 +161,11 @@ function ok(name, fn) {
         // Meja menempel dinding/partisi: kolom kiri Studio 1 rapat ke dinding barat
         assert.strictEqual(defLayout.desks[5][0], -15.34, 'meja kolom kiri menempel dinding (x=-15,34)');
         assert.strictEqual(defLayout.desks[0][1], -6.1, 'meja lead menempel dinding belakang (z=-6,1)');
+        // Meja manager tiap studio: menghadap dinding belakang (rot PI) + penanda manager
+        for (const mi of [0, 1, 4, 8]) {
+            assert.strictEqual(Math.abs(defLayout.desks[mi][2] - Math.PI) < 0.01, true, `meja manager indeks ${mi} menghadap dinding`);
+            assert.strictEqual(defLayout.desks[mi][3], 1, `meja manager indeks ${mi} bertanda manager`);
+        }
         const floating28 = JSON.parse(JSON.stringify(defLayout));
         floating28.desks = [
             [-12.45, -5.5, 0], [-5.95, -5.5, 0], [-8.4, -4.6, Math.PI / 2],

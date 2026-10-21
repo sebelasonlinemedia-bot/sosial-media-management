@@ -193,15 +193,17 @@
                Studio 4 Support. Indeks meja 0..10 ditempati peran
                (ROLE_STUDIO); meja 11..27 workstation kosong siap pakai. */
             desks: [
-                /* 0 Maya — lead Studio 1 */ [-12.45, -6.1, 0],
-                /* 1 Rani — lead Studio 2 */ [-5.95, -6.1, 0],
+                /* Meja manager/lead (elemen ke-4 = 1): sama-sama menempel &
+                   menghadap dinding belakang, warna meja dibedakan. */
+                /* 0 Maya — manager Studio 1 */ [-12.45, -6.1, Math.PI, 1],
+                /* 1 Rani — manager Studio 2 */ [-5.95, -6.1, Math.PI, 1],
                 /* 2 Dimas — S2 kiri */ [-8.84, -4.6, -Math.PI / 2],
                 /* 3 Salsa — S2 kanan */ [-3.06, -4.6, Math.PI / 2],
-                /* 4 Titin — lead Studio 3 */ [7.35, -6.1, 0],
+                /* 4 Titin — manager Studio 3 */ [7.35, -6.1, Math.PI, 1],
                 /* 5 Bimo — S1 kiri */ [-15.34, -3.1, -Math.PI / 2],
                 /* 6 Nadira — S3 kiri */ [4.46, -4.6, -Math.PI / 2],
                 /* 7 Reno — S3 kanan */ [10.24, -4.6, Math.PI / 2],
-                /* 8 Fajar — lead Studio 4 */ [13.85, -6.1, 0],
+                /* 8 Fajar — manager Studio 4 */ [13.85, -6.1, Math.PI, 1],
                 /* 9 Prama — S4 kiri */ [10.96, -4.6, -Math.PI / 2],
                 /* 10 Kirana — S4 kanan */ [16.74, -4.6, Math.PI / 2],
                 /* Workstation kosong Studio 1 */
@@ -275,6 +277,11 @@
         if (Array.isArray(d)) return { x: Number(d[0]) || 0, z: Number(d[1]) || 0, rot: Number(d[2]) || 0 };
         d = d || {};
         return { x: Number(d.x) || 0, z: Number(d.z) || 0, rot: Number(d.rotY != null ? d.rotY : d.rot) || 0 };
+    }
+    /** Penanda meja manager/lead studio: elemen ke-4 array meja / field manager. */
+    function deskManagerFlag(d) {
+        if (Array.isArray(d)) return d[3] ? 1 : 0;
+        return d && d.manager ? 1 : 0;
     }
     /** Spot duduk meja agen: offset kursi lokal (0,-0.78) DIROTASIKAN rotY meja;
      *  robot menghadap meja (arah lokal +z yang terotasi). */
@@ -501,6 +508,20 @@
             [9.8, -3.1, -Math.PI / 2], [9.8, -1.6, -Math.PI / 2],
             [11.4, -3.1, Math.PI / 2], [11.4, -1.6, Math.PI / 2],
             [16.3, -3.1, -Math.PI / 2], [16.3, -1.6, -Math.PI / 2]
+        ],
+        [
+            [-12.45, -6.1, 0], [-5.95, -6.1, 0], [-8.84, -4.6, -Math.PI / 2],
+            [-3.06, -4.6, Math.PI / 2], [7.35, -6.1, 0], [-15.34, -3.1, -Math.PI / 2],
+            [4.46, -4.6, -Math.PI / 2], [10.24, -4.6, Math.PI / 2], [13.85, -6.1, 0],
+            [10.96, -4.6, -Math.PI / 2], [16.74, -4.6, Math.PI / 2],
+            [-15.34, -4.6, -Math.PI / 2], [-15.34, -1.6, -Math.PI / 2],
+            [-9.56, -4.6, Math.PI / 2], [-9.56, -3.1, Math.PI / 2], [-9.56, -1.6, Math.PI / 2],
+            [-8.84, -3.1, -Math.PI / 2], [-8.84, -1.6, -Math.PI / 2],
+            [-3.06, -3.1, Math.PI / 2], [-3.06, -1.6, Math.PI / 2],
+            [4.46, -3.1, -Math.PI / 2], [4.46, -1.6, -Math.PI / 2],
+            [10.24, -3.1, Math.PI / 2], [10.24, -1.6, Math.PI / 2],
+            [10.96, -3.1, -Math.PI / 2], [10.96, -1.6, -Math.PI / 2],
+            [16.74, -3.1, Math.PI / 2], [16.74, -1.6, Math.PI / 2]
         ]
     ];
     function isLegacyDefaultDesks(desks) {
@@ -635,7 +656,7 @@
         var desks = (cfg && Array.isArray(cfg.desks) && cfg.desks.length
             ? cfg.desks.map(function (d) {
                 var info = deskInfo(d);
-                return [info.x, info.z, round2(info.rot)];
+                return [info.x, info.z, round2(info.rot), deskManagerFlag(d)];
             })
             : defaultLayoutData().desks
         );
@@ -647,7 +668,7 @@
         if (cfg && isLegacyDefaultDesks(desks)) {
             desks = defaultLayoutData().desks.map(function (d) {
                 var info = deskInfo(d);
-                return [info.x, info.z, round2(info.rot)];
+                return [info.x, info.z, round2(info.rot), deskManagerFlag(d)];
             });
             migrated = true;
             migrateFull = isLegacyDefaultSegments(cfg.partitions && cfg.partitions.segments);
@@ -1937,7 +1958,7 @@
         var chairColors = [TEAL, YELLOW, TEAL, YELLOW, TEAL, YELLOW, TEAL];
         LAYOUT.desks.forEach(function (d, i) {
             var di = deskInfo(d);
-            addStartupDesk(roomRoot, di.x, di.z, chairColors[i % chairColors.length], di.rot);
+            addStartupDesk(roomRoot, di.x, di.z, chairColors[i % chairColors.length], di.rot, deskManagerFlag(d) === 1);
         });
         /* Meja meeting memanjang — hanya bila belum dihapus dari layout */
         if (LAYOUT.meetingTable && LAYOUT.meetingTable.enabled !== false) {
@@ -1963,23 +1984,25 @@
         box(parent, x, 0.97, z, 0.24, 0.06, 0.16, 0xeab308, 0.7);
     }
 
-    function addStartupDesk(parent, x, z, seatColor, rotY) {
+    function addStartupDesk(parent, x, z, seatColor, rotY, isManager) {
         /* Workstation ala referensi: meja biru royal rangka-U dengan LED
            strip putih menyala di tepi, satu monitor ultrawide memanjang,
            PC tower di bawah meja, kursi ergonomis biru.
+           Meja MANAGER dibedakan: bodi putih terang + LED cyan.
            Agen duduk di sisi -z menghadap +z: keyboard dekat agen (-z),
            monitor lebih jauh (+z) dengan layar menghadap agen (-z). */
         var g = groupAt(parent, x, 0, z, rotY || 0);
-        var BLUE = 0x2242c8;
-        var LED = { emissive: 0xf8fafc, emissiveIntensity: 1.25 };
+        var BLUE = isManager ? 0xdfe6f2 : 0x2242c8;
+        var LEDC = isManager ? 0x22d3ee : 0xf8fafc;
+        var LED = { emissive: LEDC, emissiveIntensity: 1.25 };
         /* Permukaan meja biru matte + panel kaki samping (rangka U) */
         box(g, 0, 0.73, 0, 1.5, 0.06, 0.7, BLUE, 0.38, 0.08, { cast: true });
         box(g, -0.69, 0.36, 0, 0.07, 0.72, 0.64, BLUE, 0.38, 0.08);
         box(g, 0.69, 0.36, 0, 0.07, 0.72, 0.64, BLUE, 0.38, 0.08);
         /* LED strip putih: tepi depan permukaan + turun di kedua kaki depan */
-        box(g, 0, 0.715, 0.352, 1.5, 0.016, 0.016, 0xf8fafc, 0.4, 0.1, LED);
-        box(g, -0.69, 0.37, 0.328, 0.016, 0.68, 0.016, 0xf8fafc, 0.4, 0.1, LED);
-        box(g, 0.69, 0.37, 0.328, 0.016, 0.68, 0.016, 0xf8fafc, 0.4, 0.1, LED);
+        box(g, 0, 0.715, 0.352, 1.5, 0.016, 0.016, LEDC, 0.4, 0.1, LED);
+        box(g, -0.69, 0.37, 0.328, 0.016, 0.68, 0.016, LEDC, 0.4, 0.1, LED);
+        box(g, 0.69, 0.37, 0.328, 0.016, 0.68, 0.016, LEDC, 0.4, 0.1, LED);
         /* Alas meja (desk mat) gelap + manajemen kabel tersembunyi */
         box(g, 0, 0.763, 0.03, 1.0, 0.01, 0.36, 0x0d1120, 0.6, 0.05);
         box(g, 0, 0.6, 0.27, 0.9, 0.08, 0.06, 0x0d1120, 0.5, 0.2);

@@ -1573,9 +1573,9 @@ app._layoutDefaultData = function () {
         wallHeight: 2.55,
         building: { minX: -15.7, maxX: 17.1, minZ: -6.5, maxZ: 5.5 },
         desks: [
-            [-12.45, -6.1, 0], [-5.95, -6.1, 0], [-8.84, -4.6, -Math.PI / 2],
-            [-3.06, -4.6, Math.PI / 2], [7.35, -6.1, 0], [-15.34, -3.1, -Math.PI / 2],
-            [4.46, -4.6, -Math.PI / 2], [10.24, -4.6, Math.PI / 2], [13.85, -6.1, 0],
+            [-12.45, -6.1, Math.PI, 1], [-5.95, -6.1, Math.PI, 1], [-8.84, -4.6, -Math.PI / 2],
+            [-3.06, -4.6, Math.PI / 2], [7.35, -6.1, Math.PI, 1], [-15.34, -3.1, -Math.PI / 2],
+            [4.46, -4.6, -Math.PI / 2], [10.24, -4.6, Math.PI / 2], [13.85, -6.1, Math.PI, 1],
             [10.96, -4.6, -Math.PI / 2], [16.74, -4.6, Math.PI / 2],
             [-15.34, -4.6, -Math.PI / 2], [-15.34, -1.6, -Math.PI / 2],
             [-9.56, -4.6, Math.PI / 2], [-9.56, -3.1, Math.PI / 2], [-9.56, -1.6, Math.PI / 2],
@@ -1703,7 +1703,8 @@ app._updateLayoutSelectedInfo = function () {
         const d = ed.data.desks[sel.index];
         if (d) {
             const dp = app._deskPos(d);
-            info.textContent = `Meja agen #${sel.index + 1} — posisi (${dp[0].toFixed(1)}, ${dp[1].toFixed(1)}) \u00b7 putar ${Math.round((dp[2] * 180) / Math.PI)}\u00b0`;
+            const mgr = Array.isArray(d) && d[3] ? 'Meja manager' : 'Meja agen';
+            info.textContent = `${mgr} #${sel.index + 1} — posisi (${dp[0].toFixed(1)}, ${dp[1].toFixed(1)}) \u00b7 putar ${Math.round((dp[2] * 180) / Math.PI)}\u00b0`;
         } else info.textContent = 'Meja agen';
     } else if (sel.kind === 'meeting') {
         const m = ed.data.meetingTable;
@@ -1878,7 +1879,9 @@ app._drawLayoutCanvas = function () {
         const dp = app._deskPos(desk);
         const co = rotOffset(dp[2], 0, -0.68);
         drawItem(dp[0] + co[0], dp[1] + co[1], 0.42, 0.42, '#1f6f6b', '', sel, dp[2]);
-        drawItem(dp[0], dp[1], 1.25, 0.65, '#5b8dd9', `A${i + 1}`, sel, dp[2]);
+        // Meja manager (elemen ke-4 = 1) dibedakan putih terang
+        const isMgr = Array.isArray(desk) && !!desk[3];
+        drawItem(dp[0], dp[1], 1.25, 0.65, isMgr ? '#e8edf5' : '#5b8dd9', `A${i + 1}`, sel, dp[2]);
     });
 
     // Label zona koridor depan
