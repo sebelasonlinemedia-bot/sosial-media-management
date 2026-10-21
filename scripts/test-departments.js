@@ -122,8 +122,8 @@ function ok(name, fn) {
         assert.strictEqual(isLegacySeg([{ axis: 'h', at: -2.95, from: -8.1, to: 3.3 }]), false, 'partisi baru/kustom aman');
 
         const defLayout = globalThis.AiOffice3D.getDefaultLayout();
-        assert.strictEqual(defLayout.desks.length, 11, 'denah klaster baru: 11 meja');
-        assert.strictEqual(defLayout.partitions.segments.length, 4, 'denah klaster baru: 4 pembatas kaca vertikal');
+        assert.strictEqual(defLayout.desks.length, 28, 'denah 4 studio: 28 meja (4 x 7)');
+        assert.strictEqual(defLayout.partitions.segments.length, 12, 'denah 4 studio: 12 segmen kaca');
         // Migrasi: denah pod dua-baris (bawaan sebelumnya) → denah klaster
         const legacyPod = JSON.parse(JSON.stringify(defLayout));
         legacyPod.desks = [
@@ -138,8 +138,26 @@ function ok(name, fn) {
             { axis: 'v', at: 6.05, from: -5.6, to: -3.3 }
         ] };
         const mig = globalThis.AiOffice3D.migrateLegacyLayout(legacyPod);
-        assert.strictEqual(mig.migrated, true, 'migrasi pod → klaster terdeteksi');
-        assert.strictEqual(mig.layout.partitions.segments.length, 4, 'hasil migrasi: 4 pembatas kaca');
+        assert.strictEqual(mig.migrated, true, 'migrasi pod → 4 studio terdeteksi');
+        assert.strictEqual(mig.layout.partitions.segments.length, 12, 'hasil migrasi: 12 segmen kaca');
+        assert.strictEqual(mig.layout.desks.length, 28, 'hasil migrasi: 28 meja');
+        // Migrasi: denah klaster 11 meja (bawaan sebelumnya) → 4 studio
+        const legacyCluster = JSON.parse(JSON.stringify(defLayout));
+        legacyCluster.desks = [
+            [-9.6, -4.4, 0], [-5.2, -4.4, 0], [-2.6, -4.4, 0],
+            [-3.9, -1.2, Math.PI], [3.2, -4.4, 0], [-7.0, -4.4, 0],
+            [5.8, -4.4, 0], [4.5, -1.2, Math.PI], [7.6, -4.4, 0],
+            [10.2, -4.4, 0], [8.9, -1.2, Math.PI]
+        ];
+        legacyCluster.partitions = { segments: [
+            { axis: 'v', at: -6.1, from: -5.7, to: -0.35 },
+            { axis: 'v', at: -1.7, from: -5.7, to: -0.35 },
+            { axis: 'v', at: 2.3, from: -5.7, to: -0.35 },
+            { axis: 'v', at: 6.7, from: -5.7, to: -0.35 }
+        ] };
+        const mig2 = globalThis.AiOffice3D.migrateLegacyLayout(legacyCluster);
+        assert.strictEqual(mig2.migrated, true, 'migrasi klaster → 4 studio terdeteksi');
+        assert.strictEqual(Math.round((mig2.layout.building.maxX - mig2.layout.building.minX) * 10) / 10, 32.8, 'migrasi ikut melebar ke gedung 32,8 m');
         const customCfg = globalThis.AiOffice3D.migrateLegacyLayout({ desks: [[0, 0, 0]] });
         assert.strictEqual(customCfg.migrated, false, 'layout kustom tidak dimigrasi');
 

@@ -1571,50 +1571,67 @@ app._layoutDefaultData = function () {
     // hanya dipakai bila modul 3D gagal dimuat.
     return {
         wallHeight: 2.55,
-        building: { minX: -10.7, maxX: 12.1, minZ: -5.9, maxZ: 5.1 },
+        building: { minX: -15.7, maxX: 17.1, minZ: -6.5, maxZ: 5.5 },
         desks: [
-            [-9.6, -4.4, 0], [-5.2, -4.4, 0], [-2.6, -4.4, 0],
-            [-3.9, -1.2, Math.PI], [3.2, -4.4, 0], [-7.0, -4.4, 0],
-            [5.8, -4.4, 0], [4.5, -1.2, Math.PI], [7.6, -4.4, 0],
-            [10.2, -4.4, 0], [8.9, -1.2, Math.PI]
+            [-12.45, -5.5, 0], [-5.95, -5.5, 0], [-8.4, -4.6, Math.PI / 2],
+            [-3.5, -4.6, -Math.PI / 2], [7.35, -5.5, 0], [-14.9, -3.1, Math.PI / 2],
+            [4.9, -4.6, Math.PI / 2], [9.8, -4.6, -Math.PI / 2], [13.85, -5.5, 0],
+            [11.4, -4.6, Math.PI / 2], [16.3, -4.6, -Math.PI / 2],
+            [-14.9, -4.6, Math.PI / 2], [-14.9, -1.6, Math.PI / 2],
+            [-10.0, -4.6, -Math.PI / 2], [-10.0, -3.1, -Math.PI / 2], [-10.0, -1.6, -Math.PI / 2],
+            [-8.4, -3.1, Math.PI / 2], [-8.4, -1.6, Math.PI / 2],
+            [-3.5, -3.1, -Math.PI / 2], [-3.5, -1.6, -Math.PI / 2],
+            [4.9, -3.1, Math.PI / 2], [4.9, -1.6, Math.PI / 2],
+            [9.8, -3.1, -Math.PI / 2], [9.8, -1.6, -Math.PI / 2],
+            [11.4, -3.1, Math.PI / 2], [11.4, -1.6, Math.PI / 2],
+            [16.3, -3.1, -Math.PI / 2], [16.3, -1.6, -Math.PI / 2]
         ],
         partitions: { segments: [
-            { axis: 'v', at: -6.1, from: -5.7, to: -0.35 },
-            { axis: 'v', at: -1.7, from: -5.7, to: -0.35 },
-            { axis: 'v', at: 2.3, from: -5.7, to: -0.35 },
-            { axis: 'v', at: 6.7, from: -5.7, to: -0.35 }
+            { axis: 'v', at: -9.2, from: -6.3, to: -0.9 },
+            { axis: 'v', at: -2.7, from: -6.3, to: -0.9 },
+            { axis: 'v', at: 4.1, from: -6.3, to: -0.9 },
+            { axis: 'v', at: 10.6, from: -6.3, to: -0.9 },
+            { axis: 'h', at: -0.9, from: -15.5, to: -13.25 },
+            { axis: 'h', at: -0.9, from: -11.65, to: -9.4 },
+            { axis: 'h', at: -0.9, from: -9.0, to: -6.75 },
+            { axis: 'h', at: -0.9, from: -5.15, to: -2.9 },
+            { axis: 'h', at: -0.9, from: 4.3, to: 6.55 },
+            { axis: 'h', at: -0.9, from: 8.15, to: 10.4 },
+            { axis: 'h', at: -0.9, from: 10.8, to: 13.05 },
+            { axis: 'h', at: -0.9, from: 14.65, to: 16.9 }
         ] },
-        meetingTable: { x: 0.25, z: 0.9, radius: 1.05, enabled: true },
+        meetingTable: { x: 0.7, z: -4.2, radius: 1.05, enabled: true },
         furniture: [
-            { id: 'sofa-1', type: 'sofa', x: 0.25, z: 4.35, rotY: 0 },
-            { id: 'sofa-2', type: 'sofa', x: -1.1, z: 3.3, rotY: Math.PI / 2 },
-            { id: 'sofa-3', type: 'sofa', x: 1.6, z: 3.3, rotY: Math.PI / 2 },
-            { id: 'coffee-table', type: 'coffeetable', x: 0.25, z: 3.3, rotY: Math.PI / 2 },
-            { id: 'tv-1', type: 'tv', x: 0.3, z: -5.72, rotY: 0 },
-            { id: 'bookshelf-1', type: 'bookshelf', x: -1.3, z: -5.7, rotY: 0 },
-            { id: 'bookshelf-2', type: 'bookshelf', x: 1.9, z: -5.7, rotY: 0 },
-            { id: 'arcade-1', type: 'arcade', x: 11.55, z: -5.5, rotY: 0 },
-            { id: 'pingpong', type: 'pingpong', x: 9.9, z: 3.5, rotY: 0 },
-            { id: 'beanbag-1', type: 'beanbag', x: 8.3, z: 2.6, rotY: 0 },
-            { id: 'beanbag-2', type: 'beanbag', x: 7.5, z: 4.0, rotY: 0 },
-            { id: 'coffeebar', type: 'coffeebar', x: -9.7, z: 4.55, rotY: 0 },
-            { id: 'stool-1', type: 'stool', x: -10.4, z: 3.85, rotY: 0 },
-            { id: 'stool-2', type: 'stool', x: -9.0, z: 3.85, rotY: 0 },
-            { id: 'pantry', type: 'pantry', x: 11.9, z: 0.9, rotY: -Math.PI / 2 },
-            { id: 'fridge', type: 'fridge', x: 11.5, z: 2.6, rotY: -Math.PI / 2 },
-            { id: 'galon', type: 'galon', x: 11.3, z: 1.9, rotY: 0 },
-            { id: 'plant-1', type: 'plant', x: -10.4, z: -5.8, rotY: 0 },
-            { id: 'plant-2', type: 'plant', x: -10.5, z: 4.8, rotY: 0 },
-            { id: 'plant-3', type: 'plant', x: 11.8, z: -5.7, rotY: 0 },
-            { id: 'tree-1', type: 'tree', x: -8.2, z: -9.5, rotY: 0 },
-            { id: 'tree-2', type: 'tree', x: -2.9, z: -9.3, rotY: 0 },
-            { id: 'tree-3', type: 'tree', x: 3.0, z: -9.2, rotY: 0 },
-            { id: 'tree-4', type: 'tree', x: 8.2, z: -9.2, rotY: 0 },
-            { id: 'tree-5', type: 'tree', x: -14.0, z: -0.6, rotY: 0 },
-            { id: 'tree-6', type: 'tree', x: 15.2, z: -0.6, rotY: 0 },
-            { id: 'lamp-1', type: 'lamp', x: -13.5, z: 6.7, rotY: 0 },
-            { id: 'lamp-2', type: 'lamp', x: 14.7, z: 6.5, rotY: 0 },
-            { id: 'lamp-3', type: 'lamp', x: 13.2, z: -7.1, rotY: 0 }
+            { id: 'sofa-1', type: 'sofa', x: 0.7, z: 4.6, rotY: 0 },
+            { id: 'sofa-2', type: 'sofa', x: -0.6, z: 3.5, rotY: Math.PI / 2 },
+            { id: 'sofa-3', type: 'sofa', x: 2.0, z: 3.5, rotY: Math.PI / 2 },
+            { id: 'coffee-table', type: 'coffeetable', x: 0.7, z: 3.5, rotY: Math.PI / 2 },
+            { id: 'tv-1', type: 'tv', x: 0.7, z: -6.32, rotY: 0 },
+            { id: 'bookshelf-1', type: 'bookshelf', x: -0.9, z: -6.32, rotY: 0 },
+            { id: 'bookshelf-2', type: 'bookshelf', x: 2.3, z: -6.32, rotY: 0 },
+            { id: 'arcade-1', type: 'arcade', x: 16.75, z: -6.15, rotY: 0 },
+            { id: 'pingpong', type: 'pingpong', x: 13.5, z: 3.8, rotY: 0 },
+            { id: 'pingpong-2', type: 'pingpong', x: -12.3, z: 2.4, rotY: 0 },
+            { id: 'beanbag-1', type: 'beanbag', x: 11.3, z: 2.7, rotY: 0 },
+            { id: 'beanbag-2', type: 'beanbag', x: 15.6, z: 2.9, rotY: 0 },
+            { id: 'coffeebar', type: 'coffeebar', x: -13.2, z: 4.95, rotY: 0 },
+            { id: 'stool-1', type: 'stool', x: -13.9, z: 4.25, rotY: 0 },
+            { id: 'stool-2', type: 'stool', x: -12.5, z: 4.25, rotY: 0 },
+            { id: 'pantry', type: 'pantry', x: -15.4, z: 1.8, rotY: -Math.PI / 2 },
+            { id: 'fridge', type: 'fridge', x: -15.35, z: 3.1, rotY: -Math.PI / 2 },
+            { id: 'galon', type: 'galon', x: -14.9, z: 2.4, rotY: 0 },
+            { id: 'plant-1', type: 'plant', x: -15.4, z: -6.3, rotY: 0 },
+            { id: 'plant-2', type: 'plant', x: -15.4, z: 5.2, rotY: 0 },
+            { id: 'plant-3', type: 'plant', x: 16.8, z: 5.2, rotY: 0 },
+            { id: 'tree-1', type: 'tree', x: -12.0, z: -9.8, rotY: 0 },
+            { id: 'tree-2', type: 'tree', x: -5.0, z: -9.6, rotY: 0 },
+            { id: 'tree-3', type: 'tree', x: 2.0, z: -9.6, rotY: 0 },
+            { id: 'tree-4', type: 'tree', x: 9.0, z: -9.6, rotY: 0 },
+            { id: 'tree-5', type: 'tree', x: -19.5, z: -0.5, rotY: 0 },
+            { id: 'tree-6', type: 'tree', x: 20.8, z: -0.5, rotY: 0 },
+            { id: 'lamp-1', type: 'lamp', x: -18.5, z: 7.0, rotY: 0 },
+            { id: 'lamp-2', type: 'lamp', x: 20.0, z: 6.8, rotY: 0 },
+            { id: 'lamp-3', type: 'lamp', x: 18.0, z: -8.5, rotY: 0 }
         ]
     };
 };
@@ -1644,7 +1661,7 @@ app.renderLayoutEditor = async function () {
     const status = document.getElementById('layout-editor-status');
     if (status) {
         status.textContent = migratedFromLegacy
-            ? 'Layout bawaan lama diperbarui ke denah klaster studio baru. Klik Simpan Layout untuk menetapkannya.'
+            ? 'Layout bawaan lama diperbarui ke denah 4 studio baru. Klik Simpan Layout untuk menetapkannya.'
             : saved
                 ? 'Layout custom tersimpan sedang dipakai. Seret item lalu Simpan Layout.'
                 : 'Masih layout bawaan. Atur denah lalu Simpan Layout untuk memakai layout custom.';
