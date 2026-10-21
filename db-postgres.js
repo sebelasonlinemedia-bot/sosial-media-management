@@ -468,6 +468,14 @@ class PostgresDatabase {
         return this.getAiJobById(id);
     }
 
+    async deleteAiJob(id) {
+        const sql = getSql();
+        const rows = await sql`
+            DELETE FROM ai_jobs WHERE id = ${id} RETURNING id
+        `;
+        return rows.length > 0;
+    }
+
     async getAiSettings() {
         const sql = getSql();
         const rows = await sql`

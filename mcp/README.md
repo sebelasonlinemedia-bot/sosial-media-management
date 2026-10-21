@@ -1,10 +1,12 @@
 # MCP Server — PiK's Digital Lab
 
 Menghubungkan PiK's Digital Lab ke klien MCP (Cursor, Claude Desktop, dll.)
-lewat 15 tool: `office_context`, `list_roles`, `list_jobs`, `get_job`,
+lewat 17 tool: `office_context`, `list_roles`, `list_jobs`, `get_job`,
 `create_job`, `answer_job`, `request_revision`, `approve_job`, `run_job`,
 `get_insights`, `list_accounts`, plus Tugas Umum (Fase A–D): `list_task_types`,
-`create_task`, `execute_task`, `research_web`.
+`create_task`, `execute_task`, `research_web`, plus bersih-bersih work board:
+`delete_job`, `cleanup_jobs` (admin/approver; `cleanup_jobs` mendukung
+`dryRun`, `onlyTest`, `olderThanDays`).
 
 Tugas Umum memperluas kantor di luar publish sosmed: riset web, kirim email,
 dokumen, spreadsheet CSV, generate gambar, WhatsApp, dan tugas bebas LLM

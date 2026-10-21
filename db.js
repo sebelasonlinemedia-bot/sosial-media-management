@@ -285,6 +285,15 @@ class JsonDatabase {
         return this._data.aiJobs[idx];
     }
 
+    async deleteAiJob(id) {
+        const list = this._data.aiJobs || [];
+        const idx = list.findIndex(j => j.id === id);
+        if (idx === -1) return false;
+        list.splice(idx, 1);
+        await this.save();
+        return true;
+    }
+
     async getAiSettings() {
         return normalizeAiSettings(this._data.aiSettings);
     }

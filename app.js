@@ -808,6 +808,8 @@ app.setupMissionEvents = function () {
     }
     const standupBtn = document.getElementById('mission-standup-btn');
     if (standupBtn) standupBtn.addEventListener('click', () => this.startStandup());
+    const cleanupBtn = document.getElementById('mission-cleanup-btn');
+    if (cleanupBtn) cleanupBtn.addEventListener('click', () => this.cleanupOfficeJobs());
     const standupAdvance = document.getElementById('mission-standup-advance');
     if (standupAdvance) standupAdvance.addEventListener('click', () => this.advanceStandup());
     const standupFinish = document.getElementById('mission-standup-finish');
@@ -3310,7 +3312,9 @@ app._renderJobDetailModal = function (job) {
         ${historyHtml}`;
 
     let actionsHtml = '';
-    if (job.status === 'needs_info') {
+    if (job.taskType && (job.status === 'queued' || job.status === 'failed')) {
+        actionsHtml = '<button type="button" class="btn btn-primary" id="job-detail-execute-btn"><i data-lucide="play"></i><span>Jalankan Tugas</span></button>';
+    } else if (job.status === 'needs_info') {
         actionsHtml = '<button type="button" class="btn btn-primary" id="job-detail-answer-submit">Kirim Jawaban → Antri</button>';
     } else if (job.status === 'awaiting_approval') {
         actionsHtml = `
@@ -3323,12 +3327,31 @@ app._renderJobDetailModal = function (job) {
     } else if (job.status === 'queued' || job.status === 'done') {
         actionsHtml = '<button type="button" class="btn btn-primary" id="job-detail-run-btn"><i data-lucide="play"></i><span>Jalankan Publish</span></button>';
     }
+    const canDeleteJob = !['working', 'publishing', 'awaiting_approval'].includes(job.status);
+    const deleteHtml = canDeleteJob
+        ? '<button type="button" class="btn btn-secondary" id="job-detail-delete-btn" title="Hapus job ini (admin/approver)"><i data-lucide="trash-2"></i><span>Hapus</span></button>'
+        : '';
     footer.innerHTML = `
         <button type="button" class="btn btn-secondary" onclick="app.closeJobDetailModal()">Tutup</button>
+        ${deleteHtml}
         ${actionsHtml}`;
 
     const answerBtn = document.getElementById('job-detail-answer-submit');
     if (answerBtn) answerBtn.addEventListener('click', () => this.submitJobDetailAnswers());
+    const deleteBtn = document.getElementById('job-detail-delete-btn');
+    if (deleteBtn) {
+        deleteBtn.addEventListener('click', async () => {
+            const removed = await this.deleteOfficeJob(job.id);
+            if (removed) this.closeJobDetailModal();
+        });
+    }
+    const executeBtn = document.getElementById('job-detail-execute-btn');
+    if (executeBtn) {
+        executeBtn.addEventListener('click', async () => {
+            await this.executeOfficeTask(job.id);
+            this._refreshJobDetailModal();
+        });
+    }
     const approveBtn = document.getElementById('job-detail-approve-btn');
     if (approveBtn) {
         approveBtn.addEventListener('click', async () => {
@@ -3531,6 +3554,76 @@ app.runOfficeJob = async function (forcePublish) {
         this.renderAiJobs();
     } catch (e) {
         this.showToast('Gagal menjalankan job.', 'red');
+    }
+};
+
+/** Hapus satu job dari Work Board (admin/approver; status aktif dilindungi server). */
+app.deleteOfficeJob = async function (jobId) {
+    if (!jobId) return false;
+    if (!confirm('Hapus job ini dari Work Board? Tindakan tidak bisa dibatalkan.')) return false;
+    try {
+        const data = await api.delete(`/api/ai/jobs/${jobId}`);
+        if (!data.success) {
+            this.showToast(data.message || 'Gagal menghapus job.', 'red');
+            return false;
+        }
+        this.showToast('🗑️ Job dihapus dari Work Board.', 'indigo');
+        await this.loadOfficeFromServer();
+        await this.renderOffice();
+        this.renderAiJobs();
+        return true;
+    } catch (e) {
+        this.showToast('Gagal menghapus job.', 'red');
+        return false;
+    }
+};
+
+/** Jalankan tugas umum (taskType) dari modal — bukan jalur publish. */
+app.executeOfficeTask = async function (jobId) {
+    if (!jobId) return;
+    try {
+        const data = await api.post(`/api/ai/jobs/${jobId}/execute`, {});
+        if (data.awaitingApproval) {
+            this.showToast('Tugas keluar menunggu approval (otonomi).', 'amber');
+        } else if (data.needsInfo) {
+            this.showToast('Input tugas belum lengkap — lihat pertanyaan di job.', 'amber');
+        } else if (data.success) {
+            this.showToast(data.result?.simulated ? 'Tugas selesai (mode simulasi).' : 'Tugas selesai.', 'emerald');
+        } else {
+            this.showToast(data.message || 'Tugas gagal dijalankan.', 'red');
+        }
+        await this.loadOfficeFromServer();
+        await this.renderOffice();
+        this.renderAiJobs();
+    } catch (e) {
+        this.showToast('Gagal menjalankan tugas.', 'red');
+    }
+};
+
+/** Bersihkan massal: hapus job done/failed sesudah konfirmasi jumlah (dry-run dulu). */
+app.cleanupOfficeJobs = async function () {
+    try {
+        const probe = await api.post('/api/ai/jobs/cleanup', { dryRun: true, statuses: ['done', 'failed'] });
+        if (!probe.success) {
+            this.showToast(probe.message || 'Bersih-bersih hanya untuk admin/approver.', 'red');
+            return;
+        }
+        if (!probe.matched) {
+            this.showToast('Tidak ada job selesai/gagal untuk dibersihkan.', 'indigo');
+            return;
+        }
+        if (!confirm(`Hapus ${probe.matched} job selesai/gagal dari Work Board? Tindakan tidak bisa dibatalkan.`)) return;
+        const data = await api.post('/api/ai/jobs/cleanup', { statuses: ['done', 'failed'] });
+        if (!data.success) {
+            this.showToast(data.message || 'Gagal membersihkan job.', 'red');
+            return;
+        }
+        this.showToast(`🧹 ${data.deleted} job dibersihkan dari Work Board.`, 'emerald');
+        await this.loadOfficeFromServer();
+        await this.renderOffice();
+        this.renderAiJobs();
+    } catch (e) {
+        this.showToast('Gagal membersihkan job.', 'red');
     }
 };
 

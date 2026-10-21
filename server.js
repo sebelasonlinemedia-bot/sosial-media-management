@@ -2961,6 +2961,119 @@ app.get('/api/ai/jobs/:id/artifact', async (req, res) => {
     }
 });
 
+/* ------------------------------------------------------------------ *
+ * Bersih-bersih work board — hapus job per item / massal.
+ * Hanya admin/approver. Status aktif (working/publishing/
+ * awaiting_approval) dilindungi agar tugas berjalan tidak hilang.
+ * ------------------------------------------------------------------ */
+const DELETABLE_JOB_STATUSES = ['done', 'posted', 'failed', 'needs_info', 'queued'];
+const PROTECTED_JOB_STATUSES = ['working', 'publishing', 'awaiting_approval'];
+const TEST_BRIEF_PATTERN = /(\btest\b|\buji\b|contoh\.id|e2e)/i;
+
+function assertCanDeleteJobs(req) {
+    if (!req.user) {
+        return { ok: false, status: 401, message: 'Hapus tugas memerlukan autentikasi.' };
+    }
+    if (!auth.canForcePublish(req.user)) {
+        return { ok: false, status: 403, message: 'Hapus tugas hanya untuk role admin atau approver.' };
+    }
+    return { ok: true };
+}
+
+app.delete('/api/ai/jobs/:id', async (req, res) => {
+    try {
+        const guard = assertCanDeleteJobs(req);
+        if (!guard.ok) return res.status(guard.status).json({ success: false, message: guard.message });
+
+        const job = await db.getAiJobById(req.params.id);
+        if (!job) return res.status(404).json({ success: false, message: 'Job tidak ditemukan.' });
+        if (PROTECTED_JOB_STATUSES.includes(job.status)) {
+            return res.status(409).json({
+                success: false,
+                message: `Job berstatus ${job.status} tidak bisa dihapus. Selesaikan atau tunggu dulu.`
+            });
+        }
+
+        const removed = await db.deleteAiJob(job.id);
+        if (!removed) return res.status(404).json({ success: false, message: 'Job tidak ditemukan.' });
+
+        await db.appendAuditLog({
+            actor: req.user?.email || 'user',
+            action: 'job_deleted',
+            target: job.id,
+            detail: { status: job.status, brief: String(job.brief || '').slice(0, 160) }
+        });
+        console.log(`🗑️ [AI-JOB] ${job.id} dihapus (status=${job.status})`);
+        res.json({ success: true, deleted: job.id });
+    } catch (err) {
+        console.error('🗑️ [AI-JOB] delete error:', err.message);
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+/**
+ * Cleanup massal. Body: { statuses?, onlyTest?, olderThanDays?, dryRun? }
+ * Bawaan: hapus done+failed. dryRun=true hanya melaporkan tanpa menghapus.
+ */
+app.post('/api/ai/jobs/cleanup', async (req, res) => {
+    try {
+        const guard = assertCanDeleteJobs(req);
+        if (!guard.ok) return res.status(guard.status).json({ success: false, message: guard.message });
+
+        const body = req.body || {};
+        const requested = Array.isArray(body.statuses) && body.statuses.length
+            ? body.statuses.map(s => String(s).toLowerCase())
+            : ['done', 'failed'];
+        const statuses = requested.filter(s => DELETABLE_JOB_STATUSES.includes(s));
+        if (!statuses.length) {
+            return res.status(400).json({
+                success: false,
+                message: `statuses harus subset dari: ${DELETABLE_JOB_STATUSES.join(', ')}.`
+            });
+        }
+        const onlyTest = !!body.onlyTest;
+        const olderThanDays = Number(body.olderThanDays) > 0 ? Number(body.olderThanDays) : null;
+        const cutoff = olderThanDays ? Date.now() - olderThanDays * 86400000 : null;
+        const dryRun = !!body.dryRun;
+
+        const jobs = await db.getAiJobs();
+        const matched = jobs.filter(j => {
+            if (!statuses.includes(j.status)) return false;
+            if (onlyTest && !TEST_BRIEF_PATTERN.test(String(j.brief || ''))) return false;
+            if (cutoff && new Date(j.createdAt || 0).getTime() > cutoff) return false;
+            return true;
+        });
+
+        const summary = matched.map(j => ({
+            id: j.id,
+            status: j.status,
+            brief: String(j.brief || '').slice(0, 120),
+            createdAt: j.createdAt || null
+        }));
+
+        if (dryRun) {
+            return res.json({ success: true, dryRun: true, matched: summary.length, jobs: summary });
+        }
+
+        let deleted = 0;
+        for (const j of matched) {
+            if (await db.deleteAiJob(j.id)) deleted++;
+        }
+
+        await db.appendAuditLog({
+            actor: req.user?.email || 'user',
+            action: 'jobs_cleanup',
+            target: 'ai_jobs',
+            detail: { deleted, statuses, onlyTest, olderThanDays }
+        });
+        console.log(`🧹 [AI-JOB] cleanup menghapus ${deleted} job (status=${statuses.join('/')} onlyTest=${onlyTest})`);
+        res.json({ success: true, deleted, jobs: summary });
+    } catch (err) {
+        console.error('🧹 [AI-JOB] cleanup error:', err.message);
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
 /**
  * Minta revisi draf (adopsi kantor-ai): komentar revisi terikat ke versi draf,
  * draf sebelumnya tersimpan di draftHistory, job kembali ke antrean (queued)

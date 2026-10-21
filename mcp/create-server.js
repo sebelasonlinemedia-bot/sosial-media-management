@@ -215,6 +215,23 @@ function createPiksMcpServer({ baseUrl, token } = {}) {
             method: 'POST', body: { urls, query }
         }));
 
+    /* ---- Bersih-bersih work board (admin/approver) ---- */
+
+    tool('delete_job',
+        'Hapus SATU job dari work board (admin/approver). Status working/publishing/awaiting_approval dilindungi server (409). Tidak bisa dibatalkan — pastikan user memang meminta job ini dihapus.',
+        { jobId: z.string() },
+        async ({ jobId }) => api(`/api/ai/jobs/${encodeURIComponent(jobId)}`, { method: 'DELETE' }));
+
+    tool('cleanup_jobs',
+        'Bersihkan work board secara massal (admin/approver). Bawaan menghapus job done+failed; onlyTest=true membatasi ke brief uji (test/uji/e2e/contoh.id); olderThanDays membatasi umur. Selalu panggil dryRun=true dulu, laporkan jumlahnya ke user, baru hapus setelah user setuju.',
+        {
+            statuses: z.array(z.enum(['done', 'posted', 'failed', 'needs_info', 'queued'])).optional(),
+            onlyTest: z.boolean().optional(),
+            olderThanDays: z.number().positive().optional(),
+            dryRun: z.boolean().optional()
+        },
+        async (args) => api('/api/ai/jobs/cleanup', { method: 'POST', body: args || {} }));
+
     return server;
 }
 
