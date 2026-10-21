@@ -49,10 +49,10 @@
     var ROUTINE_STORAGE_KEY = 'piks-office-routine';
     var MAX_ROUTINE_AWAY = 4;
     var LIGHTING_PALETTES = {
-        pagi: { bg: 0xa8d4ec, clear: 0xb8d4e8, ambient: [0xffffff, 0.72], key: [0xfff5e8, 1.05], fill: [0xa8c8e0, 0.4], hemi: [0xd8ecff, 0x8fbc8f, 0.35] },
-        siang: { bg: 0x9ccdf2, clear: 0xa9d6f2, ambient: [0xffffff, 0.84], key: [0xffffff, 1.28], fill: [0xbdd8ee, 0.48], hemi: [0xe2f2ff, 0x9cc48f, 0.42] },
-        sore: { bg: 0xf4c795, clear: 0xf0c090, ambient: [0xffe3c2, 0.6], key: [0xffa95e, 0.98], fill: [0xe8a37c, 0.32], hemi: [0xffd9ae, 0xb98a5a, 0.28] },
-        malam: { bg: 0x22344d, clear: 0x1d2c42, ambient: [0xbdd2ff, 0.46], key: [0x8fb4ff, 0.55], fill: [0x46586e, 0.28], hemi: [0x8fb0e8, 0x2c3a2a, 0.2] }
+        pagi: { bg: 0xaed6f0, clear: 0xbddcf0, ambient: [0xffffff, 0.82], key: [0xfff2df, 1.22], fill: [0xa8c8e0, 0.46], hemi: [0xd8ecff, 0x93b57e, 0.5] },
+        siang: { bg: 0x9ccdf2, clear: 0xa9d6f2, ambient: [0xffffff, 0.92], key: [0xffffff, 1.42], fill: [0xbdd8ee, 0.52], hemi: [0xe2f2ff, 0x9cc48f, 0.55] },
+        sore: { bg: 0xf4c795, clear: 0xf0c090, ambient: [0xffe3c2, 0.68], key: [0xffa95e, 1.1], fill: [0xe8a37c, 0.36], hemi: [0xffd9ae, 0xb98a5a, 0.34] },
+        malam: { bg: 0x2a3c58, clear: 0x24354e, ambient: [0xbdd2ff, 0.54], key: [0x8fb4ff, 0.66], fill: [0x46586e, 0.32], hemi: [0x8fb0e8, 0x33473a, 0.26] }
     };
 
     function resolveLightingPeriod(date) {
@@ -1836,7 +1836,7 @@
         furnitureDeskIndex = 0;
         scene = new THREE.Scene();
         scene.background = new THREE.Color(0xa8d4ec);
-        scene.fog = new THREE.Fog(0xa8d4ec, 40, 75);
+        scene.fog = new THREE.Fog(0xa8d4ec, 55, 120);
 
         var ct = LAYOUT.cameraTarget;
         camera = new THREE.PerspectiveCamera(40, 1, 0.4, 160);
@@ -1857,13 +1857,16 @@
            2048, frustum pas gedung — dimatikan pada mode reduced. */
         key.castShadow = !reduced;
         if (key.shadow) {
+            /* Frustum bayangan mengikuti ukuran gedung aktif */
+            var sbw = LAYOUT.building ? (LAYOUT.building.maxX - LAYOUT.building.minX) : 22.8;
+            var sbd = LAYOUT.building ? (LAYOUT.building.maxZ - LAYOUT.building.minZ) : 11;
             key.shadow.mapSize.set(2048, 2048);
-            key.shadow.camera.left = -17;
-            key.shadow.camera.right = 17;
-            key.shadow.camera.top = 14;
-            key.shadow.camera.bottom = -14;
+            key.shadow.camera.left = -(sbw / 2 + 5);
+            key.shadow.camera.right = sbw / 2 + 5;
+            key.shadow.camera.top = sbd / 2 + 7;
+            key.shadow.camera.bottom = -(sbd / 2 + 7);
             key.shadow.camera.near = 2;
-            key.shadow.camera.far = 48;
+            key.shadow.camera.far = 60;
             key.shadow.bias = -0.0004;
             key.shadow.normalBias = 0.02;
         }
@@ -1885,31 +1888,42 @@
         var cx = (b.minX + b.maxX) / 2;
         var cz = (b.minZ + b.maxZ) / 2;
 
-        /* --- Lingkungan luar gelap (gedung melayang seperti referensi):
-           tanah gelap, trotoar slate, jalan aspal gelap + marka --- */
-        addFloorPlane(roomRoot, cx, -0.09, cz, 64, 44, 0x141c28, 1);
+        /* --- Lingkungan luar realistis: rumput, trotoar beton, jalan
+           aspal + marka (terang agar scene tidak flat gelap) --- */
+        addFloorPlane(roomRoot, cx, -0.09, cz, 76, 52, 0x5f7052, 1);
         /* Trotoar keliling gedung */
         addFloorPlane(roomRoot, cx, -0.045, cz,
-            (b.maxX - b.minX) + 3.6, (b.maxZ - b.minZ) + 3.6, 0x27313f, 0.95);
+            (b.maxX - b.minX) + 3.6, (b.maxZ - b.minZ) + 3.6, 0x9aa0a3, 0.95);
         /* Jalan aspal di depan (+z) + marka putus-putus */
         var roadZ = b.maxZ + 4.6;
-        addFloorPlane(roomRoot, cx, -0.04, roadZ, 64, 5.4, 0x11161f, 0.95);
+        addFloorPlane(roomRoot, cx, -0.04, roadZ, 76, 5.4, 0x43484e, 0.95);
         var laneX;
-        for (laneX = -24; laneX <= 24; laneX += 4) {
+        for (laneX = -28; laneX <= 28; laneX += 4) {
             box(roomRoot, laneX, -0.02, roadZ, 1.8, 0.012, 0.16, 0xf5f0dc, 0.8);
         }
         /* Pohon, lampu jalan & gerobak digambar dari daftar mebel layout (bisa custom). */
 
-        /* --- Lantai futuristik gelap ala referensi: ubin slate + grid --- */
+        /* --- Lantai interior: ubin dua-nada (checker halus) + grid lembut --- */
         addFloorPlane(roomRoot, cx, 0.004, cz,
-            b.maxX - b.minX, b.maxZ - b.minZ, 0x232c38, 0.85);
+            b.maxX - b.minX, b.maxZ - b.minZ, 0x2c3644, 0.85);
+        var tile = 2.2;
+        var tx;
+        var tz;
+        for (tx = b.minX; tx < b.maxX - 0.1; tx += tile) {
+            for (tz = b.minZ; tz < b.maxZ - 0.1; tz += tile) {
+                var odd = (Math.round((tx - b.minX) / tile) + Math.round((tz - b.minZ) / tile)) % 2 === 0;
+                addFloorPlane(roomRoot, tx + tile / 2, 0.008, tz + tile / 2,
+                    Math.min(tile, b.maxX - tx), Math.min(tile, b.maxZ - tz),
+                    odd ? 0x333f50 : 0x2e3947, 0.82);
+            }
+        }
         var gridZ;
         for (gridZ = b.minZ + 1.1; gridZ < b.maxZ - 0.2; gridZ += 1.1) {
-            box(roomRoot, cx, 0.012, gridZ, b.maxX - b.minX - 0.1, 0.006, 0.02, 0x31405a, 0.8);
+            box(roomRoot, cx, 0.014, gridZ, b.maxX - b.minX - 0.1, 0.006, 0.02, 0x41516a, 0.8);
         }
         var gridX;
         for (gridX = b.minX + 1.1; gridX < b.maxX - 0.2; gridX += 1.1) {
-            box(roomRoot, gridX, 0.012, cz, 0.02, 0.006, b.maxZ - b.minZ - 0.1, 0x2c3a4f, 0.8);
+            box(roomRoot, gridX, 0.014, cz, 0.02, 0.006, b.maxZ - b.minZ - 0.1, 0x3a4a61, 0.8);
         }
         /* Strip cahaya cyan di jalur masuk (sisi terbuka +z) */
         var glowX;
@@ -3421,7 +3435,7 @@
         }
         if (THREE.ACESFilmicToneMapping) {
             renderer.toneMapping = THREE.ACESFilmicToneMapping;
-            renderer.toneMappingExposure = 1.06;
+            renderer.toneMappingExposure = 1.14;
         }
         if (renderer.shadowMap) {
             renderer.shadowMap.enabled = !reduced;
