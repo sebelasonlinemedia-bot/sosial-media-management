@@ -1,0 +1,63 @@
+/* ==========================================================================
+   Halaman Tasks — replika referensi Company Master Tasks (SisTava-style).
+   Ter-scope di bawah .tasks-replica / body.is-tasks-mode; bingkai, nav,
+   org & panel aktivitas memakai kelas .chat-replica / .cr-* dari
+   chat-replica.css. Font sans kecil rapat ±11-13px, navy gelap.
+   ========================================================================== */
+body.is-tasks-mode .app-container { visibility: hidden; pointer-events: none; }
+body.is-tasks-mode #app-shell-topbar, body.is-tasks-mode .global-side-menu { display: none !important; }
+body.is-login-mode #view-tasks-replica { display: none !important; }
+.tasks-replica .tk-main { gap: 8px; }
+.tasks-replica .tk-tab { display: inline-flex; align-items: center; gap: 6px; border-radius: 8px; padding: 5px 12px; font-weight: 600; font-size: 11.5px; color: #8b95a8; }
+.tasks-replica .tk-tab:hover { background: rgba(255,255,255,.05); color: #e7edf6; }
+.tasks-replica .tk-tab.is-active { background: #1b2740; color: #f8fafc; }
+.tasks-replica .tk-tab-avatar { width: 18px; height: 18px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; color: #fff; font-size: 9px; font-weight: 800; }
+.tasks-replica .tk-head { display: flex; align-items: center; gap: 10px; flex-wrap: nowrap; min-width: 0; }
+.tasks-replica .tk-head h1 { font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: #93c5fd; white-space: nowrap; }
+.tasks-replica .tk-chips { display: inline-flex; gap: 5px; align-items: center; }
+.tasks-replica .tk-chip { border: 1px solid rgba(148,163,184,.16); border-radius: 999px; padding: 3px 9px; color: #8b95a8; font-size: 10.5px; font-weight: 600; white-space: nowrap; }
+.tasks-replica .tk-chip.is-active { background: #1c2942; color: #e7edf6; }
+.tasks-replica .tk-head-right { margin-left: auto; display: flex; align-items: center; gap: 7px; white-space: nowrap; }
+.tasks-replica .tk-project { display: inline-flex; gap: 5px; align-items: center; color: #8b95a8; font-size: 11px; border: 1px solid rgba(148,163,184,.16); border-radius: 999px; padding: 4px 10px; }
+.tasks-replica .tk-view-toggle { display: inline-flex; border: 1px solid rgba(148,163,184,.16); border-radius: 8px; overflow: hidden; }
+.tasks-replica .tk-view-toggle button { width: 26px; height: 24px; display: inline-flex; align-items: center; justify-content: center; color: #667084; }
+.tasks-replica .tk-view-toggle button.is-active { background: #26334d; color: #e7edf6; }
+.tasks-replica .tk-view-toggle svg { width: 12px; height: 12px; }
+.tasks-replica .tk-create { background: #a5b4fc; color: #1e1b4b; font-weight: 800; font-size: 11px; border-radius: 999px; padding: 5px 16px; display: inline-flex; gap: 6px; align-items: center; }
+.tasks-replica .tk-create:hover { background: #818cf8; }
+.tasks-replica .tk-sprint { display: flex; align-items: center; gap: 10px; background: #111a2e; border: 1px solid rgba(148,163,184,.14); border-radius: 10px; padding: 9px 12px; }
+.tasks-replica .tk-sprint-icon { width: 26px; height: 26px; border-radius: 50%; background: rgba(148,163,184,.1); color: #8b95a8; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+.tasks-replica .tk-sprint strong { display: block; font-size: 11.5px; color: #e7edf6; }
+.tasks-replica .tk-sprint span { font-size: 10.5px; color: #667084; }
+.tasks-replica .tk-sprint-link { margin-left: auto; color: #a5b4fc; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.tasks-replica .tk-board { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+.tasks-replica .tk-col { background: #0e1728; border: 1px solid rgba(148,163,184,.12); border-radius: 10px; display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.tasks-replica .tk-col-head { flex: 0 0 auto; display: flex; align-items: center; gap: 7px; padding: 9px 10px; border-bottom: 1px solid rgba(148,163,184,.09); }
+.tasks-replica .tk-col-name { font-size: 11.5px; font-weight: 700; color: #e7edf6; }
+.tasks-replica .tk-col-count { background: rgba(148,163,184,.15); color: #8b95a8; border-radius: 999px; padding: 0 6px; font-size: 9.5px; font-weight: 700; line-height: 1.6; }
+.tasks-replica .tk-col-add { margin-left: auto; width: 22px; height: 22px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; color: #8b95a8; }
+.tasks-replica .tk-col-add:hover { background: #26334d; color: #fff; }
+.tasks-replica .tk-col-add svg { width: 12px; height: 12px; }
+.tasks-replica .tk-col-body { flex: 1; min-height: 0; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 8px; scrollbar-width: thin; scrollbar-color: #26334d transparent; }
+.tasks-replica .tk-drop { border: 1.5px dashed rgba(148,163,184,.25); border-radius: 8px; color: #667084; text-align: center; padding: 16px 6px; font-size: 11px; flex: 0 0 auto; }
+.tasks-replica .tk-col-body.is-over .tk-drop { border-color: #818cf8; background: rgba(129,140,248,.1); color: #c7d2fe; }
+.tasks-replica .tk-card { background: #1a2742; border: 1px solid rgba(148,163,184,.16); border-radius: 8px; padding: 8px 9px; cursor: grab; flex: 0 0 auto; }
+.tasks-replica .tk-card.is-dragging { opacity: .45; }
+.tasks-replica .tk-card-title { font-size: 11.5px; font-weight: 600; color: #eef2ff; line-height: 1.35; word-break: break-word; }
+.tasks-replica .tk-card-note { font-size: 10.5px; color: #8b95a8; margin-top: 3px; line-height: 1.4; word-break: break-word; }
+.tasks-replica .tk-card-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 7px; color: #667084; font-size: 9.5px; text-transform: uppercase; letter-spacing: .06em; }
+.tasks-replica .tk-card-del { width: 20px; height: 20px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; color: #8b95a8; }
+.tasks-replica .tk-card-del:hover { background: rgba(244,63,94,.18); color: #fda4af; }
+.tasks-replica .tk-card-del svg { width: 11px; height: 11px; }
+.tasks-replica .tk-modal { position: absolute; inset: 0; z-index: 30; background: rgba(3,7,17,.62); display: flex; align-items: center; justify-content: center; }
+.tasks-replica .tk-modal.hidden { display: none !important; }
+.tasks-replica .tk-modal-card { width: 360px; max-width: calc(100% - 32px); background: #131e33; border: 1px solid rgba(148,163,184,.22); border-radius: 12px; padding: 16px; box-shadow: 0 18px 44px rgba(0,0,0,.55); }
+.tasks-replica .tk-modal-card h2 { font-size: 13px; font-weight: 800; color: #f1f5f9; margin-bottom: 10px; }
+.tasks-replica .tk-field { display: block; font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #76839a; margin-top: 10px; }
+.tasks-replica .tk-field input, .tasks-replica .tk-field select, .tasks-replica .tk-field textarea { width: 100%; margin-top: 5px; background: #0d1524; border: 1px solid rgba(148,163,184,.22); border-radius: 8px; color: #e7edf6; font: inherit; font-size: 12px; text-transform: none; letter-spacing: 0; padding: 7px 9px; outline: 0; box-sizing: border-box; }
+.tasks-replica .tk-field textarea { resize: vertical; min-height: 54px; }
+.tasks-replica .tk-modal-actions { display: flex; justify-content: flex-end; gap: 7px; margin-top: 14px; }
+.tasks-replica .tk-btn-ghost { border: 1px solid rgba(148,163,184,.2); border-radius: 999px; padding: 6px 14px; color: #aab6ca; font-weight: 600; font-size: 11px; }
+.tasks-replica .tk-btn-primary { background: #a5b4fc; color: #1e1b4b; font-weight: 800; font-size: 11px; border-radius: 999px; padding: 6px 16px; }
+@media (max-width: 1100px) { .tasks-replica .tk-chips { display: none; } }
+@media (max-width: 860px) { .tasks-replica .tk-board { grid-template-columns: repeat(5, 168px); overflow-x: auto; } }

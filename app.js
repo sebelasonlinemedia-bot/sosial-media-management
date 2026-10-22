@@ -47,7 +47,7 @@ const appState = {
     authStatus: null,
     user: null,
     departments: null,
-    dashboardDept: 'all',
+    mainMenuKey: 'my-office',
     currentView: 'mission',
     composerSelectedPlatforms: [],
     composerMedia: null,
@@ -169,28 +169,6 @@ const app = {
         this.setupAccountsEvents();
         this.setupQueueEvents();
         this.setupModals();
-        const refreshJobsBtn = document.getElementById('dashboard-refresh-jobs-btn');
-        if (refreshJobsBtn) {
-            refreshJobsBtn.addEventListener('click', async () => {
-                await this.loadAiJobsFromServer();
-                if (appState.currentView === 'dashboard') this.renderDashboard();
-                else this.renderAiJobs();
-                lucide.createIcons();
-            });
-        }
-        const deptFilter = document.getElementById('dashboard-dept-filter');
-        if (deptFilter) {
-            try { appState.dashboardDept = localStorage.getItem('piks-dashboard-dept') || 'all'; } catch { /* abaikan */ }
-            deptFilter.addEventListener('change', () => this._setDashboardDept(deptFilter.value));
-        }
-        const attentionOfficeBtn = document.getElementById('dashboard-attention-open-office');
-        if (attentionOfficeBtn) {
-            attentionOfficeBtn.addEventListener('click', () => this.switchView('office'));
-        }
-        const openOfficeBtn = document.getElementById('dashboard-open-office-btn');
-        if (openOfficeBtn) {
-            openOfficeBtn.addEventListener('click', () => this.switchView('office'));
-        }
         this.setupOfficeEvents();
         this.setupLayoutEditorEvents();
         this.setupMissionEvents();
@@ -199,13 +177,25 @@ const app = {
         if (window.OrganizationPage) OrganizationPage.bind(this);
         if (window.TasksPage) TasksPage.bind(this);
         if (window.CalendarPage) CalendarPage.bind(this);
+        if (window.ToolsPage) ToolsPage.bind(this);
+        if (window.ChatPage) ChatPage.bind(this);
+        if (window.TasksReplicaPage) TasksReplicaPage.bind(this);
+        if (window.CalendarReplicaPage) CalendarReplicaPage.bind(this);
+        if (window.DriveReplicaPage) DriveReplicaPage.bind(this);
+        if (window.CrmReplicaPage) CrmReplicaPage.bind(this);
+        if (window.LibraryReplicaPage) LibraryReplicaPage.bind(this);
+        if (window.MailboxReplicaPage) MailboxReplicaPage.bind(this);
+        if (window.EmployeesReplicaPage) EmployeesReplicaPage.bind(this);
+        if (window.KnowledgeReplicaPage) KnowledgeReplicaPage.bind(this);
+        if (window.RoutineReplicaPage) RoutineReplicaPage.bind(this);
+        if (window.ToolsReplicaPage) ToolsReplicaPage.bind(this);
 
         // Periksa jika ada callback OAuth dari server di URL
         this.handleOAuthCallback();
 
         // Render pertama — Mission Control sebagai halaman depan
         const hashView = (location.hash || '').replace(/^#/, '').trim();
-        const allowed = ['mission', 'dashboard', 'composer', 'queue', 'office', 'accounts', 'analytics', 'settings', 'layout', 'about', 'activity', 'marketplace', 'organization', 'tasks', 'calendar'];
+        const allowed = ['mission', 'composer', 'queue', 'office', 'accounts', 'analytics', 'settings', 'layout', 'about', 'activity', 'marketplace', 'organization', 'tasks', 'tasks-replica', 'calendar', 'calendar-replica', 'drive-replica', 'crm-replica', 'library-replica', 'mailbox-replica', 'employees-replica', 'routine-replica', 'knowledge-replica', 'tools', 'tools-replica', 'placeholder', 'chat'];
         this.switchView(allowed.includes(hashView) ? hashView : 'mission');
         lucide.createIcons();
     },
@@ -230,7 +220,7 @@ const app = {
         }
     },
     showLoginGate(message) {
-        document.body.classList.remove('is-mission-mode', 'is-activity-mode');
+        document.body.classList.remove('is-mission-mode', 'is-activity-mode', 'is-chat-mode', 'is-tasks-mode', 'is-calendar-mode', 'is-drive-mode', 'is-crm-mode', 'is-library-mode', 'is-mailbox-mode', 'is-employees-mode', 'is-routine-mode', 'is-knowledge-mode', 'is-tools-mode');
         document.body.classList.add('is-login-mode');
         const missionEl = document.getElementById('view-mission');
         const activityEl = document.getElementById('view-activity');
@@ -422,25 +412,95 @@ const app = {
         }
     },
 
+    /** Buka item menu utama (js/main-nav.js): petakan menu → view lama. */
+    openMainMenu(key) {
+        // Library hanya hidup di nav internal halaman replika (bukan menu utama).
+        if (key === 'library') { this.switchView('library-replica'); return; }
+        if (key === 'mailbox') { this.switchView('mailbox-replica'); return; }
+        if (key === 'knowledge') { this.switchView('knowledge-replica'); return; }
+        const it = window.MainNav ? MainNav.item(key) : null;
+        if (!it) return;
+        appState.mainMenuKey = key;
+        if (it.view === 'placeholder') {
+            if (window.MainNav) MainNav.renderPlaceholder(key);
+            this.switchView('placeholder');
+            return;
+        }
+        this.switchView(it.view);
+        if (it.action === 'skills') {
+            setTimeout(() => { const el = document.getElementById('office-role-skills'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 80);
+        }
+    },
+
     // --- Pengalih View ---
     switchView(viewName) {
         appState.currentView = viewName;
+        if (window.MainNav) {
+            if (viewName === 'placeholder') {
+                if (!MainNav.isPlaceholder(appState.mainMenuKey)) appState.mainMenuKey = 'inbox';
+                MainNav.renderPlaceholder(appState.mainMenuKey);
+            } else {
+                const cur = MainNav.item(appState.mainMenuKey);
+                if (!cur || cur.view !== viewName) appState.mainMenuKey = MainNav.keyForView(viewName);
+            }
+        }
         const isMission = viewName === 'mission';
         const isActivity = viewName === 'activity';
+        const isChat = viewName === 'chat';
+        const isTasksReplica = viewName === 'tasks-replica';
+        const isCalendarReplica = viewName === 'calendar-replica';
+        const isDriveReplica = viewName === 'drive-replica';
+        const isCrmReplica = viewName === 'crm-replica';
+        const isLibraryReplica = viewName === 'library-replica';
+        const isMailboxReplica = viewName === 'mailbox-replica';
+        const isEmployeesReplica = viewName === 'employees-replica';
+        const isRoutineReplica = viewName === 'routine-replica';
+        const isKnowledgeReplica = viewName === 'knowledge-replica';
+        const isToolsReplica = viewName === 'tools-replica';
         const missionEl = document.getElementById('view-mission');
         const activityEl = document.getElementById('view-activity');
+        const chatEl = document.getElementById('view-chat');
+        const tasksReplicaEl = document.getElementById('view-tasks-replica');
+        const calendarReplicaEl = document.getElementById('view-calendar-replica');
+        const driveReplicaEl = document.getElementById('view-drive-replica');
+        const crmReplicaEl = document.getElementById('view-crm-replica');
+        const libraryReplicaEl = document.getElementById('view-library-replica');
+        const mailboxReplicaEl = document.getElementById('view-mailbox-replica');
+        const employeesReplicaEl = document.getElementById('view-employees-replica');
+        const routineReplicaEl = document.getElementById('view-routine-replica');
+        const knowledgeReplicaEl = document.getElementById('view-knowledge-replica');
+        const toolsReplicaEl = document.getElementById('view-tools-replica');
         document.body.classList.toggle('is-mission-mode', isMission);
         document.body.classList.toggle('is-activity-mode', isActivity);
+        document.body.classList.toggle('is-chat-mode', isChat);
+        document.body.classList.toggle('is-tasks-mode', isTasksReplica);
+        document.body.classList.toggle('is-calendar-mode', isCalendarReplica);
+        document.body.classList.toggle('is-drive-mode', isDriveReplica);
+        document.body.classList.toggle('is-crm-mode', isCrmReplica);
+        document.body.classList.toggle('is-library-mode', isLibraryReplica);
+        document.body.classList.toggle('is-mailbox-mode', isMailboxReplica);
+        document.body.classList.toggle('is-employees-mode', isEmployeesReplica);
+        document.body.classList.toggle('is-routine-mode', isRoutineReplica);
+        document.body.classList.toggle('is-knowledge-mode', isKnowledgeReplica);
+        document.body.classList.toggle('is-tools-mode', isToolsReplica);
         if (missionEl) missionEl.classList.toggle('hidden', !isMission);
         if (activityEl) activityEl.classList.toggle('hidden', !isActivity);
+        if (chatEl) chatEl.classList.toggle('hidden', !isChat);
+        if (tasksReplicaEl) tasksReplicaEl.classList.toggle('hidden', !isTasksReplica);
+        if (calendarReplicaEl) calendarReplicaEl.classList.toggle('hidden', !isCalendarReplica);
+        if (driveReplicaEl) driveReplicaEl.classList.toggle('hidden', !isDriveReplica);
+        if (crmReplicaEl) crmReplicaEl.classList.toggle('hidden', !isCrmReplica);
+        if (libraryReplicaEl) libraryReplicaEl.classList.toggle('hidden', !isLibraryReplica);
+        if (mailboxReplicaEl) mailboxReplicaEl.classList.toggle('hidden', !isMailboxReplica);
+        if (employeesReplicaEl) employeesReplicaEl.classList.toggle('hidden', !isEmployeesReplica);
+        if (routineReplicaEl) routineReplicaEl.classList.toggle('hidden', !isRoutineReplica);
+        if (knowledgeReplicaEl) knowledgeReplicaEl.classList.toggle('hidden', !isKnowledgeReplica);
+        if (toolsReplicaEl) toolsReplicaEl.classList.toggle('hidden', !isToolsReplica);
         const topbar = document.getElementById('app-shell-topbar');
         if (topbar && !document.body.classList.contains('is-login-mode')) {
-            topbar.classList.toggle('hidden', isActivity);
+            topbar.classList.toggle('hidden', isActivity || isChat || isTasksReplica || isCalendarReplica || isDriveReplica || isCrmReplica || isLibraryReplica || isMailboxReplica || isEmployeesReplica || isRoutineReplica || isKnowledgeReplica || isToolsReplica);
         }
 
-        document.querySelectorAll('.sidebar-menu li').forEach(li => {
-            li.classList.toggle('active', li.getAttribute('data-view') === viewName);
-        });
         document.querySelectorAll('.view-panel').forEach(panel => {
             panel.classList.toggle('active', panel.id === `view-${viewName}`);
         });
@@ -448,13 +508,13 @@ const app = {
         document.querySelectorAll('[data-mission-nav]').forEach(btn => {
             btn.classList.toggle('is-active', btn.getAttribute('data-mission-nav') === viewName);
         });
-        if (window.GlobalSideMenu) GlobalSideMenu.sync(viewName);
+        if (window.GlobalSideMenu) GlobalSideMenu.sync(viewName, appState.mainMenuKey);
+        else if (window.MainNav) MainNav.sync(appState.mainMenuKey);
 
         const sectionLabel = document.getElementById('app-shell-section-label');
         if (sectionLabel) {
             const labels = {
                 mission: 'OFFICE',
-                dashboard: 'DASBOR',
                 composer: 'COMPOSER',
                 queue: 'JADWAL',
                 office: 'WORK BOARD',
@@ -467,7 +527,20 @@ const app = {
                 marketplace: 'REKRUT TIM',
                 organization: 'ORGANISASI',
                 tasks: 'TUGAS',
-                calendar: 'KALENDER'
+                calendar: 'KALENDER',
+                tools: 'PERALATAN',
+                chat: 'CHAT',
+                'tasks-replica': 'TUGAS',
+                'calendar-replica': 'KALENDER',
+                'drive-replica': 'DRIVE',
+                'crm-replica': 'CRM',
+                'library-replica': 'LIBRARY',
+                'mailbox-replica': 'MAILBOX',
+                'employees-replica': 'EMPLOYEES',
+                'routine-replica': 'ROUTINE',
+                'knowledge-replica': 'KNOWLEDGE',
+                'tools-replica': 'TOOLS',
+                placeholder: 'MENU'
             };
             sectionLabel.textContent = labels[viewName] || 'APP';
         }
@@ -492,7 +565,6 @@ const app = {
 
         const titles = {
             mission: { title: 'Ruang / Office', subtitle: "Mission Control — Tim Konten AI PiK's Digital Lab." },
-            dashboard: { title: 'Dasbor Utama', subtitle: 'Ikhtisar saluran terhubung dan antrean postingan terjadwal Anda.' },
             composer: { title: 'Buat Postingan Baru', subtitle: 'Tulis, unggah media, dan kirim postingan secara bersamaan ke berbagai sosmed.' },
             queue: { title: 'Jadwal & Kalender', subtitle: 'Atur kalender konten Anda di masa mendatang secara presisi.' },
             office: { title: 'Kantor AI', subtitle: 'Ruang kerja karyawan AI — brief cepat, brand memory, detail job, approval, dan insight apa berikutnya.' },
@@ -505,12 +577,27 @@ const app = {
             marketplace: { title: 'Rekrut Tim', subtitle: 'Rekrut karyawan AI dan tempatkan mereka di departemen pilihan Anda.' },
             organization: { title: 'Organisasi', subtitle: 'Bagan tenaga kerja PiK\'s Digital Lab — departemen, ruang/studio, dan penempatan meja agen.' },
             tasks: { title: 'Tugas', subtitle: 'Lacak pekerjaan tim AI — papan kanban dari job Kantor AI yang nyata.' },
-            calendar: { title: 'Kalender Mingguan', subtitle: 'Lihat pekerjaan terencana di seluruh perusahaan — postingan terjadwal & job AI per minggu.' }
+            calendar: { title: 'Kalender Mingguan', subtitle: 'Lihat pekerjaan terencana di seluruh perusahaan — postingan terjadwal & job AI per minggu.' },
+            chat: { title: 'Chat', subtitle: 'Employee Direct Chat — percakapan langsung dengan karyawan AI (demo lokal).' },
+            'tasks-replica': { title: 'Tasks', subtitle: 'Company Master Tasks — papan kanban replika (demo lokal).' },
+            'calendar-replica': { title: 'Calendar', subtitle: 'Company Master Calendar — kalender replika (demo lokal).' },
+            'drive-replica': { title: 'Drive', subtitle: 'Company File Drive — drive replika (demo lokal).' },
+            'crm-replica': { title: 'CRM', subtitle: 'Company Contacts Directory — CRM replika (demo lokal).' },
+            'library-replica': { title: 'Library', subtitle: 'Company Content Library — library replika (demo lokal).' },
+            'mailbox-replica': { title: 'Mailbox', subtitle: 'Company Central Mailbox — mailbox replika (demo lokal).' },
+            'routine-replica': { title: 'Routine', subtitle: 'Company Working Hours — routine replika (demo lokal).' },
+            'knowledge-replica': { title: 'Knowledge', subtitle: 'Company Knowledge — knowledge replika (demo lokal).' },
+            'tools-replica': { title: 'Tools', subtitle: 'Team Tools and Apps — tools replika (demo lokal).' },
+            tools: { title: 'Peralatan', subtitle: 'Hubungkan aplikasi, utilitas, dan integrasi yang dapat dipakai karyawan AI PiK\'s Digital Lab.' },
+            placeholder: { title: 'Menu', subtitle: 'Masih dalam pengembangan.' }
         };
 
         const titleEl = document.getElementById('view-title');
         const subtitleEl = document.getElementById('view-subtitle');
-        if (viewName === 'composer' && appState.editingPostId) {
+        if (viewName === 'placeholder' && window.MainNav && MainNav.item(appState.mainMenuKey)) {
+            if (titleEl) titleEl.innerText = MainNav.item(appState.mainMenuKey).label;
+            if (subtitleEl) subtitleEl.innerText = 'Masih dalam pengembangan.';
+        } else if (viewName === 'composer' && appState.editingPostId) {
             if (titleEl) titleEl.innerText = 'Edit Postingan';
             if (subtitleEl) subtitleEl.innerText = 'Ubah detail, ganti jadwal, atau ubah saluran tujuan untuk postingan ini.';
         } else if (titles[viewName]) {
@@ -520,7 +607,6 @@ const app = {
 
         // Render konten per view
         if (viewName === 'mission') this.renderMission();
-        else if (viewName === 'dashboard') this.renderDashboard();
         else if (viewName === 'composer') {
             if (!appState.editingPostId) {
                 this.resetComposerForm();
@@ -539,21 +625,26 @@ const app = {
         else if (viewName === 'organization' && window.OrganizationPage) OrganizationPage.open();
         else if (viewName === 'tasks' && window.TasksPage) TasksPage.open();
         else if (viewName === 'calendar' && window.CalendarPage) CalendarPage.open();
+        else if (viewName === 'tools' && window.ToolsPage) ToolsPage.open();
+        else if (viewName === 'chat' && window.ChatPage) ChatPage.open();
+        else if (viewName === 'tasks-replica' && window.TasksReplicaPage) TasksReplicaPage.open();
+        else if (viewName === 'calendar-replica' && window.CalendarReplicaPage) CalendarReplicaPage.open();
+        else if (viewName === 'drive-replica' && window.DriveReplicaPage) DriveReplicaPage.open();
+        else if (viewName === 'crm-replica' && window.CrmReplicaPage) CrmReplicaPage.open();
+        else if (viewName === 'library-replica' && window.LibraryReplicaPage) LibraryReplicaPage.open();
+        else if (viewName === 'mailbox-replica' && window.MailboxReplicaPage) MailboxReplicaPage.open();
+        else if (viewName === 'employees-replica' && window.EmployeesReplicaPage) EmployeesReplicaPage.open();
+        else if (viewName === 'routine-replica' && window.RoutineReplicaPage) RoutineReplicaPage.open();
+        else if (viewName === 'knowledge-replica' && window.KnowledgeReplicaPage) KnowledgeReplicaPage.open();
+        else if (viewName === 'tools-replica' && window.ToolsReplicaPage) ToolsReplicaPage.open();
 
         lucide.createIcons();
     },
 
     setupNavigation() {
-        document.querySelectorAll('.sidebar-menu li').forEach(item => {
-            item.addEventListener('click', (e) => {
-                e.preventDefault();
-                const targetView = item.getAttribute('data-view');
-                if (targetView === 'composer') {
-                    appState.editingPostId = null;
-                }
-                this.switchView(targetView);
-            });
-        });
+        // Klik item menu utama ([data-main-nav] di menu global, sidebar
+        // legacy, dan menu hamburger) ditangani satu delegasi di
+        // js/global-menu.js → app.openMainMenu, agar ketiganya konsisten.
         const goComposer = () => {
             appState.editingPostId = null;
             this.switchView('composer');
@@ -562,15 +653,14 @@ const app = {
         if (headerCreate) headerCreate.addEventListener('click', goComposer);
         const shellCreate = document.getElementById('app-shell-create-post-btn');
         if (shellCreate) shellCreate.addEventListener('click', goComposer);
-        const queueBtn = document.getElementById('dashboard-view-queue-btn');
-        if (queueBtn) queueBtn.addEventListener('click', () => this.switchView('queue'));
         const settingsBtn = document.getElementById('open-settings-btn');
         if (settingsBtn) settingsBtn.addEventListener('click', () => this.switchView('settings'));
     },
 
     updateActiveAccountsCounter() {
         const count = appState.accounts.filter(a => a.connected).length;
-        document.getElementById('active-accounts-count').innerText = count;
+        const counter = document.getElementById('active-accounts-count');
+        if (counter) counter.innerText = count;
         const sc = document.getElementById('stats-active-channels');
         if (sc) sc.innerText = count;
         const tp = document.getElementById('stats-total-posts');
@@ -581,367 +671,12 @@ const app = {
 };
 
 // ============================================================
-// Dashboard
+// Dashboard (dihapus) - halaman Dasbor Utama & menu Company telah
+// dihilangkan. renderAiJobs dipertahankan sebagai no-op aman karena
+// masih dipanggil alur Kantor AI; elemen daftar job dashboard sudah
+// tidak ada, jadi tidak ada penulisan ke DOM dashboard.
 // ============================================================
-/** Alias roleId lama → baru (samakan dengan lib/ai-roles.js ROLE_ALIASES). */
-app._deptRoleAliases = {
-    'social-media': 'strategist',
-    'content-writer': 'copywriter',
-    'customer-service': 'community-manager',
-    'ads-analyst': 'analyst'
-};
-
-app._dashboardDeptId = function () {
-    return appState.dashboardDept || 'all';
-};
-
-app._setDashboardDept = function (deptId) {
-    appState.dashboardDept = deptId || 'all';
-    try { localStorage.setItem('piks-dashboard-dept', appState.dashboardDept); } catch { /* abaikan */ }
-    const sel = document.getElementById('dashboard-dept-filter');
-    if (sel) sel.value = appState.dashboardDept;
-    this.renderDashboard();
-};
-
-/** Muat struktur departemen sekali, lalu render ulang dasbor bila sudah tiba. */
-app._ensureDashboardDepartments = async function () {
-    if (appState.departments || appState._deptLoading) return;
-    appState._deptLoading = true;
-    try {
-        const data = await api.get('/api/ai/departments');
-        if (data.success) appState.departments = data.departments || [];
-    } catch { /* grid menampilkan pesan fallback */ }
-    appState._deptLoading = false;
-    if (appState.currentView === 'dashboard') this.renderDashboard();
-};
-
-/** Petakan job AI → id departemen lewat peran spesialisnya (roleId/employeeRole/nama). */
-app._jobDeptId = function (job) {
-    if (!job || !Array.isArray(appState.departments)) return null;
-    const wanted = [job.roleId, job.employeeRole]
-        .filter(Boolean)
-        .map(v => this._deptRoleAliases[String(v).trim()] || String(v).trim());
-    const name = String(job.employeeName || '').trim().toLowerCase();
-    for (const dept of appState.departments) {
-        for (const sp of dept.specialists || []) {
-            if (wanted.includes(sp.id)) return dept.id;
-            if (name && (sp.name.toLowerCase() === name || `kak ${sp.name.toLowerCase()}` === name)) return dept.id;
-        }
-    }
-    return null;
-};
-
-app._deptName = function (deptId) {
-    if (!deptId) return 'Belum terpetakan';
-    const dept = (appState.departments || []).find(d => d.id === deptId);
-    return dept ? `${dept.emoji} ${dept.name}` : deptId;
-};
-
-app._dashboardJobs = function () {
-    const sel = this._dashboardDeptId();
-    const jobs = appState.aiJobs || [];
-    if (sel === 'all') return jobs;
-    return jobs.filter(j => this._jobDeptId(j) === sel);
-};
-
-const DASH_ACTIVE_STATUSES = ['queued', 'needs_info', 'awaiting_approval', 'publishing'];
-const DASH_ATTENTION_STATUSES = ['needs_info', 'awaiting_approval', 'failed'];
-
-app._deptJobCounts = function (jobs) {
-    return {
-        total: jobs.length,
-        active: jobs.filter(j => DASH_ACTIVE_STATUSES.includes(j.status)).length,
-        attention: jobs.filter(j => DASH_ATTENTION_STATUSES.includes(j.status)).length,
-        done: jobs.filter(j => j.status === 'done').length
-    };
-};
-
-app.renderDashboardDeptGrid = function () {
-    const grid = document.getElementById('dashboard-dept-grid');
-    const select = document.getElementById('dashboard-dept-filter');
-    const desc = document.getElementById('dashboard-dept-desc');
-    const sel = this._dashboardDeptId();
-    const esc = (v) => (this._escapeHtml ? this._escapeHtml(v) : String(v ?? ''));
-
-    if (select && Array.isArray(appState.departments)) {
-        const current = select.value || sel;
-        select.innerHTML = '<option value="all">🏢 Semua Departemen</option>' +
-            appState.departments.map(d => `<option value="${esc(d.id)}">${esc(d.emoji)} ${esc(d.name)} — ${esc(d.studio)}</option>`).join('');
-        select.value = [...select.options].some(o => o.value === sel) ? sel : 'all';
-        if (select.value !== current && sel === 'all') select.value = 'all';
-    }
-
-    const selectedDept = (appState.departments || []).find(d => d.id === sel);
-    if (desc) {
-        desc.textContent = selectedDept
-            ? `${selectedDept.emoji} ${selectedDept.name} · ${selectedDept.studio} — ${selectedDept.description}`
-            : 'Menampilkan ringkasan semua departemen. Pilih satu studio untuk memfilter KPI, antrean perhatian, dan job Kantor AI.';
-    }
-    if (!grid) return;
-    if (!Array.isArray(appState.departments)) {
-        grid.innerHTML = '<p class="text-secondary font-sm">Struktur departemen belum bisa dimuat — KPI & job tetap ditampilkan global.</p>';
-        return;
-    }
-
-    const cardHtml = (dept, jobs) => {
-        const c = this._deptJobCounts(jobs);
-        const isAll = dept.id === 'all';
-        return `
-        <button type="button" class="dashboard-dept-card${sel === dept.id ? ' active' : ''}" data-dept-id="${esc(dept.id)}" style="--dept-color:${esc(dept.color || '#6366f1')}">
-            <div class="dashboard-dept-card-head"><span class="dashboard-dept-card-emoji">${esc(dept.emoji)}</span><strong>${esc(dept.name)}</strong></div>
-            <div class="dashboard-dept-card-studio">${esc(dept.studio)}${isAll ? '' : ` · ${(dept.specialists || []).length} spesialis`}${dept.comingSoon ? ' · Segera hadir' : ''}</div>
-            <div class="dashboard-dept-card-stats">
-                <span><b>${c.active}</b>Aktif</span>
-                <span class="dept-stat-attention"><b>${c.attention}</b>Perhatian</span>
-                <span><b>${c.done}</b>Selesai</span>
-            </div>
-        </button>`;
-    };
-
-    const allJobs = appState.aiJobs || [];
-    grid.innerHTML = cardHtml({ id: 'all', name: 'Semua', studio: 'Lintas departemen', emoji: '🏢', color: '#6366f1' }, allJobs) +
-        appState.departments.map(d => cardHtml(d, allJobs.filter(j => this._jobDeptId(j) === d.id))).join('');
-    grid.querySelectorAll('.dashboard-dept-card').forEach(card => {
-        card.addEventListener('click', () => this._setDashboardDept(card.getAttribute('data-dept-id')));
-    });
-};
-
-app.renderDashboardStats = function () {
-    const sel = this._dashboardDeptId();
-    const jobs = this._dashboardJobs();
-    const set = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value; };
-    const setTrend = (id, text) => {
-        const el = document.getElementById(id);
-        if (!el) return;
-        const span = el.querySelector('span');
-        if (span) span.textContent = text;
-    };
-    const isContent = sel === 'all' || sel === 'marketing';
-
-    if (isContent) {
-        const scheduled = (appState.posts || []).filter(p => p.status === 'scheduled')
-            .sort((a, b) => new Date(a.publishDate) - new Date(b.publishDate));
-        const published = (appState.posts || []).filter(p => p.status === 'published').length;
-        const connected = (appState.accounts || []).filter(a => a.connected).length;
-        set('stats-total-posts-label', 'Total Postingan');
-        set('stats-scheduled-posts-label', 'Postingan Terjadwal');
-        set('stats-active-channels-label', 'Saluran Aktif');
-        set('stats-total-reach-label', 'Total Jangkauan');
-        set('stats-total-posts', (appState.posts || []).length);
-        set('stats-scheduled-posts', scheduled.length);
-        set('stats-active-channels', connected);
-        set('stats-total-reach', '142.8K');
-        setTrend('stats-total-posts-trend', `${published} terbit`);
-        setTrend('stats-scheduled-posts-trend', scheduled.length
-            ? `Terdekat ${new Date(scheduled[0].publishDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}`
-            : 'Kosong');
-        setTrend('stats-active-channels-trend', `${connected}/${(appState.accounts || []).length} terhubung`);
-        setTrend('stats-total-reach-trend', appState.serverMode === 'sandbox' ? 'SANDBOX' : 'Live');
-        return;
-    }
-
-    const c = this._deptJobCounts(jobs);
-    const dept = (appState.departments || []).find(d => d.id === sel);
-    set('stats-total-posts-label', 'Job Departemen Ini');
-    set('stats-scheduled-posts-label', 'Job Aktif');
-    set('stats-active-channels-label', 'Menunggu Manusia');
-    set('stats-total-reach-label', 'Job Selesai');
-    set('stats-total-posts', c.total);
-    set('stats-scheduled-posts', c.active);
-    set('stats-active-channels', c.attention);
-    set('stats-total-reach', c.done);
-    setTrend('stats-total-posts-trend', dept ? dept.studio : 'Departemen');
-    setTrend('stats-scheduled-posts-trend', 'Berjalan');
-    setTrend('stats-active-channels-trend', c.attention ? 'Prioritas' : 'Aman');
-    setTrend('stats-total-reach-trend', 'Tuntas');
-};
-
-app.renderDashboardAttention = function () {
-    const list = document.getElementById('dashboard-attention-list');
-    if (!list) return;
-    const esc = (v) => (this._escapeHtml ? this._escapeHtml(v) : String(v ?? ''));
-    const jobs = this._dashboardJobs()
-        .filter(j => DASH_ATTENTION_STATUSES.includes(j.status))
-        .sort((a, b) => new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0))
-        .slice(0, 5);
-
-    if (!jobs.length) {
-        list.innerHTML = '<div class="empty-state-small"><p class="font-xs">✅ Tidak ada job yang menunggu manusia saat ini.</p></div>';
-        return;
-    }
-    list.innerHTML = '';
-    jobs.forEach(job => {
-        const row = document.createElement('button');
-        row.type = 'button';
-        row.className = 'dashboard-attention-row';
-        row.title = 'Buka di Kantor AI';
-        row.addEventListener('click', () => {
-            appState.office.selectedJobId = job.id;
-            this.switchView('office');
-        });
-        const badge = this._statusBadge ? this._statusBadge(job.status) : 'badge-indigo';
-        const label = this._statusLabel ? this._statusLabel(job.status) : job.status;
-        row.innerHTML = `
-            <div class="ai-job-meta">
-                <span class="ai-job-brief">${esc(job.brief || '(tanpa brief)')}</span>
-                <span class="ai-job-id">${esc(job.employeeName || job.roleId || 'AI')} · ${esc(this._deptName(this._jobDeptId(job)))}</span>
-            </div>
-            <span class="badge ${badge}">${esc(label)}</span>`;
-        list.appendChild(row);
-    });
-};
-
-app.renderDashboard = function () {
-    this.updateActiveAccountsCounter();
-    this._ensureDashboardDepartments();
-    this.renderDashboardDeptGrid();
-    this.renderDashboardStats();
-    this.renderDashboardAttention();
-
-    const sel = this._dashboardDeptId();
-    const isContent = sel === 'all' || sel === 'marketing';
-    ['dashboard-channel-share-card', 'dashboard-connected-card', 'dashboard-nextup-card'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.classList.toggle('hidden', !isContent);
-    });
-    const contentNote = document.getElementById('dashboard-content-dept-note');
-    if (contentNote) {
-        contentNote.classList.toggle('hidden', isContent);
-        if (!isContent) {
-            contentNote.textContent = 'Konten saluran dikelola Studio Marketing — departemen ini fokus pada job & antrean perhatian manusia di atas.';
-        }
-    }
-    // Antrean Konten Mendatang khusus Studio Marketing (termasuk disembunyikan di "Semua Departemen")
-    const showUpcoming = sel === 'marketing';
-    const upcomingCard = document.getElementById('dashboard-upcoming-card');
-    if (upcomingCard) upcomingCard.classList.toggle('hidden', !showUpcoming);
-    const mainLayout = document.getElementById('dashboard-main-layout');
-    if (mainLayout) mainLayout.classList.toggle('no-upcoming', !showUpcoming);
-
-    const channelList = document.getElementById('dashboard-channel-list');
-    channelList.innerHTML = '';
-    const connectedAccounts = appState.accounts.filter(a => a.connected);
-
-    if (connectedAccounts.length === 0) {
-        channelList.innerHTML = `<div class="empty-state-small"><p class="font-xs">Belum ada akun terhubung.</p><button class="btn btn-sm btn-secondary" onclick="app.switchView('accounts')">Hubungkan Akun</button></div>`;
-    } else {
-        connectedAccounts.forEach(acc => {
-            const pInfo = appState.platforms[acc.platform];
-            channelList.innerHTML += `
-                <div class="dash-channel-row">
-                    <div class="dash-channel-left">
-                        <img src="${acc.avatar || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=256&auto=format&fit=crop'}" class="dash-channel-avatar" alt="avatar">
-                        <div>
-                            <span class="dash-channel-name">${acc.name}</span>
-                            <div class="dash-channel-platform text-secondary font-xs">${pInfo ? pInfo.name : acc.platform} • ${acc.handle}</div>
-                        </div>
-                    </div>
-                    <span class="badge badge-emerald"><span class="badge-dot"></span>Aktif</span>
-                </div>`;
-        });
-    }
-
-    const scheduledPosts = (showUpcoming ? appState.posts : []).filter(p => p.status === 'scheduled').sort((a, b) => new Date(a.publishDate) - new Date(b.publishDate));
-    const upcomingList = document.getElementById('dashboard-upcoming-list');
-    const emptyQueue = document.getElementById('dashboard-empty-queue');
-    upcomingList.querySelectorAll('.upcoming-item').forEach(el => el.remove());
-    const emptyQueueText = emptyQueue ? emptyQueue.querySelector('p') : null;
-    if (emptyQueueText) {
-        emptyQueueText.textContent = showUpcoming
-            ? 'Belum ada postingan yang dijadwalkan.'
-            : 'Antrean konten hanya untuk Studio Marketing — lihat job departemen ini di panel Kantor AI & Perhatian Manusia.';
-    }
-
-    if (scheduledPosts.length === 0) {
-        emptyQueue.classList.remove('hidden');
-    } else {
-        emptyQueue.classList.add('hidden');
-        scheduledPosts.slice(0, 3).forEach(post => {
-            const dateObj = new Date(post.publishDate);
-            const dateStr = dateObj.toLocaleDateString('id-ID', { month: 'short', day: 'numeric' });
-            const timeStr = this._formatTime24(dateObj);
-            let platformPillsHtml = '';
-            post.platforms.forEach(p => {
-                const info = appState.platforms[p];
-                if (info) platformPillsHtml += `<div class="platform-pill ${info.colorClass}" title="${info.name}"><i data-lucide="${info.icon}"></i></div>`;
-            });
-            let mediaHtml = '<i data-lucide="image"></i>';
-            if (post.mediaUrl) {
-                mediaHtml = post.mediaType === 'video'
-                    ? `<i data-lucide="video" style="color:var(--indigo);"></i>`
-                    : `<img src="${post.mediaUrl}" alt="Thumbnail" class="upcoming-media">`;
-            }
-            const item = document.createElement('div');
-            item.className = 'upcoming-item';
-            item.innerHTML = `
-                <div class="upcoming-media">${mediaHtml}</div>
-                <div class="upcoming-info">
-                    <span class="upcoming-text">${post.caption || 'Tanpa Keterangan'}</span>
-                    <div class="upcoming-time-pills">
-                        <span class="upcoming-date font-xs"><i data-lucide="calendar" style="width:10px;height:10px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>${dateStr} @ ${timeStr}</span>
-                        <div class="upcoming-platforms">${platformPillsHtml}</div>
-                    </div>
-                </div>
-                <div class="upcoming-actions">
-                    <button class="btn btn-sm btn-secondary" onclick="app.editPost('${post.id}')" title="Edit"><i data-lucide="edit" style="width:12px;height:12px;"></i></button>
-                    <button class="btn btn-sm btn-secondary" onclick="app.postImmediately('${post.id}')" title="Terbitkan Sekarang"><i data-lucide="send" style="width:12px;height:12px;"></i></button>
-                    <button class="btn btn-sm btn-secondary" onclick="app.deletePost('${post.id}')" title="Hapus"><i data-lucide="trash-2" style="width:12px;height:12px;color:var(--red);"></i></button>
-                </div>`;
-            upcomingList.appendChild(item);
-        });
-    }
-
-    this.renderChannelShareChart();
-    this.renderAiJobs();
-    if (isContent) this.loadAndRenderInsights('dashboard-nextup-body');
-    lucide.createIcons();
-};
-
-app.renderAiJobs = function () {
-    const list = document.getElementById('dashboard-ai-jobs-list');
-    if (!list) return;
-
-    const empty = document.getElementById('dashboard-empty-jobs');
-    list.querySelectorAll('.ai-job-row').forEach(el => el.remove());
-
-    const jobs = this._dashboardJobs().slice(0, 5);
-    if (jobs.length === 0) {
-        if (empty) {
-            empty.classList.remove('hidden');
-            const p = empty.querySelector('p');
-            if (p) {
-                p.textContent = this._dashboardDeptId() === 'all'
-                    ? 'Belum ada job. Kirim brief di Kantor AI.'
-                    : 'Belum ada job untuk departemen ini. Kirim brief di Kantor AI.';
-            }
-        }
-        return;
-    }
-    if (empty) empty.classList.add('hidden');
-
-    const badgeFor = (status) => (this._statusBadge ? this._statusBadge(status) : 'badge-indigo');
-    const labelFor = (status) => (this._statusLabel ? this._statusLabel(status) : status);
-
-    jobs.forEach(job => {
-        const row = document.createElement('div');
-        row.className = 'ai-job-row ai-job-row-clickable';
-        row.title = 'Buka di Kantor AI';
-        row.addEventListener('click', () => {
-            appState.office.selectedJobId = job.id;
-            this.switchView('office');
-        });
-        const brief = (job.brief || '(tanpa brief)').replace(/</g, '&lt;');
-        const who = (job.employeeName || job.roleId || 'AI').replace(/</g, '&lt;');
-        const dept = this._deptName(this._jobDeptId(job)).replace(/</g, '&lt;');
-        row.innerHTML = `
-            <div class="ai-job-meta">
-                <span class="ai-job-brief" title="${brief}">${brief}</span>
-                <span class="ai-job-id">${who} · ${dept} · ${job.id}</span>
-            </div>
-            <span class="badge ${badgeFor(job.status)}">${labelFor(job.status)}</span>`;
-        list.appendChild(row);
-    });
-};
+app.renderAiJobs = function () { /* dashboard dihapus: tidak ada DOM tujuan */ };
 
 // ============================================================
 // Kantor AI
@@ -1015,10 +750,6 @@ app.setupOfficeEvents = function () {
     document.querySelectorAll('.office-tpl-btn').forEach(btn => {
         btn.addEventListener('click', () => this.applyOfficeBriefTemplate(btn.dataset.tpl));
     });
-    const dashInsightsOffice = document.getElementById('dashboard-open-office-from-insights');
-    if (dashInsightsOffice) {
-        dashInsightsOffice.addEventListener('click', () => this.switchView('office'));
-    }
     const toggle3d = document.getElementById('office-3d-toggle');
     if (toggle3d) {
         const prefOn = (typeof AiOffice3D !== 'undefined' && AiOffice3D.loadPreference)
@@ -1068,6 +799,16 @@ app.setupMissionEvents = function () {
     const refreshBtn = document.getElementById('mission-refresh-btn');
     if (refreshBtn) {
         refreshBtn.addEventListener('click', () => this.renderMission());
+    }
+    const workspacesBtn = document.getElementById('mission-workspaces-btn');
+    if (workspacesBtn) {
+        workspacesBtn.addEventListener('click', () => {
+            // Jalan pintas ke ruang kerja: halaman Chat bawaan, lewat jalur
+            // menu Chat yang sama (openMainMenu) agar mode mission/3D keluar
+            // bersih dan pill/menu Chat aktif sebagaimana mestinya.
+            if (typeof this.openMainMenu === 'function') this.openMainMenu('chat');
+            else this.switchView('chat');
+        });
     }
     const tasksBtn = document.getElementById('mission-tasks-btn');
     if (tasksBtn) {
@@ -1154,7 +895,7 @@ app.setupMissionEvents = function () {
     window.addEventListener('hashchange', () => {
         if (!appState.user) return;
         const hashView = (location.hash || '').replace(/^#/, '').trim();
-        const allowed = ['mission', 'dashboard', 'composer', 'queue', 'office', 'accounts', 'analytics', 'settings', 'layout', 'about', 'activity', 'marketplace', 'organization', 'tasks', 'calendar'];
+        const allowed = ['mission', 'composer', 'queue', 'office', 'accounts', 'analytics', 'settings', 'layout', 'about', 'activity', 'marketplace', 'organization', 'tasks', 'tasks-replica', 'calendar', 'calendar-replica', 'drive-replica', 'crm-replica', 'library-replica', 'mailbox-replica', 'employees-replica', 'routine-replica', 'tools', 'tools-replica', 'placeholder', 'chat'];
         if (allowed.includes(hashView) && hashView !== appState.currentView) {
             this.switchView(hashView);
         }
@@ -4095,22 +3836,6 @@ app.approveOfficeJob = async function () {
     }
 };
 
-app.renderChannelShareChart = function () {
-    const canvas = document.getElementById('dashboard-channel-chart');
-    if (!canvas) return;
-    const counts = { instagram: 0, facebook: 0, tiktok: 0, youtube: 0 };
-    appState.posts.forEach(p => p.platforms.forEach(pl => { if (counts[pl] !== undefined) counts[pl]++; }));
-    if (appState.charts.channelShare) appState.charts.channelShare.destroy();
-    appState.charts.channelShare = new Chart(canvas, {
-        type: 'doughnut',
-        data: {
-            labels: ['Instagram', 'Facebook', 'TikTok', 'YouTube'],
-            datasets: [{ data: [counts.instagram || 1, counts.facebook || 1, counts.tiktok || 1, counts.youtube || 1], backgroundColor: ['#e1306c', '#1877f2', '#0f172a', '#ff0000'], borderWidth: 2, borderColor: '#ffffff' }]
-        },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#64748b', font: { family: 'Inter', size: 10 } } } }, cutout: '65%' }
-    });
-};
-
 // Terbitkan sekarang via API server
 app.postImmediately = async function (postId) {
     try {
@@ -4119,8 +3844,7 @@ app.postImmediately = async function (postId) {
             await this.loadPostsFromServer();
             this.updateActiveAccountsCounter();
             this.showToast('✅ Postingan berhasil diterbitkan!', 'emerald');
-            if (appState.currentView === 'dashboard') this.renderDashboard();
-            else if (appState.currentView === 'queue') this.renderQueue();
+            if (appState.currentView === 'queue') this.renderQueue();
         }
     } catch (e) {
         this.showToast('❌ Gagal menerbitkan postingan.', 'red');
@@ -4134,8 +3858,7 @@ app.deletePost = async function (postId) {
         await this.loadPostsFromServer();
         this.updateActiveAccountsCounter();
         this.showToast('🗑️ Postingan berhasil dihapus.', 'indigo');
-        if (appState.currentView === 'dashboard') this.renderDashboard();
-        else if (appState.currentView === 'queue') this.renderQueue();
+        if (appState.currentView === 'queue') this.renderQueue();
     }
 };
 
@@ -4508,7 +4231,7 @@ app.submitComposerPost = async function (forceDraft) {
             appState.editingPostId = null;
 
             this.showToast(msg, postStatus === 'posted' ? 'emerald' : 'indigo');
-            this.switchView(postStatus === 'scheduled' ? 'queue' : 'dashboard');
+            this.switchView(postStatus === 'scheduled' ? 'queue' : 'mission');
         } else {
             this.showToast('❌ Gagal menyimpan postingan: ' + (result.message || 'Error tidak diketahui.'), 'red');
             submitBtn.disabled = false;

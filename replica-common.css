@@ -1,0 +1,129 @@
+/* ==========================================================================
+   Penyesuaian bersama SEMUA halaman replika (.chat-replica: Chat, Tasks,
+   Calendar, Drive, CRM, Library, Mailbox, Employees, Routine, Knowledge,
+   Tools). Dimuat TERAKHIR agar menang atas CSS per-halaman tanpa mengubahnya.
+   1) Tab keterangan gaya crop: bar gelap + pill berikon/label + badge merah
+   2) Panel Organization dapat digeser (var --rx-org-w, lihat replica-common.js)
+   3) Menu kiri replika: rel ikon sempit, meluas overlay saat hover/focus
+   4) Brand "PiK's Digital Lab" di pinggir kanan bilah atas (.rx-brand)
+   ========================================================================== */
+
+/* ---- 1) Bar tab keterangan gaya crop (bar gelap, pill, badge merah) ---- */
+.chat-replica .cr-main-tabs {
+    background: #0b1220;
+    border: 1px solid rgba(148, 163, 184, .16);
+    border-radius: 9px;
+    padding: 4px;
+    gap: 4px;
+    min-height: 36px;
+    box-sizing: border-box;
+}
+.chat-replica .cr-main-tabs > button,
+.chat-replica .cr-main-tabs > span.cr-active-tab,
+.chat-replica .cr-main-tabs > span.cr-chat-tab {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 10px; border-radius: 7px;
+    border: 1px solid transparent; background: transparent;
+    color: #8b95a8; font-size: 11px; font-weight: 600; line-height: 1.2;
+    white-space: nowrap;
+}
+.chat-replica .cr-main-tabs > button:hover { background: #1c2942; color: #e7edf6; }
+.chat-replica .cr-main-tabs > button.is-active,
+.chat-replica .cr-main-tabs > span.cr-active-tab,
+.chat-replica .cr-main-tabs > span.cr-chat-tab {
+    background: #26334d; color: #f8fafc; border-color: rgba(148, 163, 184, .22);
+}
+.chat-replica .cr-main-tabs svg { width: 13px; height: 13px; flex: 0 0 auto; }
+.chat-replica .cr-main-tabs .cr-project { margin-left: auto; }
+/* Lencana hitungan kecil berwarna merah (gaya crop) */
+.chat-replica .rx-count-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 16px; height: 15px; padding: 0 4px; box-sizing: border-box;
+    border-radius: 999px; background: #e11d48; color: #fff;
+    font-size: 9px; font-weight: 800; line-height: 1; vertical-align: 1px;
+}
+.chat-replica .cr-tab-badge,
+.chat-replica .tl-tab-badge {
+    background: #e11d48 !important; color: #fff !important;
+    border-radius: 999px; padding: 1px 5px;
+}
+/* Tab bilah atas disamakan pill-nya dengan gaya crop */
+.chat-replica .cr-top-tabs { gap: 4px; }
+.chat-replica .cr-top-tabs button {
+    border-radius: 7px; border: 1px solid transparent;
+    padding: 5px 10px; font-size: 11px;
+}
+.chat-replica .cr-top-tabs button.is-active {
+    background: #26334d; color: #f8fafc; border-color: rgba(148, 163, 184, .22);
+}
+
+/* ---- 4) Brand di pinggir kanan bilah atas ---- */
+.chat-replica .rx-brand {
+    font-size: 11.5px; font-weight: 800; letter-spacing: .01em;
+    color: #e7edf6; white-space: nowrap;
+    padding-right: 9px; margin-right: 3px;
+    border-right: 1px solid rgba(148, 163, 184, .22);
+}
+
+/* ---- 2) Panel Organization dapat digeser ---- */
+.chat-replica .cr-body {
+    grid-template-columns: 56px var(--rx-org-w, 168px) minmax(0, 1fr) 296px;
+}
+.chat-replica .rx-org-wrap {
+    display: flex; min-width: 0; min-height: 0;
+    background: #0b1220; border-right: 1px solid rgba(148, 163, 184, .1);
+}
+.chat-replica .rx-org-wrap .cr-org {
+    flex: 1 1 auto; min-width: 0; border-right: 0; background: transparent;
+}
+.chat-replica .rx-org-handle {
+    flex: 0 0 7px; align-self: stretch; cursor: col-resize;
+    position: relative; touch-action: none; outline: none;
+}
+.chat-replica .rx-org-handle::after {
+    content: ""; position: absolute; top: 0; bottom: 0; left: 3px; width: 1px;
+    background: rgba(148, 163, 184, .18); transition: background .15s, width .15s;
+}
+.chat-replica .rx-org-handle:hover::after,
+.chat-replica .rx-org-handle:focus-visible::after,
+.chat-replica.is-org-dragging .rx-org-handle::after {
+    background: #38bdf8; width: 2px; left: 2px;
+}
+.chat-replica .rx-org-handle:hover,
+.chat-replica.is-org-dragging .rx-org-handle { background: rgba(56, 189, 248, .14); }
+body.rx-org-dragging { cursor: col-resize !important; user-select: none !important; }
+body.rx-org-dragging * { cursor: col-resize !important; }
+
+/* ---- 3) Menu kiri replika: hanya ikon, meluas overlay saat hover ---- */
+.chat-replica .cr-sidenav {
+    width: 56px; box-sizing: border-box;
+    position: relative; z-index: 35;
+    padding: 10px 7px; overflow-x: hidden;
+    transition: width .18s ease, box-shadow .18s ease;
+}
+.chat-replica .cr-sidenav:hover,
+.chat-replica .cr-sidenav:focus-within {
+    width: 208px; box-shadow: 16px 0 32px rgba(0, 0, 0, .45);
+}
+.chat-replica .cr-sidenav:not(:hover):not(:focus-within) .cr-side-nav button {
+    justify-content: center; padding: 6px 0; font-size: 0; gap: 0;
+}
+.chat-replica .cr-sidenav:not(:hover):not(:focus-within) .cr-side-label,
+.chat-replica .cr-sidenav:not(:hover):not(:focus-within) .cr-search,
+.chat-replica .cr-sidenav:not(:hover):not(:focus-within) .cr-credits,
+.chat-replica .cr-sidenav:not(:hover):not(:focus-within) .cr-personal {
+    display: none;
+}
+.chat-replica .cr-side-nav button { overflow: hidden; }
+
+@media (min-width: 1400px) {
+    .chat-replica .cr-body { grid-template-columns: 56px var(--rx-org-w, 208px) minmax(0, 1fr) 336px; }
+}
+@media (max-width: 1100px) {
+    .chat-replica .cr-body { grid-template-columns: 56px var(--rx-org-w, 148px) minmax(0, 1fr) 232px; }
+}
+@media (max-width: 860px) {
+    /* Mode sempit lama dipertahankan: rel ikon, tanpa panel aktivitas. */
+    .chat-replica .cr-body { grid-template-columns: 56px var(--rx-org-w, 132px) minmax(0, 1fr); }
+    .chat-replica .rx-brand { display: none; }
+}

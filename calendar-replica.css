@@ -1,0 +1,82 @@
+/* ==========================================================================
+   Halaman Calendar — replika referensi Company Master Calendar (SisTava-style).
+   Ter-scope di bawah .calendar-replica / body.is-calendar-mode; bingkai, nav,
+   org & panel aktivitas memakai kelas .chat-replica / .cr-* dari
+   chat-replica.css. Font sans kecil rapat ±11-13px, navy gelap.
+   ========================================================================== */
+body.is-calendar-mode .app-container { visibility: hidden; pointer-events: none; }
+body.is-calendar-mode #app-shell-topbar, body.is-calendar-mode .global-side-menu { display: none !important; }
+body.is-login-mode #view-calendar-replica { display: none !important; }
+.calendar-replica .cl-main { gap: 8px; }
+.calendar-replica .cl-tab { display: inline-flex; align-items: center; gap: 6px; border-radius: 8px; padding: 5px 12px; font-weight: 600; font-size: 11.5px; color: #8b95a8; }
+.calendar-replica .cl-tab:hover { background: rgba(255,255,255,.05); color: #e7edf6; }
+.calendar-replica .cl-tab.is-active { background: #1b2740; color: #f8fafc; }
+.calendar-replica .cl-tab-avatar { width: 18px; height: 18px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; color: #fff; font-size: 9px; font-weight: 800; }
+.calendar-replica .cl-head { display: flex; align-items: center; gap: 10px; flex-wrap: nowrap; min-width: 0; }
+.calendar-replica .cl-head h1 { font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: #93c5fd; white-space: nowrap; }
+.calendar-replica .cl-head-right { margin-left: auto; display: flex; align-items: center; gap: 7px; white-space: nowrap; }
+.calendar-replica .cl-dd { position: relative; }
+.calendar-replica .cl-connect, .calendar-replica .cl-project-btn { display: inline-flex; gap: 5px; align-items: center; color: #8b95a8; font-size: 11px; border: 1px solid rgba(148,163,184,.16); border-radius: 999px; padding: 4px 10px; background: none; }
+.calendar-replica .cl-connect:hover, .calendar-replica .cl-project-btn:hover { background: #16213a; color: #e7edf6; }
+.calendar-replica .cl-menu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 20; min-width: 190px; background: #131e33; border: 1px solid rgba(148,163,184,.22); border-radius: 10px; padding: 6px; box-shadow: 0 14px 34px rgba(0,0,0,.5); }
+.calendar-replica .cl-menu.hidden { display: none !important; }
+.calendar-replica .cl-menu-title { font-size: 9px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: #76839a; padding: 3px 8px 6px; }
+.calendar-replica .cl-menu button { width: 100%; display: flex; align-items: center; gap: 7px; text-align: left; padding: 6px 8px; border-radius: 8px; color: #cbd5e1; font-size: 11.5px; background: none; }
+.calendar-replica .cl-menu button:hover { background: rgba(255,255,255,.06); }
+.calendar-replica .cl-menu small { display: block; color: #76839a; font-size: 10px; }
+.calendar-replica .cl-create { background: #a5b4fc; color: #1e1b4b; font-weight: 800; font-size: 11px; border-radius: 999px; padding: 5px 16px; display: inline-flex; gap: 6px; align-items: center; }
+.calendar-replica .cl-create:hover { background: #818cf8; }
+.calendar-replica .cl-card { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; background: #111a2e; border: 1px solid rgba(148,163,184,.16); border-radius: 12px; overflow: hidden; }
+.calendar-replica .cl-controls { flex: 0 0 auto; display: flex; align-items: center; gap: 7px; padding: 8px 10px; background: #131e33; border-bottom: 1px solid rgba(148,163,184,.12); }
+.calendar-replica .cl-nav-btn { width: 24px; height: 24px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; color: #8b95a8; background: rgba(255,255,255,.04); }
+.calendar-replica .cl-nav-btn:hover { background: #26334d; color: #fff; }
+.calendar-replica .cl-nav-btn svg { width: 12px; height: 12px; }
+.calendar-replica .cl-today { border: 1px solid rgba(148,163,184,.2); border-radius: 999px; padding: 4px 11px; color: #dbe4f2; font-size: 11px; font-weight: 700; background: rgba(255,255,255,.03); }
+.calendar-replica .cl-today:hover { background: #26334d; }
+.calendar-replica .cl-period { display: inline-flex; align-items: center; gap: 6px; color: #e7edf6; font-size: 12px; font-weight: 700; margin-left: 4px; white-space: nowrap; }
+.calendar-replica .cl-period svg { width: 13px; height: 13px; color: #8b95a8; }
+.calendar-replica .cl-seg { margin-left: auto; display: inline-flex; background: #0d1524; border: 1px solid rgba(148,163,184,.16); border-radius: 999px; padding: 2px; gap: 2px; }
+.calendar-replica .cl-seg button { border-radius: 999px; padding: 3px 11px; font-size: 10.5px; font-weight: 600; color: #8b95a8; background: none; }
+.calendar-replica .cl-seg button:hover { color: #e7edf6; }
+.calendar-replica .cl-seg button.is-active { background: #a5b4fc; color: #1e1b4b; font-weight: 800; }
+.calendar-replica #cl-cal-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.calendar-replica .cl-weekhead { flex: 0 0 auto; display: grid; grid-template-columns: repeat(7, minmax(0,1fr)); background: #0d1524; border-bottom: 1px solid rgba(148,163,184,.12); }
+.calendar-replica .cl-weekhead span { padding: 6px 8px; font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #667084; }
+.calendar-replica .cl-grid { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(7, minmax(0,1fr)); grid-template-rows: repeat(6, minmax(0,1fr)); background: #0e1728; }
+.calendar-replica .cl-cell { position: relative; min-width: 0; min-height: 0; overflow: hidden; padding: 5px 6px; border-right: 1px solid rgba(148,163,184,.08); border-bottom: 1px solid rgba(148,163,184,.08); cursor: pointer; display: flex; flex-direction: column; gap: 3px; }
+.calendar-replica .cl-cell:hover { background: rgba(255,255,255,.025); }
+.calendar-replica .cl-cell.is-out { opacity: .38; }
+.calendar-replica .cl-cell.is-selected { background: rgba(129,140,248,.09); box-shadow: inset 0 0 0 1.5px #818cf8; }
+.calendar-replica .cl-cell.is-today { background: rgba(59,130,246,.06); }
+.calendar-replica .cl-daynum { align-self: flex-start; display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; border-radius: 50%; font-size: 10.5px; font-weight: 600; color: #aab6ca; padding: 0 3px; }
+.calendar-replica .cl-daynum.is-today { background: #3b82f6; color: #fff; font-weight: 800; box-shadow: 0 0 0 3px rgba(59,130,246,.22); }
+.calendar-replica .cl-chips { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.calendar-replica .cl-chip { display: flex; align-items: center; gap: 3px; border-radius: 4px; color: #fff; font-size: 9.5px; font-weight: 600; line-height: 1.5; padding: 1px 3px 1px 5px; max-width: 100%; }
+.calendar-replica .cl-chip-text { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.calendar-replica .cl-chip-del { width: 14px; height: 14px; flex: 0 0 auto; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; color: rgba(255,255,255,.85); background: none; }
+.calendar-replica .cl-chip-del:hover { background: rgba(0,0,0,.3); color: #fff; }
+.calendar-replica .cl-chip-del svg { width: 9px; height: 9px; }
+.calendar-replica .cl-more { font-size: 9px; color: #8b95a8; font-weight: 600; padding-left: 2px; }
+.calendar-replica .cl-timewrap { flex: 1; min-height: 0; overflow-y: auto; background: #0e1728; scrollbar-width: thin; scrollbar-color: #26334d transparent; }
+.calendar-replica .cl-time-head { position: sticky; top: 0; z-index: 2; display: grid; background: #0d1524; border-bottom: 1px solid rgba(148,163,184,.14); }
+.calendar-replica .cl-time-head span { padding: 6px 8px; font-size: 10px; color: #667084; border-right: 1px solid rgba(148,163,184,.08); white-space: nowrap; overflow: hidden; }
+.calendar-replica .cl-time-head span strong { color: #aab6ca; text-transform: uppercase; letter-spacing: .05em; }
+.calendar-replica .cl-time-head span.is-today strong { color: #60a5fa; }
+.calendar-replica .cl-time-head span.is-selected { background: rgba(129,140,248,.1); }
+.calendar-replica .cl-time-row { display: grid; min-height: 34px; border-bottom: 1px solid rgba(148,163,184,.07); }
+.calendar-replica .cl-hour { font-size: 9.5px; color: #556178; padding: 4px 6px; text-align: right; border-right: 1px solid rgba(148,163,184,.08); }
+.calendar-replica .cl-hour-cell { padding: 3px 4px; border-right: 1px solid rgba(148,163,184,.07); cursor: pointer; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.calendar-replica .cl-hour-cell:hover { background: rgba(255,255,255,.025); }
+.calendar-replica .cl-hour-cell.is-selected { background: rgba(129,140,248,.06); }
+.calendar-replica .cl-modal { position: absolute; inset: 0; z-index: 30; background: rgba(3,7,17,.62); display: flex; align-items: center; justify-content: center; }
+.calendar-replica .cl-modal.hidden { display: none !important; }
+.calendar-replica .cl-modal-card { width: 360px; max-width: calc(100% - 32px); background: #131e33; border: 1px solid rgba(148,163,184,.22); border-radius: 12px; padding: 16px; box-shadow: 0 18px 44px rgba(0,0,0,.55); }
+.calendar-replica .cl-modal-card h2 { font-size: 13px; font-weight: 800; color: #f1f5f9; margin-bottom: 6px; }
+.calendar-replica .cl-field { display: block; font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #76839a; margin-top: 10px; }
+.calendar-replica .cl-field input, .calendar-replica .cl-field select, .calendar-replica .cl-field textarea { width: 100%; margin-top: 5px; background: #0d1524; border: 1px solid rgba(148,163,184,.22); border-radius: 8px; color: #e7edf6; font: inherit; font-size: 12px; text-transform: none; letter-spacing: 0; padding: 7px 9px; outline: 0; box-sizing: border-box; color-scheme: dark; }
+.calendar-replica .cl-field textarea { resize: vertical; min-height: 48px; }
+.calendar-replica .cl-field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.calendar-replica .cl-modal-actions { display: flex; justify-content: flex-end; gap: 7px; margin-top: 14px; }
+.calendar-replica .cl-btn-ghost { border: 1px solid rgba(148,163,184,.2); border-radius: 999px; padding: 6px 14px; color: #aab6ca; font-weight: 600; font-size: 11px; background: none; }
+.calendar-replica .cl-btn-primary { background: #a5b4fc; color: #1e1b4b; font-weight: 800; font-size: 11px; border-radius: 999px; padding: 6px 16px; }
+@media (max-width: 1100px) { .calendar-replica .cl-connect { display: none; } }

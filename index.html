@@ -16,6 +16,18 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- Stylesheet -->
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="chat-replica.css">
+    <link rel="stylesheet" href="tasks-replica.css">
+    <link rel="stylesheet" href="calendar-replica.css">
+    <link rel="stylesheet" href="drive-replica.css">
+    <link rel="stylesheet" href="crm-replica.css">
+    <link rel="stylesheet" href="library-replica.css">
+    <link rel="stylesheet" href="mailbox-replica.css">
+    <link rel="stylesheet" href="employees-replica.css">
+    <link rel="stylesheet" href="routine-replica.css">
+    <link rel="stylesheet" href="knowledge-replica.css">
+    <link rel="stylesheet" href="tools-replica.css">
+    <link rel="stylesheet" href="replica-common.css">
 </head>
 <body class="theme-dark is-login-mode">
     <!-- Gate login aplikasi (session cookie) -->
@@ -61,6 +73,10 @@
             </div>
         </div>
         <div class="app-shell-topbar-right">
+            <button type="button" class="mission-tool-btn mission-workspaces-btn app-shell-mission-only" id="mission-workspaces-btn" title="Workspaces — masuk ke halaman Chat">
+                <i data-lucide="building-2"></i>
+                <span>Workspaces</span>
+            </button>
             <div class="app-shell-mission-only mission-mode-toggle" role="group" aria-label="Mode tampilan">
                 <button type="button" class="mission-mode-btn" id="mission-mode-2d" data-mode="2d">2D</button>
                 <button type="button" class="mission-mode-btn is-active" id="mission-mode-3d" data-mode="3d">3D</button>
@@ -96,109 +112,1184 @@
             </button>
         </div>
         <nav class="mission-nav-menu hidden" id="mission-nav-menu" aria-label="Navigasi aplikasi">
-            <button type="button" data-mission-nav="mission" class="is-active">Ruang / Office</button>
-            <button type="button" data-mission-nav="dashboard">Dasbor</button>
-            <button type="button" data-mission-nav="composer">Buat Postingan</button>
-            <button type="button" data-mission-nav="queue">Jadwal &amp; Kalender</button>
-            <button type="button" data-mission-nav="calendar">Kalender Mingguan</button>
-            <button type="button" data-mission-nav="office">Kantor AI</button>
-            <button type="button" data-mission-nav="tasks">Tugas</button>
-            <button type="button" data-mission-nav="activity">Aktivitas</button>
-            <button type="button" data-mission-nav="organization">Organisasi</button>
-            <button type="button" data-mission-nav="marketplace">Rekrut Tim</button>
-            <button type="button" data-mission-nav="accounts">Akun Terhubung</button>
-            <button type="button" data-mission-nav="analytics">Analisis Konten</button>
-            <button type="button" data-mission-nav="settings">Pengaturan</button>
-            <button type="button" data-mission-nav="layout">Layout Kantor</button>
-            <button type="button" data-mission-nav="about">Tentang Aplikasi</button>
+            <div data-main-nav-list></div>
             <hr>
             <button type="button" id="mission-logout-btn" class="mission-nav-logout">Keluar</button>
         </nav>
     </header>
 
-    <!-- Menu kiri global: tampil di semua halaman setelah login (di Aktivitas digantikan menu bawaannya yang setara) -->
+    <!-- Menu kiri global: menu utama 5 grup / 16 item (dirender dari js/main-nav.js) -->
     <div id="global-side-menu" class="global-side-menu" aria-label="Menu utama aplikasi">
-        <nav class="act-rail gm-rail" aria-label="Navigasi singkat">
-            <button type="button" data-gm-nav="mission" title="Beranda / Ruang"><i data-lucide="home"></i></button>
-            <button type="button" data-gm-nav="dashboard" title="Dasbor"><i data-lucide="layout-grid"></i></button>
-            <button type="button" data-gm-nav="composer" title="Buat postingan"><i data-lucide="inbox"></i></button>
-            <button type="button" data-gm-nav="activity" title="Aktivitas"><i data-lucide="users"></i></button>
-            <button type="button" data-gm-nav="organization" title="Organisasi"><i data-lucide="building-2"></i></button>
-            <button type="button" data-gm-nav="marketplace" title="Rekrut Tim"><i data-lucide="user-plus"></i></button>
-            <button type="button" data-gm-nav="calendar" title="Kalender Mingguan"><i data-lucide="calendar"></i></button>
-            <button type="button" data-gm-nav="queue" title="Jadwal &amp; Kalender (bulanan)"><i data-lucide="calendar-clock"></i></button>
-            <button type="button" data-gm-nav="analytics" title="Analisis"><i data-lucide="bar-chart-3"></i></button>
-            <button type="button" data-gm-nav="tasks" title="Tugas"><i data-lucide="list-checks"></i></button>
-            <button type="button" data-gm-nav="office" title="Kantor AI"><i data-lucide="messages-square"></i></button>
-            <button type="button" data-gm-nav="settings" title="Pengaturan"><i data-lucide="sliders-horizontal"></i></button>
-            <button type="button" data-gm-nav="accounts" title="Akun Terhubung"><i data-lucide="unplug"></i></button>
-            <button type="button" data-gm-nav="layout" title="Layout Kantor"><i data-lucide="folder"></i></button>
-            <button type="button" data-gm-nav="about" title="Tentang Aplikasi"><i data-lucide="ellipsis"></i></button>
-            <span class="gm-rail-spacer" aria-hidden="true"></span>
-            <button type="button" id="gm-toggle-roster" title="Buka panel tim" aria-expanded="false" aria-haspopup="true" aria-controls="gm-roster"><i data-lucide="panel-left"></i></button>
-        </nav>
-        <aside class="act-roster gm-roster" id="gm-roster" aria-label="Panel menu dan daftar tim">
-            <div class="act-search">
-                <i data-lucide="search"></i>
-                <input type="search" id="gm-search" placeholder="Cari" aria-label="Cari karyawan" autocomplete="off">
-                <kbd>⌘K</kbd>
-            </div>
-            <div class="gm-scroll">
-                <nav class="gm-nav-list" aria-label="Menu halaman">
-                    <button type="button" data-gm-nav="mission"><i data-lucide="home"></i><span>Ruang / Office</span></button>
-                    <button type="button" data-gm-nav="dashboard"><i data-lucide="layout-grid"></i><span>Dasbor</span></button>
-                    <button type="button" data-gm-nav="composer"><i data-lucide="inbox"></i><span>Buat Postingan</span></button>
-                    <button type="button" data-gm-nav="queue"><i data-lucide="calendar-clock"></i><span>Jadwal &amp; Kalender</span></button>
-                    <button type="button" data-gm-nav="calendar"><i data-lucide="calendar"></i><span>Kalender Mingguan</span></button>
-                    <button type="button" data-gm-nav="office"><i data-lucide="messages-square"></i><span>Kantor AI</span></button>
-                    <button type="button" data-gm-nav="tasks"><i data-lucide="list-checks"></i><span>Tugas</span></button>
-                    <button type="button" data-gm-nav="activity"><i data-lucide="users"></i><span>Aktivitas</span></button>
-                    <button type="button" data-gm-nav="marketplace"><i data-lucide="user-plus"></i><span>Rekrut Tim</span></button>
-                    <button type="button" data-gm-nav="organization"><i data-lucide="building-2"></i><span>Organisasi</span></button>
-                    <button type="button" data-gm-nav="accounts"><i data-lucide="unplug"></i><span>Akun Terhubung</span></button>
-                    <button type="button" data-gm-nav="analytics"><i data-lucide="bar-chart-3"></i><span>Analisis Konten</span></button>
-                    <button type="button" data-gm-nav="settings"><i data-lucide="sliders-horizontal"></i><span>Pengaturan</span></button>
-                    <button type="button" data-gm-nav="layout"><i data-lucide="folder"></i><span>Layout Kantor</span></button>
-                    <button type="button" data-gm-nav="about"><i data-lucide="ellipsis"></i><span>Tentang Aplikasi</span></button>
-                </nav>
-                <div class="act-tree gm-tree">
-                    <button type="button" class="act-tree-row" id="gm-org-toggle" aria-expanded="true">
-                        <i data-lucide="chevron-down" class="act-chevron"></i>
-                        <i data-lucide="building-2"></i>
-                        <span>Organisasi</span>
-                        <em>1</em>
-                    </button>
-                    <div id="gm-org-body">
-                        <button type="button" class="act-tree-row is-child" id="gm-team-toggle" aria-expanded="true">
-                            <i data-lucide="chevron-down" class="act-chevron"></i>
-                            <i data-lucide="users"></i>
-                            <span>Tim Saya</span>
-                            <em id="gm-team-count">11</em>
-                        </button>
-                        <div class="act-members" id="gm-members" role="listbox" aria-label="Anggota tim"></div>
-                    </div>
-                </div>
-            </div>
-            <div class="act-roster-foot">
-                <div class="act-live">
-                    <p>Karyawan AI sedang bekerja</p>
-                    <strong id="gm-live-count">7</strong>
-                    <span id="gm-live-sub">dari 11 direkrut</span>
-                </div>
-                <div class="act-account">
-                    <button type="button" class="act-account-btn" id="gm-account-btn" aria-expanded="false" aria-controls="gm-account-menu">
-                        <span class="act-av act-av-sm" id="gm-account-av">P</span>
-                        <span id="gm-account-label">Akun Personal</span>
-                        <i data-lucide="chevron-down"></i>
-                    </button>
-                    <div class="act-account-menu hidden" id="gm-account-menu" role="menu">
-                        <button type="button" data-gm-account="personal" role="menuitem">Akun Personal</button>
-                        <button type="button" data-gm-account="agency" role="menuitem">Akun Agensi</button>
-                    </div>
-                </div>
-            </div>
-        </aside>
+        <nav class="main-nav" data-main-nav-list aria-label="Menu utama"></nav>
     </div>
+
+    <!-- Chat — replika referensi Employee Direct Chat (gaya mandiri .chat-replica, data demo lokal) -->
+    <section id="view-chat" class="chat-replica hidden" aria-label="Chat karyawan">
+        <header class="cr-topbar">
+            <button type="button" class="cr-logo" data-cr-exit="mission" title="Kembali ke My Office">PiK's <span>Digital Lab</span></button>
+            <nav class="cr-top-tabs" aria-label="Workspace">
+                <button type="button" class="is-active" title="Workspace (demo)"><i data-lucide="briefcase"></i> Workspace</button>
+                <button type="button" data-rx-office3d title="3D Office — buka kantor AI 3D"><i data-lucide="building-2"></i> 3D Office</button>
+            </nav>
+            <div class="cr-top-right">
+                <span class="rx-brand" title="PiK's Digital Lab">PiK's Digital Lab</span>
+                <span class="cr-top-select" title="Workspace (demo)">Default <i data-lucide="chevron-down"></i></span>
+                <button type="button" class="cr-icon-btn" title="Panel (demo)"><i data-lucide="panel-right"></i></button>
+                <button type="button" class="cr-icon-btn" title="Notifikasi (demo)"><i data-lucide="bell"></i></button>
+                <button type="button" class="cr-icon-btn" title="Pengaturan (demo)"><i data-lucide="settings-2"></i></button>
+                <span class="cr-top-avatar" title="Personal Account">P</span>
+            </div>
+        </header>
+        <div class="cr-body">
+            <aside class="cr-sidenav" aria-label="Navigasi chat">
+                <label class="cr-search"><i data-lucide="search"></i><input type="search" placeholder="Search" aria-label="Search (demo)" title="Search (demo)"><kbd>⌘K</kbd></label>
+                <nav class="cr-side-nav">
+                    <button type="button" class="is-active"><i data-lucide="message-square"></i> Chat</button>
+                    <button type="button" data-cr-nav="tasks"><i data-lucide="file-text"></i> Tasks</button>
+                    <button type="button" data-cr-nav="schedules"><i data-lucide="calendar-days"></i> Calendar</button>
+                    <button type="button" data-cr-nav="drive"><i data-lucide="hard-drive"></i> Drive</button>
+                    <button type="button" data-cr-nav="crm"><i data-lucide="contact-round"></i> CRM</button>
+                    <button type="button" data-cr-nav="library" title="Buka Library"><i data-lucide="library"></i> Library</button>
+                    <button type="button" data-cr-nav="mailbox" title="Buka Mailbox"><i data-lucide="mail"></i> Mailbox</button>
+                    <p class="cr-side-label">Employees</p>
+                    <button type="button" data-cr-nav="employees"><i data-lucide="users"></i> Employees</button>
+                    <button type="button" data-cr-nav="routine" title="Buka Routine"><i data-lucide="repeat"></i> Routine</button>
+                    <button type="button" data-cr-nav="knowledge" title="Buka Knowledge"><i data-lucide="book-open"></i> Knowledge</button>
+                    <button type="button" data-cr-nav="tools"><i data-lucide="wrench"></i> Tools</button>
+                    <p class="cr-side-label">Monitor</p>
+                    <button type="button" title="Performance (demo)"><i data-lucide="gauge"></i> Performance</button>
+                    <button type="button" data-cr-nav="team"><i data-lucide="bar-chart-3"></i> Teams</button>
+                    <button type="button" data-cr-nav="activity"><i data-lucide="activity"></i> Activity</button>
+                    <p class="cr-side-label">Account</p>
+                    <button type="button" data-cr-nav="employees"><i data-lucide="building"></i> Organization</button>
+                    <button type="button" data-cr-nav="settings"><i data-lucide="settings"></i> Settings</button>
+                </nav>
+                <div class="cr-credits" title="Workspace credits (demo)"><span>WORKSPACE CREDITS</span><strong>1,213</strong><span>of 2,500 used</span></div>
+                <div class="cr-personal"><i data-lucide="circle-user-round"></i> Personal Account <i data-lucide="chevron-down"></i></div>
+            </aside>
+            <aside class="cr-org" aria-label="Organization">
+                <div class="cr-org-head"><span><i data-lucide="building"></i> Organization</span><i data-lucide="chevron-down"></i></div>
+                <p class="cr-org-sub"><i data-lucide="users"></i> All Teams</p>
+                <div class="cr-employees" id="cr-employees"></div>
+                <p class="cr-see-more" title="See more (demo)">+ see more</p>
+                <div class="cr-org-status"><span class="cr-online-dot"></span><div><strong>Workspace online</strong><span>All agents available</span></div></div>
+            </aside>
+            <main class="cr-main">
+                <div class="cr-main-tabs">
+                    <span class="cr-active-tab" id="cr-active-tab"></span>
+                    <span class="cr-chat-tab" id="cr-chat-tab">Chat</span>
+                    <span class="cr-project">Project: <strong>All</strong> <i data-lucide="chevron-down"></i></span>
+                </div>
+                <div class="cr-main-head">
+                    <h1>Employee Direct Chat</h1>
+                    <div class="cr-main-head-right">
+                        <span class="cr-connect" title="Connect to Windows (demo)"><i data-lucide="monitor"></i> Connect to Your Windows</span>
+                        <button type="button" class="cr-enable is-on" data-cr-enable aria-pressed="true">Enable</button>
+                    </div>
+                </div>
+                <div class="cr-card">
+                    <div class="cr-card-head"><span><i data-lucide="message-circle"></i> Threads</span>
+                        <span class="cr-card-tools"><button type="button" title="Search thread (demo)"><i data-lucide="search"></i></button><button type="button" title="Filter (demo)"><i data-lucide="sliders-horizontal"></i></button><button type="button" title="Pin (demo)"><i data-lucide="pin"></i></button><button type="button" title="More (demo)"><i data-lucide="more-horizontal"></i></button></span>
+                    </div>
+                    <div class="cr-messages" id="cr-messages" aria-live="polite"></div>
+                    <div class="cr-card-rail" aria-hidden="false">
+                        <button type="button" title="Thread (demo)"><i data-lucide="messages-square"></i></button><button type="button" title="Tasks (demo)"><i data-lucide="check-square"></i></button><button type="button" title="Files (demo)"><i data-lucide="folder"></i></button><button type="button" title="Calendar (demo)"><i data-lucide="calendar"></i></button><button type="button" title="Star (demo)"><i data-lucide="star"></i></button><button type="button" title="Archive (demo)"><i data-lucide="archive"></i></button><button type="button" title="Settings (demo)"><i data-lucide="settings"></i></button>
+                    </div>
+                </div>
+                <div class="cr-composer">
+                    <button type="button" class="cr-icon-btn" title="Lampirkan file (demo)"><i data-lucide="paperclip"></i></button>
+                    <button type="button" class="cr-icon-btn" title="Tag rekan (demo)"><i data-lucide="at-sign"></i></button>
+                    <span class="cr-model" title="Model (demo)">Mark · ready</span>
+                    <input type="text" id="cr-input" placeholder="Tell Alice what to work on…" aria-label="Tulis tugas untuk karyawan">
+                    <button type="button" class="cr-icon-btn" title="Input suara (demo)"><i data-lucide="mic"></i></button>
+                    <button type="button" class="cr-send" data-cr-send title="Kirim pesan"><i data-lucide="send"></i> Kirim</button>
+                </div>
+            </main>
+            <aside class="cr-analysis" aria-label="Activity">
+                <div class="cr-act-controls">
+                    <div class="cr-act-dd" data-cr-dd="scope">
+                        <button type="button" class="cr-act-pill" data-cr-dd-toggle="scope" aria-haspopup="true" aria-expanded="false"><i data-lucide="building-2"></i><span data-cr-scope-label>Company</span><i data-lucide="chevron-down" class="cr-act-chev"></i></button>
+                        <div class="cr-act-menu hidden" data-cr-menu="scope" role="menu" aria-label="Whose activity">
+                            <p class="cr-act-menu-title">Whose activity</p>
+                            <button type="button" class="cr-act-opt is-selected" data-cr-scope="company" role="menuitemradio" aria-checked="true"><span class="cr-act-radio"></span><span class="cr-act-opt-main">Company</span></button>
+                            <button type="button" class="cr-act-opt" data-cr-scope="team" role="menuitemradio" aria-checked="false"><span class="cr-act-radio"></span><span class="cr-act-opt-main">Team</span></button>
+                            <button type="button" class="cr-act-opt" data-cr-scope="employee" role="menuitemradio" aria-checked="false"><span class="cr-act-radio"></span><span class="cr-act-opt-main">Employee</span></button>
+                        </div>
+                    </div>
+                    <div class="cr-act-dd" data-cr-dd="show">
+                        <button type="button" class="cr-act-pill" data-cr-dd-toggle="show" aria-haspopup="true" aria-expanded="false"><i data-lucide="layers"></i><span data-cr-show-label>All activity</span><i data-lucide="chevron-down" class="cr-act-chev"></i></button>
+                        <div class="cr-act-menu cr-act-menu-wide hidden" data-cr-menu="show" role="menu" aria-label="Show activity">
+                            <p class="cr-act-menu-title">Show</p>
+                            <button type="button" class="cr-act-opt is-selected" data-cr-show="all" role="menuitemradio" aria-checked="true"><span class="cr-act-radio"></span><span class="cr-act-opt-main">All activity <span class="cr-act-count" data-cr-count="all">0</span><small>Everything, newest first</small></span></button>
+                            <button type="button" class="cr-act-opt" data-cr-show="run" role="menuitemradio" aria-checked="false"><span class="cr-act-radio"></span><span class="cr-act-opt-main">Work runs <span class="cr-act-count" data-cr-count="run">0</span><small>Only when an employee actually ran</small></span></button>
+                            <button type="button" class="cr-act-opt" data-cr-show="workspace" role="menuitemradio" aria-checked="false"><span class="cr-act-radio"></span><span class="cr-act-opt-main">Workspace updates <span class="cr-act-count" data-cr-count="workspace">0</span><small>Tasks, files, skips, settings</small></span></button>
+                            <button type="button" class="cr-act-opt" data-cr-show="attention" role="menuitemradio" aria-checked="false"><span class="cr-act-radio"></span><span class="cr-act-opt-main">Needs attention <span class="cr-act-count" data-cr-count="attention">0</span><small>Failed, blocked, or waiting on you</small></span></button>
+                        </div>
+                    </div>
+                </div>
+                <div class="cr-activity" id="cr-activity"><p class="cr-no-activity">No activity yet</p></div>
+            </aside>
+        </div>
+    </section>
+
+    <!-- Tasks — replika referensi Company Master Tasks (gaya mandiri .tasks-replica, data demo lokal; view lama `tasks` tetap utuh) -->
+    <section id="view-tasks-replica" class="chat-replica tasks-replica hidden" aria-label="Company Master Tasks">
+        <header class="cr-topbar">
+            <button type="button" class="cr-logo" data-tk-exit="mission" title="Kembali ke My Office">PiK's <span>Digital Lab</span></button>
+            <nav class="cr-top-tabs" aria-label="Workspace">
+                <button type="button" class="is-active" title="Workspace (demo)"><i data-lucide="briefcase"></i> Workspace</button>
+                <button type="button" data-rx-office3d title="3D Office — buka kantor AI 3D"><i data-lucide="building-2"></i> 3D Office</button>
+            </nav>
+            <div class="cr-top-right">
+                <span class="rx-brand" title="PiK's Digital Lab">PiK's Digital Lab</span>
+                <span class="cr-top-select" title="Workspace (demo)">Default <i data-lucide="chevron-down"></i></span>
+                <button type="button" class="cr-icon-btn" title="Panel (demo)"><i data-lucide="panel-right"></i></button>
+                <button type="button" class="cr-icon-btn" title="Notifikasi (demo)"><i data-lucide="bell"></i></button>
+                <button type="button" class="cr-icon-btn" title="Pengaturan (demo)"><i data-lucide="settings-2"></i></button>
+                <span class="cr-top-avatar" title="Personal Account">P</span>
+            </div>
+        </header>
+        <div class="cr-body">
+            <aside class="cr-sidenav" aria-label="Navigasi tasks">
+                <label class="cr-search"><i data-lucide="search"></i><input type="search" placeholder="Search" aria-label="Search (demo)" title="Search (demo)"><kbd>⌘K</kbd></label>
+                <nav class="cr-side-nav">
+                    <button type="button" data-tk-nav="chat"><i data-lucide="message-square"></i> Chat</button>
+                    <button type="button" class="is-active" aria-current="page"><i data-lucide="file-text"></i> Tasks</button>
+                    <button type="button" data-tk-nav="schedules"><i data-lucide="calendar-days"></i> Calendar</button>
+                    <button type="button" data-tk-nav="drive"><i data-lucide="hard-drive"></i> Drive</button>
+                    <button type="button" data-tk-nav="crm"><i data-lucide="contact-round"></i> CRM</button>
+                    <button type="button" data-tk-nav="library" title="Buka Library"><i data-lucide="library"></i> Library</button>
+                    <button type="button" data-tk-nav="mailbox" title="Buka Mailbox"><i data-lucide="mail"></i> Mailbox</button>
+                    <p class="cr-side-label">Employees</p>
+                    <button type="button" data-tk-nav="employees"><i data-lucide="users"></i> Employees</button>
+                    <button type="button" data-tk-nav="routine" title="Buka Routine"><i data-lucide="repeat"></i> Routine</button>
+                    <button type="button" data-tk-nav="knowledge" title="Buka Knowledge"><i data-lucide="book-open"></i> Knowledge</button>
+                    <button type="button" data-tk-nav="tools"><i data-lucide="wrench"></i> Tools</button>
+                    <p class="cr-side-label">Monitor</p>
+                    <button type="button" title="Performance (demo)"><i data-lucide="gauge"></i> Performance</button>
+                    <button type="button" data-tk-nav="team"><i data-lucide="bar-chart-3"></i> Teams</button>
+                    <button type="button" data-tk-nav="activity"><i data-lucide="activity"></i> Activity</button>
+                    <p class="cr-side-label">Account</p>
+                    <button type="button" data-tk-nav="employees"><i data-lucide="building"></i> Organization</button>
+                    <button type="button" data-tk-nav="settings"><i data-lucide="settings"></i> Settings</button>
+                </nav>
+                <div class="cr-credits" title="Workspace credits (demo)"><span>WORKSPACE CREDITS</span><strong>1,213</strong><span>of 2,500 used</span></div>
+                <div class="cr-personal"><i data-lucide="circle-user-round"></i> Personal Account <i data-lucide="chevron-down"></i></div>
+            </aside>
+            <aside class="cr-org" aria-label="Organization">
+                <div class="cr-org-head"><span><i data-lucide="building"></i> Organization</span><i data-lucide="chevron-down"></i></div>
+                <p class="cr-org-sub"><i data-lucide="users"></i> All Teams</p>
+                <div class="cr-employees" id="tk-employees"></div>
+                <p class="cr-see-more" title="See more (demo)">+ see more</p>
+                <div class="cr-org-status"><span class="cr-online-dot"></span><div><strong>Workspace online</strong><span>All agents available</span></div></div>
+            </aside>
+            <main class="cr-main tk-main">
+                <div class="cr-main-tabs">
+                    <button type="button" class="tk-tab" title="Coordinator (demo)"><span class="tk-tab-avatar" style="background:#e11d48">M</span> Coordinator</button>
+                    <button type="button" class="tk-tab" data-rx-office3d title="3D Office — buka kantor AI 3D"><i data-lucide="building-2"></i> 3D Office</button>
+                    <button type="button" class="tk-tab is-active" aria-current="page"><i data-lucide="file-text"></i> Tasks</button>
+                </div>
+                <div class="tk-head">
+                    <h1>Company Master Tasks</h1>
+                    <span class="tk-chips">
+                        <button type="button" class="tk-chip is-active" title="Filter tugas (demo)">All</button>
+                        <button type="button" class="tk-chip" title="Filter tugas (demo)">Open</button>
+                        <button type="button" class="tk-chip" title="Filter tugas (demo)">Mine</button>
+                    </span>
+                    <div class="tk-head-right">
+                        <span class="tk-project" title="Project: All (demo)">Project: <strong>All</strong> <i data-lucide="chevron-down"></i></span>
+                        <span class="tk-view-toggle" role="group" aria-label="Tampilan papan (demo)">
+                            <button type="button" class="is-active" title="Tampilan papan (demo)"><i data-lucide="layout-grid"></i></button>
+                            <button type="button" title="Tampilan daftar (demo)"><i data-lucide="list"></i></button>
+                        </span>
+                        <button type="button" class="tk-create" data-tk-create title="Buat tugas baru"><i data-lucide="plus"></i> Create Task</button>
+                    </div>
+                </div>
+                <div class="tk-sprint">
+                    <span class="tk-sprint-icon"><i data-lucide="flag"></i></span>
+                    <div><strong>No active sprint</strong><span>Sprint board without a sprint. Start one when you want a shared goal and one end date.</span></div>
+                    <button type="button" class="tk-sprint-link" title="Create sprint (demo)">Create sprint</button>
+                </div>
+                <div class="tk-board" id="tk-board" aria-label="Papan kanban Company Master Tasks"></div>
+            </main>
+            <aside class="cr-analysis" id="tk-activity-panel" aria-label="Activity"></aside>
+        </div>
+        <div class="tk-modal hidden" id="tk-modal" role="dialog" aria-modal="true" aria-labelledby="tk-modal-title">
+            <form class="tk-modal-card" id="tk-task-form">
+                <h2 id="tk-modal-title">Create Task</h2>
+                <label class="tk-field">Title<input type="text" id="tk-task-title" required maxlength="120" placeholder="Nama tugas…" autocomplete="off"></label>
+                <label class="tk-field">Column<select id="tk-task-column"><option value="backlog">Backlog</option><option value="todo">To Do</option><option value="inprogress">In Progress</option><option value="waiting">Waiting</option><option value="done">Done</option></select></label>
+                <label class="tk-field">Notes (optional)<textarea id="tk-task-note" maxlength="300" placeholder="Catatan singkat…"></textarea></label>
+                <div class="tk-modal-actions">
+                    <button type="button" class="tk-btn-ghost" data-tk-modal-close>Batal</button>
+                    <button type="submit" class="tk-btn-primary">Create Task</button>
+                </div>
+            </form>
+        </div>
+    </section>
+
+    <!-- Calendar — replika referensi Company Master Calendar (gaya mandiri .calendar-replica, data demo lokal; view lama `calendar` tetap utuh) -->
+    <section id="view-calendar-replica" class="chat-replica calendar-replica hidden" aria-label="Company Master Calendar">
+        <header class="cr-topbar">
+            <button type="button" class="cr-logo" data-cl-exit="mission" title="Kembali ke My Office">PiK's <span>Digital Lab</span></button>
+            <nav class="cr-top-tabs" aria-label="Workspace">
+                <button type="button" class="is-active" title="Workspace (demo)"><i data-lucide="briefcase"></i> Workspace</button>
+                <button type="button" data-rx-office3d title="3D Office — buka kantor AI 3D"><i data-lucide="building-2"></i> 3D Office</button>
+            </nav>
+            <div class="cr-top-right">
+                <span class="rx-brand" title="PiK's Digital Lab">PiK's Digital Lab</span>
+                <span class="cr-top-select" title="Workspace (demo)">Default <i data-lucide="chevron-down"></i></span>
+                <button type="button" class="cr-icon-btn" title="Panel (demo)"><i data-lucide="panel-right"></i></button>
+                <button type="button" class="cr-icon-btn" title="Notifikasi (demo)"><i data-lucide="bell"></i></button>
+                <button type="button" class="cr-icon-btn" title="Pengaturan (demo)"><i data-lucide="settings-2"></i></button>
+                <span class="cr-top-avatar" title="Personal Account">P</span>
+            </div>
+        </header>
+        <div class="cr-body">
+            <aside class="cr-sidenav" aria-label="Navigasi calendar">
+                <label class="cr-search"><i data-lucide="search"></i><input type="search" placeholder="Search" aria-label="Search (demo)" title="Search (demo)"><kbd>⌘K</kbd></label>
+                <nav class="cr-side-nav">
+                    <button type="button" data-cl-nav="chat"><i data-lucide="message-square"></i> Chat</button>
+                    <button type="button" data-cl-nav="tasks"><i data-lucide="file-text"></i> Tasks</button>
+                    <button type="button" class="is-active" aria-current="page"><i data-lucide="calendar-days"></i> Calendar</button>
+                    <button type="button" data-cl-nav="drive"><i data-lucide="hard-drive"></i> Drive</button>
+                    <button type="button" data-cl-nav="crm"><i data-lucide="contact-round"></i> CRM</button>
+                    <button type="button" data-cl-nav="library" title="Buka Library"><i data-lucide="library"></i> Library</button>
+                    <button type="button" data-cl-nav="mailbox" title="Buka Mailbox"><i data-lucide="mail"></i> Mailbox</button>
+                    <p class="cr-side-label">Employees</p>
+                    <button type="button" data-cl-nav="employees"><i data-lucide="users"></i> Employees</button>
+                    <button type="button" data-cl-nav="routine" title="Buka Routine"><i data-lucide="repeat"></i> Routine</button>
+                    <button type="button" data-cl-nav="knowledge" title="Buka Knowledge"><i data-lucide="book-open"></i> Knowledge</button>
+                    <button type="button" data-cl-nav="tools"><i data-lucide="wrench"></i> Tools</button>
+                    <p class="cr-side-label">Monitor</p>
+                    <button type="button" title="Performance (demo)"><i data-lucide="gauge"></i> Performance</button>
+                    <button type="button" data-cl-nav="team"><i data-lucide="bar-chart-3"></i> Teams</button>
+                    <button type="button" data-cl-nav="activity"><i data-lucide="activity"></i> Activity</button>
+                    <p class="cr-side-label">Account</p>
+                    <button type="button" data-cl-nav="employees"><i data-lucide="building"></i> Organization</button>
+                    <button type="button" data-cl-nav="settings"><i data-lucide="settings"></i> Settings</button>
+                </nav>
+                <div class="cr-credits" title="Workspace credits (demo)"><span>WORKSPACE CREDITS</span><strong>1,213</strong><span>of 2,500 used</span></div>
+                <div class="cr-personal"><i data-lucide="circle-user-round"></i> Personal Account <i data-lucide="chevron-down"></i></div>
+            </aside>
+            <aside class="cr-org" aria-label="Organization">
+                <div class="cr-org-head"><span><i data-lucide="building"></i> Organization</span><i data-lucide="chevron-down"></i></div>
+                <p class="cr-org-sub"><i data-lucide="users"></i> All Teams</p>
+                <div class="cr-employees" id="cl-employees"></div>
+                <p class="cr-see-more" title="See more (demo)">+ see more</p>
+                <div class="cr-org-status"><span class="cr-online-dot"></span><div><strong>Workspace online</strong><span>All agents available</span></div></div>
+            </aside>
+            <main class="cr-main cl-main">
+                <div class="cr-main-tabs">
+                    <button type="button" class="cl-tab" title="Coordinator (demo)"><span class="cl-tab-avatar" style="background:#e11d48">M</span> Coordinator</button>
+                    <button type="button" class="cl-tab" data-rx-office3d title="3D Office — buka kantor AI 3D"><i data-lucide="building-2"></i> 3D Office</button>
+                    <button type="button" class="cl-tab is-active" aria-current="page"><i data-lucide="calendar-days"></i> Calendar</button>
+                </div>
+                <div class="cl-head">
+                    <h1>Company Master Calendar</h1>
+                    <div class="cl-head-right">
+                        <div class="cl-dd">
+                            <button type="button" class="cl-connect" data-cl-menu-toggle="connect" aria-haspopup="true" title="Connect calendar (demo)"><i data-lucide="link-2"></i> Connect calendar <i data-lucide="chevron-down"></i></button>
+                            <div class="cl-menu hidden" data-cl-menu="connect" role="menu" aria-label="Connect calendar">
+                                <p class="cl-menu-title">Connect calendar (demo)</p>
+                                <button type="button" data-cl-connect-opt title="Google Calendar (demo — belum terhubung)"><i data-lucide="calendar"></i><span>Google Calendar<small>Demo — belum terhubung</small></span></button>
+                                <button type="button" data-cl-connect-opt title="Outlook Calendar (demo — belum terhubung)"><i data-lucide="mail"></i><span>Outlook Calendar<small>Demo — belum terhubung</small></span></button>
+                            </div>
+                        </div>
+                        <div class="cl-dd">
+                            <button type="button" class="cl-project-btn" data-cl-menu-toggle="project" aria-haspopup="true" title="Project filter (demo)">Project: <strong id="cl-project-label">All</strong> <i data-lucide="chevron-down"></i></button>
+                            <div class="cl-menu hidden" data-cl-menu="project" role="menu" aria-label="Project">
+                                <p class="cl-menu-title">Project (demo)</p>
+                                <button type="button" data-cl-project="All">All</button>
+                                <button type="button" data-cl-project="Content">Content</button>
+                                <button type="button" data-cl-project="Campaign">Campaign</button>
+                            </div>
+                        </div>
+                        <button type="button" class="cl-create" data-cl-create title="Buat acara pada tanggal terpilih"><i data-lucide="plus"></i> Create</button>
+                    </div>
+                </div>
+                <div class="cl-card">
+                    <div class="cl-controls">
+                        <button type="button" class="cl-nav-btn" data-cl-prev title="Sebelumnya" aria-label="Sebelumnya"><i data-lucide="chevron-left"></i></button>
+                        <button type="button" class="cl-today" data-cl-today title="Kembali ke hari ini">Today</button>
+                        <button type="button" class="cl-nav-btn" data-cl-next title="Berikutnya" aria-label="Berikutnya"><i data-lucide="chevron-right"></i></button>
+                        <span class="cl-period"><i data-lucide="calendar"></i><span id="cl-period-label">—</span></span>
+                        <span class="cl-seg" role="group" aria-label="Tampilan kalender">
+                            <button type="button" data-cl-view="day" aria-pressed="false">Day</button>
+                            <button type="button" data-cl-view="week" aria-pressed="false">Week</button>
+                            <button type="button" data-cl-view="month" class="is-active" aria-pressed="true">Month</button>
+                        </span>
+                    </div>
+                    <div id="cl-cal-body" aria-label="Grid kalender"></div>
+                </div>
+            </main>
+            <aside class="cr-analysis" id="cl-activity-panel" aria-label="Activity"></aside>
+        </div>
+        <div class="cl-modal hidden" id="cl-modal" role="dialog" aria-modal="true" aria-labelledby="cl-modal-title">
+            <form class="cl-modal-card" id="cl-event-form">
+                <h2 id="cl-modal-title">Create Event</h2>
+                <label class="cl-field">Title<input type="text" id="cl-event-title" required maxlength="120" placeholder="Nama acara…" autocomplete="off"></label>
+                <div class="cl-field-row">
+                    <label class="cl-field">Date<input type="date" id="cl-event-date" required></label>
+                    <label class="cl-field">Time<input type="time" id="cl-event-time" value="09:00"></label>
+                </div>
+                <label class="cl-field">Color<select id="cl-event-color"><option value="#6366f1">Indigo</option><option value="#0d9488">Teal</option><option value="#e11d48">Rose</option><option value="#d97706">Amber</option><option value="#059669">Green</option><option value="#2563eb">Blue</option></select></label>
+                <label class="cl-field">Notes (optional)<textarea id="cl-event-note" maxlength="300" placeholder="Catatan singkat…"></textarea></label>
+                <div class="cl-modal-actions">
+                    <button type="button" class="cl-btn-ghost" data-cl-modal-close>Batal</button>
+                    <button type="submit" class="cl-btn-primary">Create Event</button>
+                </div>
+            </form>
+        </div>
+    </section>
+
+    <!-- Drive — replika referensi Company File Drive (gaya mandiri .drive-replica, data demo lokal) -->
+    <section id="view-drive-replica" class="chat-replica drive-replica hidden" aria-label="Company File Drive">
+        <header class="cr-topbar">
+            <button type="button" class="cr-logo" data-dr-exit="mission" title="Kembali ke My Office">PiK's <span>Digital Lab</span></button>
+            <nav class="cr-top-tabs" aria-label="Workspace">
+                <button type="button" class="is-active" title="Workspace (demo)"><i data-lucide="briefcase"></i> Workspace</button>
+                <button type="button" data-rx-office3d title="3D Office — buka kantor AI 3D"><i data-lucide="building-2"></i> 3D Office</button>
+            </nav>
+            <div class="cr-top-right">
+                <span class="rx-brand" title="PiK's Digital Lab">PiK's Digital Lab</span>
+                <span class="cr-top-select" title="Workspace (demo)">Default <i data-lucide="chevron-down"></i></span>
+                <button type="button" class="cr-icon-btn" title="Panel (demo)"><i data-lucide="panel-right"></i></button>
+                <button type="button" class="cr-icon-btn" title="Notifikasi (demo)"><i data-lucide="bell"></i></button>
+                <button type="button" class="cr-icon-btn" title="Pengaturan (demo)"><i data-lucide="settings-2"></i></button>
+                <span class="cr-top-avatar" title="Personal Account">P</span>
+            </div>
+        </header>
+        <div class="cr-body">
+            <aside class="cr-sidenav" aria-label="Navigasi drive">
+                <label class="cr-search"><i data-lucide="search"></i><input type="search" placeholder="Search" aria-label="Search (demo)" title="Search (demo)"><kbd>⌘K</kbd></label>
+                <nav class="cr-side-nav">
+                    <button type="button" data-dr-nav="chat"><i data-lucide="message-square"></i> Chat</button>
+                    <button type="button" data-dr-nav="tasks"><i data-lucide="file-text"></i> Tasks</button>
+                    <button type="button" data-dr-nav="schedules"><i data-lucide="calendar-days"></i> Calendar</button>
+                    <button type="button" class="is-active" aria-current="page"><i data-lucide="hard-drive"></i> Drive</button>
+                    <button type="button" data-dr-nav="crm"><i data-lucide="contact-round"></i> CRM</button>
+                    <button type="button" data-dr-nav="library" title="Buka Library"><i data-lucide="library"></i> Library</button>
+                    <button type="button" data-dr-nav="mailbox" title="Buka Mailbox"><i data-lucide="mail"></i> Mailbox</button>
+                    <p class="cr-side-label">Employees</p>
+                    <button type="button" data-dr-nav="employees"><i data-lucide="users"></i> Employees</button>
+                    <button type="button" data-dr-nav="routine" title="Buka Routine"><i data-lucide="repeat"></i> Routine</button>
+                    <button type="button" data-dr-nav="knowledge" title="Buka Knowledge"><i data-lucide="book-open"></i> Knowledge</button>
+                    <button type="button" data-dr-nav="tools"><i data-lucide="wrench"></i> Tools</button>
+                    <p class="cr-side-label">Monitor</p>
+                    <button type="button" title="Performance (demo)"><i data-lucide="gauge"></i> Performance</button>
+                    <button type="button" data-dr-nav="team"><i data-lucide="bar-chart-3"></i> Teams</button>
+                    <button type="button" data-dr-nav="activity"><i data-lucide="activity"></i> Activity</button>
+                    <p class="cr-side-label">Account</p>
+                    <button type="button" data-dr-nav="employees"><i data-lucide="building"></i> Organization</button>
+                    <button type="button" data-dr-nav="settings"><i data-lucide="settings"></i> Settings</button>
+                </nav>
+                <div class="cr-credits" title="Workspace credits (demo)"><span>WORKSPACE CREDITS</span><strong>1,213</strong><span>of 2,500 used</span></div>
+                <div class="cr-personal"><i data-lucide="circle-user-round"></i> Personal Account <i data-lucide="chevron-down"></i></div>
+            </aside>
+            <aside class="cr-org" aria-label="Organization">
+                <div class="cr-org-head"><span><i data-lucide="building"></i> Organization</span><i data-lucide="chevron-down"></i></div>
+                <p class="cr-org-sub"><i data-lucide="users"></i> All Teams</p>
+                <div class="cr-employees" id="dr-employees"></div>
+                <p class="cr-see-more" title="See more (demo)">+ see more</p>
+                <div class="cr-org-status"><span class="cr-online-dot"></span><div><strong>Workspace online</strong><span>All agents available</span></div></div>
+            </aside>
+            <main class="cr-main dr-main">
+                <div class="cr-main-tabs">
+                    <button type="button" class="dr-tab" title="Coordinator (demo)"><span class="dr-tab-avatar" style="background:#e11d48">M</span> Coordinator</button>
+                    <button type="button" class="dr-tab" data-rx-office3d title="3D Office — buka kantor AI 3D"><i data-lucide="building-2"></i> 3D Office</button>
+                    <button type="button" class="dr-tab is-active" aria-current="page"><i data-lucide="hard-drive"></i> Drive</button>
+                </div>
+                <div class="dr-head">
+                    <h1>Company File Drive</h1>
+                    <div class="dr-head-right">
+                        <div class="dr-dd">
+                            <button type="button" class="dr-connect" data-dr-menu-toggle="connect" aria-haspopup="true" title="Connect storage (demo)"><i data-lucide="link-2"></i> Connect storage <i data-lucide="chevron-down"></i></button>
+                            <div class="dr-menu hidden" data-dr-menu="connect" role="menu" aria-label="Connect storage">
+                                <p class="dr-menu-title">Connect storage (demo)</p>
+                                <button type="button" data-dr-connect-opt title="Google Drive (demo — belum terhubung)"><i data-lucide="hard-drive"></i><span>Google Drive<small>Demo — belum terhubung</small></span></button>
+                                <button type="button" data-dr-connect-opt title="Dropbox (demo — belum terhubung)"><i data-lucide="cloud"></i><span>Dropbox<small>Demo — belum terhubung</small></span></button>
+                            </div>
+                        </div>
+                        <div class="dr-dd">
+                            <button type="button" class="dr-project-btn" data-dr-menu-toggle="project" aria-haspopup="true" title="Project filter (demo)">Project: <strong id="dr-project-label">All</strong> <i data-lucide="chevron-down"></i></button>
+                            <div class="dr-menu hidden" data-dr-menu="project" role="menu" aria-label="Project">
+                                <p class="dr-menu-title">Project (demo)</p>
+                                <button type="button" data-dr-project="All">All</button>
+                                <button type="button" data-dr-project="Content">Content</button>
+                                <button type="button" data-dr-project="Campaign">Campaign</button>
+                            </div>
+                        </div>
+                        <button type="button" class="dr-create" data-dr-create title="Buat berkas atau folder baru"><i data-lucide="plus"></i> Create</button>
+                    </div>
+                </div>
+                <div class="dr-toolbar">
+                    <span class="dr-seg" role="group" aria-label="Tampilan Drive">
+                        <button type="button" data-dr-mode="folders" class="is-active" aria-pressed="true"><i data-lucide="folder"></i> Folders</button>
+                        <button type="button" data-dr-mode="files" aria-pressed="false"><i data-lucide="file-text"></i> Files</button>
+                    </span>
+                    <label class="dr-search"><i data-lucide="search"></i><input type="search" id="dr-search" placeholder="Search files by name, folder or owner" aria-label="Cari berkas"></label>
+                    <span class="dr-storage" title="Penyimpanan (demo)"><span class="dr-storage-dot"></span><strong>0 B</strong> / 2.5 GB</span>
+                    <button type="button" class="dr-gear" title="Pengaturan Drive (demo)"><i data-lucide="settings-2"></i></button>
+                </div>
+                <div class="dr-split">
+                    <aside class="dr-tree" id="dr-tree" aria-label="Pohon folder Drive"></aside>
+                    <div class="dr-content">
+                        <div class="dr-crumb" id="dr-breadcrumb" aria-label="Breadcrumb folder"></div>
+                        <div class="dr-body" id="dr-body" aria-live="polite"></div>
+                    </div>
+                </div>
+            </main>
+            <aside class="cr-analysis" id="dr-activity-panel" aria-label="Activity"></aside>
+        </div>
+        <div class="dr-modal hidden" id="dr-modal" role="dialog" aria-modal="true" aria-labelledby="dr-modal-title">
+            <form class="dr-modal-card" id="dr-item-form">
+                <h2 id="dr-modal-title">Create</h2>
+                <label class="dr-field">Name<input type="text" id="dr-item-name" required maxlength="120" placeholder="Nama berkas atau folder…" autocomplete="off"></label>
+                <label class="dr-field">Type<select id="dr-item-type"><option value="file">File</option><option value="folder">Folder</option></select></label>
+                <label class="dr-field">Folder tujuan<select id="dr-item-folder"></select></label>
+                <div class="dr-modal-actions">
+                    <button type="button" class="dr-btn-ghost" data-dr-modal-close>Batal</button>
+                    <button type="submit" class="dr-btn-primary">Create</button>
+                </div>
+            </form>
+        </div>
+    </section>
+
+    <!-- CRM — replika referensi Company Contacts Directory (gaya mandiri .crm-replica, data demo lokal) -->
+    <section id="view-crm-replica" class="chat-replica crm-replica hidden" aria-label="Company Contacts Directory">
+        <header class="cr-topbar">
+            <button type="button" class="cr-logo" data-cm-exit="mission" title="Kembali ke My Office">PiK's <span>Digital Lab</span></button>
+            <nav class="cr-top-tabs" aria-label="Workspace">
+                <button type="button" class="is-active" title="Workspace (demo)"><i data-lucide="briefcase"></i> Workspace</button>
+                <button type="button" data-rx-office3d title="3D Office — buka kantor AI 3D"><i data-lucide="building-2"></i> 3D Office</button>
+            </nav>
+            <div class="cr-top-right">
+                <span class="rx-brand" title="PiK's Digital Lab">PiK's Digital Lab</span>
+                <span class="cr-top-select" title="Workspace (demo)">Default <i data-lucide="chevron-down"></i></span>
+                <button type="button" class="cr-icon-btn" title="Panel (demo)"><i data-lucide="panel-right"></i></button>
+                <button type="button" class="cr-icon-btn" title="Notifikasi (demo)"><i data-lucide="bell"></i></button>
+                <button type="button" class="cr-icon-btn" title="Pengaturan (demo)"><i data-lucide="settings-2"></i></button>
+                <span class="cr-top-avatar" title="Personal Account">P</span>
+            </div>
+        </header>
+        <div class="cr-body">
+            <aside class="cr-sidenav" aria-label="Navigasi CRM">
+                <label class="cr-search"><i data-lucide="search"></i><input type="search" placeholder="Search" aria-label="Search (demo)" title="Search (demo)"><kbd>⌘K</kbd></label>
+                <nav class="cr-side-nav">
+                    <button type="button" data-cm-nav="chat"><i data-lucide="message-square"></i> Chat</button>
+                    <button type="button" data-cm-nav="tasks"><i data-lucide="file-text"></i> Tasks</button>
+                    <button type="button" data-cm-nav="schedules"><i data-lucide="calendar-days"></i> Calendar</button>
+                    <button type="button" data-cm-nav="drive"><i data-lucide="hard-drive"></i> Drive</button>
+                    <button type="button" class="is-active" aria-current="page"><i data-lucide="contact-round"></i> CRM</button>
+                    <button type="button" data-cm-nav="library" title="Buka Library"><i data-lucide="library"></i> Library</button>
+                    <button type="button" data-cm-nav="mailbox" title="Buka Mailbox"><i data-lucide="mail"></i> Mailbox</button>
+                    <p class="cr-side-label">Employees</p>
+                    <button type="button" data-cm-nav="employees"><i data-lucide="users"></i> Employees</button>
+                    <button type="button" data-cm-nav="routine" title="Buka Routine"><i data-lucide="repeat"></i> Routine</button>
+                    <button type="button" data-cm-nav="knowledge" title="Buka Knowledge"><i data-lucide="book-open"></i> Knowledge</button>
+                    <button type="button" data-cm-nav="tools"><i data-lucide="wrench"></i> Tools</button>
+                    <p class="cr-side-label">Monitor</p>
+                    <button type="button" title="Performance (demo)"><i data-lucide="gauge"></i> Performance</button>
+                    <button type="button" data-cm-nav="team"><i data-lucide="bar-chart-3"></i> Teams</button>
+                    <button type="button" data-cm-nav="activity"><i data-lucide="activity"></i> Activity</button>
+                    <p class="cr-side-label">Account</p>
+                    <button type="button" data-cm-nav="employees"><i data-lucide="building"></i> Organization</button>
+                    <button type="button" data-cm-nav="settings"><i data-lucide="settings"></i> Settings</button>
+                </nav>
+                <div class="cr-credits" title="Workspace credits (demo)"><span>WORKSPACE CREDITS</span><strong>1,213</strong><span>of 2,500 used</span></div>
+                <div class="cr-personal"><i data-lucide="circle-user-round"></i> Personal Account <i data-lucide="chevron-down"></i></div>
+            </aside>
+            <aside class="cr-org" aria-label="Organization">
+                <div class="cr-org-head"><span><i data-lucide="building"></i> Organization</span><i data-lucide="chevron-down"></i></div>
+                <p class="cr-org-sub"><i data-lucide="users"></i> All Teams</p>
+                <div class="cr-employees" id="cm-employees"></div>
+                <p class="cr-see-more" title="See more (demo)">+ see more</p>
+                <div class="cr-org-status"><span class="cr-online-dot"></span><div><strong>Workspace online</strong><span>All agents available</span></div></div>
+            </aside>
+            <main class="cr-main cm-main">
+                <div class="cr-main-tabs">
+                    <button type="button" class="cm-tab" title="Coordinator (demo)"><span class="cm-tab-avatar" style="background:#e11d48">M</span> Coordinator</button>
+                    <button type="button" class="cm-tab" data-rx-office3d title="3D Office — buka kantor AI 3D"><i data-lucide="building-2"></i> 3D Office</button>
+                    <button type="button" class="cm-tab is-active" aria-current="page"><i data-lucide="contact-round"></i> CRM</button>
+                </div>
+                <div class="cm-head">
+                    <h1>Company Contacts Directory</h1>
+                    <div class="cm-head-right">
+                        <div class="cm-dd">
+                            <button type="button" class="cm-connect" data-cm-menu-toggle="connect" aria-haspopup="true" title="Connect CRM (demo — belum terhubung)"><i data-lucide="link-2"></i> Connect CRM <i data-lucide="chevron-down"></i></button>
+                            <div class="cm-menu hidden" data-cm-menu="connect" role="menu" aria-label="Connect CRM">
+                                <p class="cm-menu-title">Connect CRM (demo)</p>
+                                <button type="button" data-cm-connect-opt title="HubSpot (demo — belum terhubung)"><i data-lucide="hub"></i><span>HubSpot<small>Demo — belum terhubung</small></span></button>
+                                <button type="button" data-cm-connect-opt title="Salesforce (demo — belum terhubung)"><i data-lucide="cloud"></i><span>Salesforce<small>Demo — belum terhubung</small></span></button>
+                            </div>
+                        </div>
+                        <div class="cm-dd">
+                            <button type="button" class="cm-project-btn" data-cm-menu-toggle="project" aria-haspopup="true" title="Project filter (demo)">Project: <strong id="cm-project-label">All</strong> <i data-lucide="chevron-down"></i></button>
+                            <div class="cm-menu hidden" data-cm-menu="project" role="menu" aria-label="Project">
+                                <p class="cm-menu-title">Project (demo)</p>
+                                <button type="button" data-cm-project="All">All</button>
+                                <button type="button" data-cm-project="Content">Content</button>
+                                <button type="button" data-cm-project="Campaign">Campaign</button>
+                            </div>
+                        </div>
+                        <button type="button" class="cm-create" id="cm-create" data-cm-create title="Buat item baru sesuai tab aktif"><i data-lucide="plus"></i> New contact</button>
+                    </div>
+                </div>
+                <div class="cm-toolbar">
+                    <span class="cm-seg" role="group" aria-label="Tab CRM">
+                        <button type="button" data-cm-tab="contacts" class="is-active" aria-pressed="true"><i data-lucide="contact-round"></i> Contacts</button>
+                        <button type="button" data-cm-tab="deals" aria-pressed="false"><i data-lucide="handshake"></i> Deals</button>
+                        <button type="button" data-cm-tab="companies" aria-pressed="false"><i data-lucide="building-2"></i> Companies</button>
+                    </span>
+                    <label class="cm-search"><i data-lucide="search"></i><input type="search" id="cm-search" placeholder="Search name, email, phone, or job title" aria-label="Cari di tab CRM aktif"></label>
+                    <span class="cm-contacts-meta" id="cm-contacts-meta">
+                        <span class="cm-dd">
+                            <button type="button" class="cm-filter-btn" data-cm-menu-toggle="filter" aria-haspopup="true" title="Filter kontak (demo)"><span id="cm-filter-label">All contacts</span> <i data-lucide="chevron-down"></i></button>
+                            <span class="cm-menu hidden" data-cm-menu="filter" role="menu" aria-label="Filter kontak">
+                                <p class="cm-menu-title">Filter</p>
+                                <button type="button" data-cm-filter="all">All contacts</button>
+                                <button type="button" data-cm-filter="demo">Demo contacts</button>
+                                <button type="button" data-cm-filter="mine">Added by you</button>
+                            </span>
+                        </span>
+                        <span class="cm-of" id="cm-of">1 of 1</span>
+                        <span class="cm-perpage" title="Ukuran halaman (demo)">25 / page</span>
+                    </span>
+                </div>
+                <div class="cm-panel">
+                    <div class="cm-body" id="cm-body" aria-live="polite"></div>
+                </div>
+            </main>
+            <aside class="cr-analysis" id="cm-activity-panel" aria-label="Activity"></aside>
+        </div>
+        <div class="cm-modal hidden" id="cm-modal" role="dialog" aria-modal="true" aria-labelledby="cm-modal-title">
+            <form class="cm-modal-card" id="cm-form">
+                <h2 id="cm-modal-title">New contact</h2>
+                <div id="cm-modal-fields"></div>
+                <div class="cm-modal-actions">
+                    <button type="button" class="cm-btn-ghost" data-cm-modal-close>Batal</button>
+                    <button type="submit" class="cm-btn-primary">Save</button>
+                </div>
+            </form>
+        </div>
+        <div class="cm-modal hidden" id="cm-detail-modal" role="dialog" aria-modal="true" aria-labelledby="cm-detail-title">
+            <div class="cm-modal-card">
+                <h2 id="cm-detail-title">Contact detail</h2>
+                <div id="cm-detail-body"></div>
+                <div class="cm-modal-actions">
+                    <button type="button" class="cm-btn-danger" data-cm-detail-delete title="Hapus kontak ini">Hapus</button>
+                    <span class="cm-spacer"></span>
+                    <button type="button" class="cm-btn-ghost" data-cm-detail-close>Tutup</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Library — replika referensi Company Content Library (gaya mandiri .library-replica, data lokal) -->
+    <section id="view-library-replica" class="chat-replica library-replica hidden" aria-label="Company Content Library">
+        <header class="cr-topbar">
+            <button type="button" class="cr-logo" data-lb-exit="mission" title="Kembali ke My Office">PiK's <span>Digital Lab</span></button>
+            <nav class="cr-top-tabs" aria-label="Workspace">
+                <button type="button" class="is-active" title="Workspace (demo)"><i data-lucide="briefcase"></i> Workspace</button>
+                <button type="button" data-rx-office3d title="3D Office — buka kantor AI 3D"><i data-lucide="building-2"></i> 3D Office</button>
+            </nav>
+            <div class="cr-top-right">
+                <span class="rx-brand" title="PiK's Digital Lab">PiK's Digital Lab</span>
+                <span class="cr-top-select" title="Workspace (demo)">Default <i data-lucide="chevron-down"></i></span>
+                <button type="button" class="cr-icon-btn" title="Panel (demo)"><i data-lucide="panel-right"></i></button>
+                <button type="button" class="cr-icon-btn" title="Notifikasi (demo)"><i data-lucide="bell"></i></button>
+                <button type="button" class="cr-icon-btn" title="Pengaturan (demo)"><i data-lucide="settings-2"></i></button>
+                <span class="cr-top-avatar" title="Personal Account">P</span>
+            </div>
+        </header>
+        <div class="cr-body">
+            <aside class="cr-sidenav" aria-label="Navigasi library">
+                <label class="cr-search"><i data-lucide="search"></i><input type="search" placeholder="Search" aria-label="Search (demo)" title="Search (demo)"><kbd>⌘K</kbd></label>
+                <nav class="cr-side-nav">
+                    <button type="button" data-lb-nav="chat"><i data-lucide="message-square"></i> Chat</button>
+                    <button type="button" data-lb-nav="tasks"><i data-lucide="file-text"></i> Tasks</button>
+                    <button type="button" data-lb-nav="schedules"><i data-lucide="calendar-days"></i> Calendar</button>
+                    <button type="button" data-lb-nav="drive"><i data-lucide="hard-drive"></i> Drive</button>
+                    <button type="button" data-lb-nav="crm"><i data-lucide="contact-round"></i> CRM</button>
+                    <button type="button" class="is-active" aria-current="page"><i data-lucide="library"></i> Library</button>
+                    <button type="button" data-lb-nav="mailbox" title="Buka Mailbox"><i data-lucide="mail"></i> Mailbox</button>
+                    <p class="cr-side-label">Employees</p>
+                    <button type="button" data-lb-nav="employees"><i data-lucide="users"></i> Employees</button>
+                    <button type="button" data-lb-nav="routine" title="Buka Routine"><i data-lucide="repeat"></i> Routine</button>
+                    <button type="button" data-lb-nav="knowledge" title="Buka Knowledge"><i data-lucide="book-open"></i> Knowledge</button>
+                    <button type="button" data-lb-nav="tools"><i data-lucide="wrench"></i> Tools</button>
+                    <p class="cr-side-label">Monitor</p>
+                    <button type="button" title="Performance (demo)"><i data-lucide="gauge"></i> Performance</button>
+                    <button type="button" data-lb-nav="team"><i data-lucide="bar-chart-3"></i> Teams</button>
+                    <button type="button" data-lb-nav="activity"><i data-lucide="activity"></i> Activity</button>
+                    <p class="cr-side-label">Account</p>
+                    <button type="button" data-lb-nav="employees"><i data-lucide="building"></i> Organization</button>
+                    <button type="button" data-lb-nav="settings"><i data-lucide="settings"></i> Settings</button>
+                </nav>
+                <div class="cr-credits" title="Workspace credits (demo)"><span>WORKSPACE CREDITS</span><strong>1,213</strong><span>of 2,500 used</span></div>
+                <div class="cr-personal"><i data-lucide="circle-user-round"></i> Personal Account <i data-lucide="chevron-down"></i></div>
+            </aside>
+            <aside class="cr-org" aria-label="Organization">
+                <div class="cr-org-head"><span><i data-lucide="building"></i> Organization</span><i data-lucide="chevron-down"></i></div>
+                <p class="cr-org-sub"><i data-lucide="users"></i> All Teams</p>
+                <div class="cr-employees" id="lb-employees"></div>
+                <p class="cr-see-more" title="See more (demo)">+ see more</p>
+                <div class="cr-org-status"><span class="cr-online-dot"></span><div><strong>Workspace online</strong><span>All agents available</span></div></div>
+            </aside>
+            <main class="cr-main lb-main">
+                <div class="cr-main-tabs">
+                    <button type="button" class="lb-tab" title="Coordinator (demo)"><span class="lb-tab-avatar" style="background:#e11d48">M</span> Coordinator</button>
+                    <button type="button" class="lb-tab" data-rx-office3d title="3D Office — buka kantor AI 3D"><i data-lucide="building-2"></i> 3D Office</button>
+                    <button type="button" class="lb-tab is-active" aria-current="page"><i data-lucide="library"></i> Content</button>
+                </div>
+                <div class="lb-head">
+                    <h1>Company Content Library</h1>
+                    <div class="lb-head-right">
+                        <button type="button" class="lb-settings" title="Library settings (demo)"><i data-lucide="settings-2"></i> Settings</button>
+                        <button type="button" class="lb-create" data-lb-create title="Buat konten baru"><i data-lucide="plus"></i> Create</button>
+                    </div>
+                </div>
+                <div class="lb-scroll">
+                    <div class="lb-strip-wrap">
+                        <div class="lb-strip" id="lb-types" aria-label="Jenis konten"></div>
+                        <button type="button" class="lb-scroll-btn" data-lb-scroll="320" title="Geser jenis konten ke kanan" aria-label="Geser jenis konten ke kanan"><i data-lucide="chevron-right"></i></button>
+                    </div>
+                    <section aria-label="Publishing workflow">
+                        <h2 class="lb-section-title"><i data-lucide="workflow"></i> Publishing Workflow</h2>
+                        <div class="lb-workflow" id="lb-workflow" aria-live="polite"></div>
+                    </section>
+                    <section aria-label="Generated media">
+                        <h2 class="lb-section-title"><i data-lucide="sparkles"></i> Generated Media</h2>
+                        <p class="lb-section-note">Generated images and videos appear here once created, shown alongside the originals.</p>
+                        <div class="lb-media-block">
+                            <h3 class="lb-media-head"><i data-lucide="image"></i> Images</h3>
+                            <div id="lb-media-images" aria-live="polite"></div>
+                        </div>
+                        <div class="lb-media-block">
+                            <h3 class="lb-media-head"><i data-lucide="clapperboard"></i> Videos</h3>
+                            <div id="lb-media-videos" aria-live="polite"></div>
+                        </div>
+                    </section>
+                </div>
+            </main>
+            <aside class="cr-analysis" id="lb-activity-panel" aria-label="Activity"></aside>
+        </div>
+        <div class="lb-modal hidden" id="lb-modal" role="dialog" aria-modal="true" aria-labelledby="lb-modal-title">
+            <form class="lb-modal-card" id="lb-form">
+                <h2 id="lb-modal-title">Create content</h2>
+                <p class="lb-section-note">Content type: <strong id="lb-modal-type-name">Social post</strong></p>
+                <div class="lb-picker" id="lb-picker" aria-label="Pilih jenis konten"></div>
+                <label class="lb-field">Title<input type="text" id="lb-f-title" required maxlength="120" placeholder="Judul konten…" autocomplete="off"></label>
+                <div class="lb-modal-actions">
+                    <button type="button" class="lb-btn-ghost" data-lb-modal-close>Batal</button>
+                    <button type="submit" class="lb-btn-primary">Create</button>
+                </div>
+            </form>
+        </div>
+    </section>
+
+    <!-- Mailbox — replika referensi Company Central Mailbox (gaya mandiri .mailbox-replica, data lokal, Connect demo) -->
+    <section id="view-mailbox-replica" class="chat-replica mailbox-replica hidden" aria-label="Company Central Mailbox">
+        <header class="cr-topbar">
+            <button type="button" class="cr-logo" data-mb-exit="mission" title="Kembali ke My Office">PiK's <span>Digital Lab</span></button>
+            <nav class="cr-top-tabs" aria-label="Workspace">
+                <button type="button" class="is-active" title="Workspace (demo)"><i data-lucide="briefcase"></i> Workspace</button>
+                <button type="button" data-rx-office3d title="3D Office — buka kantor AI 3D"><i data-lucide="building-2"></i> 3D Office</button>
+            </nav>
+            <div class="cr-top-right">
+                <span class="rx-brand" title="PiK's Digital Lab">PiK's Digital Lab</span>
+                <span class="cr-top-select" title="Workspace (demo)">Default <i data-lucide="chevron-down"></i></span>
+                <button type="button" class="cr-icon-btn" title="Panel (demo)"><i data-lucide="panel-right"></i></button>
+                <button type="button" class="cr-icon-btn" title="Notifikasi (demo)"><i data-lucide="bell"></i></button>
+                <button type="button" class="cr-icon-btn" title="Pengaturan (demo)"><i data-lucide="settings-2"></i></button>
+                <span class="cr-top-avatar" title="Personal Account">P</span>
+            </div>
+        </header>
+        <div class="cr-body">
+            <aside class="cr-sidenav" aria-label="Navigasi mailbox">
+                <label class="cr-search"><i data-lucide="search"></i><input type="search" placeholder="Search" aria-label="Search (demo)" title="Search (demo)"><kbd>⌘K</kbd></label>
+                <nav class="cr-side-nav">
+                    <button type="button" data-mb-nav="chat"><i data-lucide="message-square"></i> Chat</button>
+                    <button type="button" data-mb-nav="tasks"><i data-lucide="file-text"></i> Tasks</button>
+                    <button type="button" data-mb-nav="schedules"><i data-lucide="calendar-days"></i> Calendar</button>
+                    <button type="button" data-mb-nav="drive"><i data-lucide="hard-drive"></i> Drive</button>
+                    <button type="button" data-mb-nav="crm"><i data-lucide="contact-round"></i> CRM</button>
+                    <button type="button" data-mb-nav="library" title="Buka Library"><i data-lucide="library"></i> Library</button>
+                    <button type="button" class="is-active" aria-current="page"><i data-lucide="mail"></i> Mailbox</button>
+                    <p class="cr-side-label">Employees</p>
+                    <button type="button" data-mb-nav="employees"><i data-lucide="users"></i> Employees</button>
+                    <button type="button" data-mb-nav="routine" title="Buka Routine"><i data-lucide="repeat"></i> Routine</button>
+                    <button type="button" data-mb-nav="knowledge" title="Buka Knowledge"><i data-lucide="book-open"></i> Knowledge</button>
+                    <button type="button" data-mb-nav="tools"><i data-lucide="wrench"></i> Tools</button>
+                    <p class="cr-side-label">Monitor</p>
+                    <button type="button" title="Performance (demo)"><i data-lucide="gauge"></i> Performance</button>
+                    <button type="button" data-mb-nav="team"><i data-lucide="bar-chart-3"></i> Teams</button>
+                    <button type="button" data-mb-nav="activity"><i data-lucide="activity"></i> Activity</button>
+                    <p class="cr-side-label">Account</p>
+                    <button type="button" data-mb-nav="employees"><i data-lucide="building"></i> Organization</button>
+                    <button type="button" data-mb-nav="settings"><i data-lucide="settings"></i> Settings</button>
+                </nav>
+                <div class="cr-credits" title="Workspace credits (demo)"><span>WORKSPACE CREDITS</span><strong>1,213</strong><span>of 2,500 used</span></div>
+                <div class="cr-personal"><i data-lucide="circle-user-round"></i> Personal Account <i data-lucide="chevron-down"></i></div>
+            </aside>
+            <aside class="cr-org" aria-label="Organization">
+                <div class="cr-org-head"><span><i data-lucide="building"></i> Organization</span><i data-lucide="chevron-down"></i></div>
+                <p class="cr-org-sub"><i data-lucide="users"></i> All Teams</p>
+                <div class="cr-employees" id="mb-employees"></div>
+                <p class="cr-see-more" title="See more (demo)">+ see more</p>
+                <div class="cr-org-status"><span class="cr-online-dot"></span><div><strong>Workspace online</strong><span>All agents available</span></div></div>
+            </aside>
+            <main class="cr-main mb-main">
+                <div class="cr-main-tabs">
+                    <button type="button" class="mb-tab" title="Coordinator (demo)"><span class="mb-tab-avatar" style="background:#e11d48">M</span> Coordinator</button>
+                    <button type="button" class="mb-tab" data-rx-office3d title="3D Office — buka kantor AI 3D"><i data-lucide="building-2"></i> 3D Office</button>
+                    <button type="button" class="mb-tab is-active" aria-current="page"><i data-lucide="inbox"></i> Inbox</button>
+                </div>
+                <div class="mb-head">
+                    <h1>Company Central Mailbox</h1>
+                    <div class="mb-head-right">
+                        <button type="button" class="mb-connect" id="mb-connect-email" data-mb-connect-email title="Connect email (demo lokal — menyimulasikan sinkronisasi kotak surat karyawan, bukan server email nyata)"><i data-lucide="link-2"></i> Connect email</button>
+                        <button type="button" class="mb-create" data-mb-compose title="Tulis email baru (demo lokal)"><i data-lucide="pen-line"></i> New email</button>
+                    </div>
+                </div>
+                <div class="mb-panel">
+                    <div class="mb-work">
+                        <div class="mb-listcol">
+                            <label class="mb-mailbox-select"><span>Mailbox</span><select id="mb-mailbox" aria-label="Pilih kotak surat" title="Pilih kotak surat (demo)"><option value="all">All employee mailboxes</option><option value="employee">Employee mailboxes</option><option value="personal">Your personal mailbox</option></select></label>
+                            <nav class="mb-folders" id="mb-folders" aria-label="Folder surat"></nav>
+                            <label class="mb-search"><i data-lucide="search"></i><input type="search" id="mb-search-input" placeholder="Search" aria-label="Cari surat di folder aktif"></label>
+                            <div class="mb-list-head"><span id="mb-list-title">Inbox</span><span id="mb-list-count">0 emails</span></div>
+                            <div class="mb-list" id="mb-list" aria-live="polite"></div>
+                        </div>
+                        <div class="mb-read" id="mb-read" aria-live="polite"></div>
+                    </div>
+                    <div class="mb-foot">
+                        <div class="mb-foot-cell">
+                            <span class="mb-foot-icon"><i data-lucide="mail"></i></span>
+                            <span class="mb-foot-text"><strong>All employee mailboxes</strong><span id="mb-employee-status">Demo — not connected to a real mail server</span></span>
+                        </div>
+                        <div class="mb-foot-cell">
+                            <span class="mb-foot-icon"><i data-lucide="circle-user-round"></i></span>
+                            <span class="mb-foot-text"><strong>Your personal mailbox</strong><span id="mb-personal-status">No inbox connected</span></span>
+                            <button type="button" class="mb-foot-btn" id="mb-personal-connect" data-mb-connect-personal title="Hubungkan kotak surat pribadi (demo lokal — bukan server email nyata)">Connect</button>
+                        </div>
+                    </div>
+                </div>
+            </main>
+            <aside class="cr-analysis" id="mb-activity-panel" aria-label="Activity"></aside>
+        </div>
+        <div class="mb-modal hidden" id="mb-modal" role="dialog" aria-modal="true" aria-labelledby="mb-modal-title">
+            <form class="mb-modal-card" id="mb-form">
+                <h2 id="mb-modal-title">New email</h2>
+                <label class="mb-field">To<input type="email" id="mb-f-to" required maxlength="160" placeholder="nama@perusahaan.com" autocomplete="off"></label>
+                <label class="mb-field">Subject<input type="text" id="mb-f-subject" required maxlength="160" placeholder="Subjek email…" autocomplete="off"></label>
+                <label class="mb-field">Message<textarea id="mb-f-body" maxlength="4000" placeholder="Tulis isi email…"></textarea></label>
+                <div class="mb-modal-actions">
+                    <button type="button" class="mb-btn-ghost" data-mb-modal-close>Batal</button>
+                    <button type="button" class="mb-btn-ghost" data-mb-save-draft title="Simpan sebagai draft (demo lokal)">Save draft</button>
+                    <button type="submit" class="mb-btn-primary">Send</button>
+                </div>
+            </form>
+        </div>
+    </section>
+
+    <!-- Employees — replika referensi Company Employees Directory + Marketplace talenta (mode Hire, data lokal) -->
+    <section id="view-employees-replica" class="chat-replica employees-replica hidden" aria-label="Company Employees Directory">
+        <header class="cr-topbar">
+            <button type="button" class="cr-logo" data-em-exit="mission" title="Kembali ke My Office">PiK's <span>Digital Lab</span></button>
+            <nav class="cr-top-tabs" aria-label="Workspace">
+                <button type="button" class="is-active" title="Workspace (demo)"><i data-lucide="briefcase"></i> Workspace</button>
+                <button type="button" data-rx-office3d title="3D Office — buka kantor AI 3D"><i data-lucide="building-2"></i> 3D Office</button>
+            </nav>
+            <div class="cr-top-right">
+                <span class="rx-brand" title="PiK's Digital Lab">PiK's Digital Lab</span>
+                <span class="cr-top-select" title="Workspace (demo)">Default <i data-lucide="chevron-down"></i></span>
+                <button type="button" class="cr-icon-btn" title="Panel (demo)"><i data-lucide="panel-right"></i></button>
+                <button type="button" class="cr-icon-btn" title="Notifikasi (demo)"><i data-lucide="bell"></i></button>
+                <button type="button" class="cr-icon-btn" title="Pengaturan (demo)"><i data-lucide="settings-2"></i></button>
+                <span class="cr-top-avatar" title="Personal Account">P</span>
+            </div>
+        </header>
+        <div class="cr-body">
+            <aside class="cr-sidenav" aria-label="Navigasi employees">
+                <label class="cr-search"><i data-lucide="search"></i><input type="search" placeholder="Search" aria-label="Search (demo)" title="Search (demo)"><kbd>⌘K</kbd></label>
+                <nav class="cr-side-nav">
+                    <button type="button" data-em-nav="chat"><i data-lucide="message-square"></i> Chat</button>
+                    <button type="button" data-em-nav="tasks"><i data-lucide="file-text"></i> Tasks</button>
+                    <button type="button" data-em-nav="schedules"><i data-lucide="calendar-days"></i> Calendar</button>
+                    <button type="button" data-em-nav="drive"><i data-lucide="hard-drive"></i> Drive</button>
+                    <button type="button" data-em-nav="crm"><i data-lucide="contact-round"></i> CRM</button>
+                    <button type="button" data-em-nav="library" title="Buka Library"><i data-lucide="library"></i> Library</button>
+                    <button type="button" data-em-nav="mailbox" title="Buka Mailbox"><i data-lucide="mail"></i> Mailbox</button>
+                    <p class="cr-side-label">Employees</p>
+                    <button type="button" class="is-active" aria-current="page"><i data-lucide="users"></i> Employees</button>
+                    <button type="button" data-em-nav="routine" title="Buka Routine"><i data-lucide="repeat"></i> Routine</button>
+                    <button type="button" data-em-nav="knowledge" title="Buka Knowledge"><i data-lucide="book-open"></i> Knowledge</button>
+                    <button type="button" data-em-nav="tools"><i data-lucide="wrench"></i> Tools</button>
+                    <p class="cr-side-label">Monitor</p>
+                    <button type="button" title="Performance (demo)"><i data-lucide="gauge"></i> Performance</button>
+                    <button type="button" data-em-nav="team"><i data-lucide="bar-chart-3"></i> Teams</button>
+                    <button type="button" data-em-nav="activity"><i data-lucide="activity"></i> Activity</button>
+                    <p class="cr-side-label">Account</p>
+                    <button type="button"><i data-lucide="building"></i> Organization</button>
+                    <button type="button" data-em-nav="settings"><i data-lucide="settings"></i> Settings</button>
+                </nav>
+                <div class="cr-credits" title="Workspace credits (demo)"><span>WORKSPACE CREDITS</span><strong>1,213</strong><span>of 2,500 used</span></div>
+                <div class="cr-personal"><i data-lucide="circle-user-round"></i> Personal Account <i data-lucide="chevron-down"></i></div>
+            </aside>
+            <aside class="cr-org" aria-label="Organization">
+                <div class="cr-org-head"><span><i data-lucide="building"></i> Organization</span><i data-lucide="chevron-down"></i></div>
+                <p class="cr-org-sub"><i data-lucide="users"></i> All Teams</p>
+                <div class="cr-employees" id="em-employees"></div>
+                <p class="cr-see-more" title="See more (demo)">+ see more</p>
+                <div class="cr-org-status"><span class="cr-online-dot"></span><div><strong>Workspace online</strong><span>All agents available</span></div></div>
+            </aside>
+            <main class="cr-main em-main">
+                <div class="cr-main-tabs">
+                    <button type="button" class="em-tab" title="Coordinator (demo)"><span class="em-tab-avatar" style="background:#e11d48">M</span> Coordinator</button>
+                    <button type="button" class="em-tab" data-rx-office3d title="3D Office — buka kantor AI 3D"><i data-lucide="building-2"></i> 3D Office</button>
+                    <button type="button" class="em-tab is-active" data-em-main-tab="directory" aria-current="page"><i data-lucide="users"></i> Employees</button>
+                    <button type="button" class="em-tab" data-em-main-tab="marketplace" title="Buka Marketplace talenta"><i data-lucide="store"></i> Marketplace</button>
+                </div>
+                <div id="em-directory">
+                    <div class="em-head">
+                        <h1>Company Employees Directory</h1>
+                        <div class="em-selectors">
+                            <select aria-label="Pilih tim (demo)" title="Pilih tim (demo)"><option>All Teams</option><option>Core Team</option><option>New Team</option></select>
+                            <select aria-label="Tampilan bagan (demo)" title="Tampilan bagan (demo)"><option>Org chart</option><option>List</option></select>
+                        </div>
+                        <div class="em-head-right">
+                            <button type="button" class="em-create-team" data-em-create-team title="Tambah tim kosong baru ke bagan"><i data-lucide="users"></i> Create Team</button>
+                            <button type="button" class="em-new" data-em-new title="Tambah karyawan baru"><i data-lucide="plus"></i> New Employee</button>
+                        </div>
+                    </div>
+                    <div class="em-chart" aria-label="Bagan organisasi">
+                        <div class="em-root" title="PiK's Digital Lab">PD</div>
+                        <div class="em-conn" aria-hidden="true"></div>
+                        <div class="em-branch" id="em-branch" aria-hidden="true"></div>
+                        <div class="em-teams" id="em-teams" aria-live="polite"></div>
+                    </div>
+                </div>
+                <div id="em-marketplace" class="em-market hidden">
+                    <div class="em-market-bar">
+                        <button type="button" class="em-back" data-em-back title="Kembali ke Employees Directory"><i data-lucide="arrow-left"></i> Directory</button>
+                        <span class="em-market-label"><i data-lucide="store"></i><span id="em-market-count">17</span>&nbsp;Marketplace</span>
+                        <label class="em-market-search"><i data-lucide="search"></i><input type="search" id="em-search" placeholder="Search talent…" aria-label="Cari talenta"></label>
+                        <select class="em-filter" data-em-filter aria-label="Filter talenta" title="Filters">
+                            <option value="all">Filters: All</option>
+                            <option value="available">Available</option>
+                            <option value="unavailable">Temporarily unavailable</option>
+                            <option value="coming">Coming Soon</option>
+                            <option value="hired">Hired</option>
+                        </select>
+                    </div>
+                    <div class="em-grid" id="em-talent-grid" aria-live="polite"></div>
+                </div>
+            </main>
+            <aside class="cr-analysis" id="em-activity-panel" aria-label="Activity"></aside>
+        </div>
+        <div class="em-modal hidden" id="em-new-modal" role="dialog" aria-modal="true" aria-labelledby="em-modal-title">
+            <form class="em-modal-card" id="em-form">
+                <h2 id="em-modal-title">New Employee</h2>
+                <label class="em-field">Name<input type="text" id="em-f-name" required maxlength="80" placeholder="Nama karyawan…" autocomplete="off"></label>
+                <label class="em-field">Role<input type="text" id="em-f-role" required maxlength="80" placeholder="Peran, mis. Content Writer…" autocomplete="off"></label>
+                <label class="em-field">Team<select id="em-f-team"></select></label>
+                <div class="em-modal-actions">
+                    <button type="button" class="em-btn-ghost" data-em-modal-close>Batal</button>
+                    <button type="submit" class="em-btn-primary">Add Employee</button>
+                </div>
+            </form>
+        </div>
+        <div class="em-modal hidden" id="em-profile-modal" role="dialog" aria-modal="true" aria-labelledby="em-profile-title">
+            <div class="em-modal-card">
+                <h2 id="em-profile-title">Employee Profile</h2>
+                <div id="em-profile-body"></div>
+                <div class="em-modal-actions">
+                    <button type="button" class="em-btn-ghost" data-em-modal-close>Tutup</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Routine — replika referensi Company Working Hours / Routines (data lokal demo) -->
+    <section id="view-routine-replica" class="chat-replica routine-replica hidden" aria-label="Company Working Hours">
+        <header class="cr-topbar">
+            <button type="button" class="cr-logo" data-rt-exit="mission" title="Kembali ke My Office">PiK's <span>Digital Lab</span></button>
+            <nav class="cr-top-tabs" aria-label="Workspace">
+                <button type="button" class="is-active" title="Workspace (demo)"><i data-lucide="briefcase"></i> Workspace</button>
+                <button type="button" data-rx-office3d title="3D Office — buka kantor AI 3D"><i data-lucide="building-2"></i> 3D Office</button>
+            </nav>
+            <div class="cr-top-right">
+                <span class="rx-brand" title="PiK's Digital Lab">PiK's Digital Lab</span>
+                <span class="cr-top-select" title="Workspace (demo)">Default <i data-lucide="chevron-down"></i></span>
+                <button type="button" class="cr-icon-btn" title="Panel (demo)"><i data-lucide="panel-right"></i></button>
+                <button type="button" class="cr-icon-btn" title="Notifikasi (demo)"><i data-lucide="bell"></i></button>
+                <button type="button" class="cr-icon-btn" title="Pengaturan (demo)"><i data-lucide="settings-2"></i></button>
+                <span class="cr-top-avatar" title="Personal Account">P</span>
+            </div>
+        </header>
+        <div class="cr-body">
+            <aside class="cr-sidenav" aria-label="Navigasi routine">
+                <label class="cr-search"><i data-lucide="search"></i><input type="search" placeholder="Search" aria-label="Search (demo)" title="Search (demo)"><kbd>⌘K</kbd></label>
+                <nav class="cr-side-nav">
+                    <button type="button" data-rt-nav="chat"><i data-lucide="message-square"></i> Chat</button>
+                    <button type="button" data-rt-nav="tasks"><i data-lucide="file-text"></i> Tasks</button>
+                    <button type="button" data-rt-nav="schedules"><i data-lucide="calendar-days"></i> Calendar</button>
+                    <button type="button" data-rt-nav="drive"><i data-lucide="hard-drive"></i> Drive</button>
+                    <button type="button" data-rt-nav="crm"><i data-lucide="contact-round"></i> CRM</button>
+                    <button type="button" data-rt-nav="library" title="Buka Library"><i data-lucide="library"></i> Library</button>
+                    <button type="button" data-rt-nav="mailbox" title="Buka Mailbox"><i data-lucide="mail"></i> Mailbox</button>
+                    <p class="cr-side-label">Employees</p>
+                    <button type="button" data-rt-nav="employees"><i data-lucide="users"></i> Employees</button>
+                    <button type="button" class="is-active" aria-current="page"><i data-lucide="repeat"></i> Routine</button>
+                    <button type="button" data-rt-nav="knowledge" title="Buka Knowledge"><i data-lucide="book-open"></i> Knowledge</button>
+                    <button type="button" data-rt-nav="tools"><i data-lucide="wrench"></i> Tools</button>
+                    <p class="cr-side-label">Monitor</p>
+                    <button type="button" title="Performance (demo)"><i data-lucide="gauge"></i> Performance</button>
+                    <button type="button" data-rt-nav="team"><i data-lucide="bar-chart-3"></i> Teams</button>
+                    <button type="button" data-rt-nav="activity"><i data-lucide="activity"></i> Activity</button>
+                    <p class="cr-side-label">Account</p>
+                    <button type="button" data-rt-nav="employees"><i data-lucide="building"></i> Organization</button>
+                    <button type="button" data-rt-nav="settings"><i data-lucide="settings"></i> Settings</button>
+                </nav>
+                <div class="cr-credits" title="Workspace credits (demo)"><span>WORKSPACE CREDITS</span><strong>1,213</strong><span>of 2,500 used</span></div>
+                <div class="cr-personal"><i data-lucide="circle-user-round"></i> Personal Account <i data-lucide="chevron-down"></i></div>
+            </aside>
+            <aside class="cr-org" aria-label="Organization">
+                <div class="cr-org-head"><span><i data-lucide="building"></i> Organization</span><i data-lucide="chevron-down"></i></div>
+                <p class="cr-org-sub"><i data-lucide="users"></i> All Teams</p>
+                <div class="cr-employees" id="rt-employees"></div>
+                <p class="cr-see-more" title="See more (demo)">+ see more</p>
+                <div class="cr-org-status"><span class="cr-online-dot"></span><div><strong>Workspace online</strong><span>All agents available</span></div></div>
+            </aside>
+            <main class="cr-main rt-main">
+                <div class="cr-main-tabs">
+                    <button type="button" class="rt-tab" title="Coordinator (demo)"><span class="rt-tab-avatar" style="background:#e11d48">M</span> Coordinator</button>
+                    <button type="button" class="rt-tab" data-rx-office3d title="3D Office — buka kantor AI 3D"><i data-lucide="building-2"></i> 3D Office</button>
+                    <button type="button" class="rt-tab is-active" aria-current="page"><i data-lucide="repeat"></i> Routine</button>
+                </div>
+                <div class="rt-head">
+                    <h1>Company Working Hours</h1>
+                    <div class="rt-head-right">
+                        <button type="button" class="rt-add" data-rt-add title="Tambah routine baru"><i data-lucide="plus"></i> Add Routine</button>
+                    </div>
+                </div>
+                <div class="rt-scroll">
+                    <div class="rt-team-card">
+                        <div class="rt-team-row">
+                            <span class="rt-team-avatar">A</span><span class="rt-team-name">AI Team</span><span class="rt-badge rt-badge-gold">GOLD</span>
+                            <button type="button" class="rt-team-plus" title="Add team member (demo)"><i data-lucide="plus"></i></button>
+                        </div>
+                        <div class="rt-list" id="rt-list" aria-live="polite"></div>
+                    </div>
+                    <section class="rt-section" aria-label="Routine health">
+                        <h2 class="rt-section-title"><i data-lucide="heart-pulse"></i> Routine health</h2>
+                        <div class="rt-health-days" id="rt-health-days"></div>
+                        <p class="rt-health-note" id="rt-health-note">No routine checks recorded yet</p>
+                    </section>
+                    <section class="rt-section" aria-label="Channel section">
+                        <h2 class="rt-section-title"><i data-lucide="hash"></i> Channel section</h2>
+                        <div class="rt-channel-row"><i data-lucide="mail"></i> Routine summaries by email <span>Demo lokal</span></div>
+                        <div class="rt-channel-row"><i data-lucide="message-square"></i> Routine summaries in Chat <span>Demo lokal</span></div>
+                    </section>
+                </div>
+            </main>
+            <aside class="cr-analysis" id="rt-activity-panel" aria-label="Activity"></aside>
+        </div>
+        <div class="rt-modal hidden" id="rt-modal" role="dialog" aria-modal="true" aria-labelledby="rt-modal-title">
+            <form class="rt-modal-card" id="rt-form">
+                <h2 id="rt-modal-title">Add Routine</h2>
+                <label class="rt-field">Name<input type="text" id="rt-f-name" required maxlength="80" placeholder="Nama routine…" autocomplete="off"></label>
+                <label class="rt-field">Frequency<select id="rt-f-freq"><option>Every day</option><option>Every 24h</option><option>Every week</option><option>On standby only</option></select></label>
+                <label class="rt-field">Description<textarea id="rt-f-desc" maxlength="600" placeholder="Apa yang dilakukan routine ini…"></textarea></label>
+                <div class="rt-modal-actions">
+                    <button type="button" class="rt-btn-ghost" data-rt-modal-close>Batal</button>
+                    <button type="submit" class="rt-btn-primary">Add Routine</button>
+                </div>
+            </form>
+        </div>
+    </section>
+
+    <!-- Knowledge — replika referensi Company Knowledge (gaya mandiri .knowledge-replica, data lokal demo) -->
+    <section id="view-knowledge-replica" class="chat-replica knowledge-replica hidden" aria-label="Company Knowledge">
+        <header class="cr-topbar">
+            <button type="button" class="cr-logo" data-kn-exit="mission" title="Kembali ke My Office">PiK's <span>Digital Lab</span></button>
+            <nav class="cr-top-tabs" aria-label="Workspace">
+                <button type="button" class="is-active" title="Workspace (demo)"><i data-lucide="briefcase"></i> Workspace</button>
+                <button type="button" data-rx-office3d title="3D Office — buka kantor AI 3D"><i data-lucide="building-2"></i> 3D Office</button>
+            </nav>
+            <div class="cr-top-right">
+                <span class="rx-brand" title="PiK's Digital Lab">PiK's Digital Lab</span>
+                <span class="cr-top-select" title="Workspace (demo)">Default <i data-lucide="chevron-down"></i></span>
+                <button type="button" class="cr-icon-btn" title="Panel (demo)"><i data-lucide="panel-right"></i></button>
+                <button type="button" class="cr-icon-btn" title="Notifikasi (demo)"><i data-lucide="bell"></i></button>
+                <button type="button" class="cr-icon-btn" title="Pengaturan (demo)"><i data-lucide="settings-2"></i></button>
+                <span class="cr-top-avatar" title="Personal Account">P</span>
+            </div>
+        </header>
+        <div class="cr-body">
+            <aside class="cr-sidenav" aria-label="Navigasi knowledge">
+                <label class="cr-search"><i data-lucide="search"></i><input type="search" placeholder="Search" aria-label="Search (demo)" title="Search (demo)"><kbd>⌘K</kbd></label>
+                <nav class="cr-side-nav">
+                    <button type="button" data-kn-nav="chat"><i data-lucide="message-square"></i> Chat</button>
+                    <button type="button" data-kn-nav="tasks"><i data-lucide="file-text"></i> Tasks</button>
+                    <button type="button" data-kn-nav="schedules"><i data-lucide="calendar-days"></i> Calendar</button>
+                    <button type="button" data-kn-nav="drive"><i data-lucide="hard-drive"></i> Drive</button>
+                    <button type="button" data-kn-nav="crm"><i data-lucide="contact-round"></i> CRM</button>
+                    <button type="button" data-kn-nav="library" title="Buka Library"><i data-lucide="library"></i> Library</button>
+                    <button type="button" data-kn-nav="mailbox" title="Buka Mailbox"><i data-lucide="mail"></i> Mailbox</button>
+                    <p class="cr-side-label">Employees</p>
+                    <button type="button" data-kn-nav="employees"><i data-lucide="users"></i> Employees</button>
+                    <button type="button" data-kn-nav="routine" title="Buka Routine"><i data-lucide="repeat"></i> Routine</button>
+                    <button type="button" class="is-active" aria-current="page"><i data-lucide="book-open"></i> Knowledge</button>
+                    <button type="button" data-kn-nav="tools"><i data-lucide="wrench"></i> Tools</button>
+                    <p class="cr-side-label">Monitor</p>
+                    <button type="button" title="Performance (demo)"><i data-lucide="gauge"></i> Performance</button>
+                    <button type="button" data-kn-nav="team"><i data-lucide="bar-chart-3"></i> Teams</button>
+                    <button type="button" data-kn-nav="activity"><i data-lucide="activity"></i> Activity</button>
+                    <p class="cr-side-label">Account</p>
+                    <button type="button" data-kn-nav="employees"><i data-lucide="building"></i> Organization</button>
+                    <button type="button" data-kn-nav="settings"><i data-lucide="settings"></i> Settings</button>
+                </nav>
+                <div class="cr-credits" title="Workspace credits (demo)"><span>WORKSPACE CREDITS</span><strong>1,213</strong><span>of 2,500 used</span></div>
+                <div class="cr-personal"><i data-lucide="circle-user-round"></i> Personal Account <i data-lucide="chevron-down"></i></div>
+            </aside>
+            <aside class="cr-org" aria-label="Organization">
+                <div class="cr-org-head"><span><i data-lucide="building"></i> Organization</span><i data-lucide="chevron-down"></i></div>
+                <p class="cr-org-sub"><i data-lucide="users"></i> All Teams</p>
+                <div class="cr-employees" id="kn-employees"></div>
+                <p class="cr-see-more" title="See more (demo)">+ see more</p>
+                <div class="cr-org-status"><span class="cr-online-dot"></span><div><strong>Workspace online</strong><span>All agents available</span></div></div>
+            </aside>
+            <main class="cr-main kn-main">
+                <div class="cr-main-tabs">
+                    <button type="button" class="kn-tab" title="Coordinator (demo)"><span class="kn-tab-avatar" style="background:#e11d48">M</span> Coordinator</button>
+                    <button type="button" class="kn-tab" data-rx-office3d title="3D Office — buka kantor AI 3D"><i data-lucide="building-2"></i> 3D Office</button>
+                    <button type="button" class="kn-tab is-active" aria-current="page"><i data-lucide="book-open"></i> Knowledge</button>
+                </div>
+                <div class="kn-head">
+                    <h1>Company Knowledge</h1>
+                    <div class="kn-head-right">
+                        <button type="button" class="kn-import" data-kn-import title="Impor folder demo ke Imported Folders"><i data-lucide="import"></i> Import</button>
+                        <button type="button" class="kn-plus" data-kn-plus title="Add knowledge source" aria-label="Add knowledge source"><i data-lucide="plus"></i></button>
+                    </div>
+                </div>
+                <div class="kn-scroll">
+                    <section class="kn-searchable" aria-label="Searchable knowledge">
+                        <h2 class="kn-section-title">Searchable Knowledge</h2>
+                        <div class="kn-cards" id="kn-cards" aria-live="polite"></div>
+                        <div id="kn-trained" aria-live="polite"></div>
+                    </section>
+                    <section class="kn-folders-section" aria-label="Imported folders">
+                        <h2 class="kn-section-title">Imported Folders <i data-lucide="info"></i></h2>
+                        <div id="kn-folders" aria-live="polite"></div>
+                    </section>
+                </div>
+            </main>
+            <aside class="cr-analysis" id="kn-activity-panel" aria-label="Activity"></aside>
+        </div>
+        <div class="kn-modal hidden" id="kn-modal" role="dialog" aria-modal="true" aria-labelledby="kn-modal-title">
+            <form class="kn-modal-card" id="kn-form">
+                <h2 id="kn-modal-title">Add Text</h2>
+                <div class="kn-picker" id="kn-picker" aria-label="Pilih sumber pengetahuan"></div>
+                <label class="kn-field" id="kn-f1-label">Title<input type="text" id="kn-f-title" required maxlength="120" placeholder="Judul teks…" autocomplete="off"></label>
+                <label class="kn-field" id="kn-f2-label">Text<textarea id="kn-f-detail" maxlength="2000" placeholder="Tempel isi teks di sini…"></textarea></label>
+                <p class="kn-modal-note">Demo lokal — sumber disimpan di perangkat ini dan ditandai Trained tanpa pelatihan AI sungguhan.</p>
+                <div class="kn-modal-actions">
+                    <button type="button" class="kn-btn-ghost" data-kn-modal-close>Batal</button>
+                    <button type="submit" class="kn-btn-primary">Add &amp; Train</button>
+                </div>
+            </form>
+        </div>
+    </section>
+
+    <!-- Tools — replika referensi Team Tools and Apps (gaya mandiri .tools-replica, logo merek Simple Icons CDN, data demo lokal; view lama `tools` tetap utuh) -->
+    <section id="view-tools-replica" class="chat-replica tools-replica hidden" aria-label="Team Tools and Apps">
+        <header class="cr-topbar">
+            <button type="button" class="cr-logo" data-tl-exit="mission" title="Kembali ke My Office">PiK's <span>Digital Lab</span></button>
+            <nav class="cr-top-tabs" aria-label="Workspace">
+                <button type="button" class="is-active" title="Workspace (demo)"><i data-lucide="briefcase"></i> Workspace</button>
+                <button type="button" data-rx-office3d title="3D Office — buka kantor AI 3D"><i data-lucide="building-2"></i> 3D Office</button>
+            </nav>
+            <div class="cr-top-right">
+                <span class="rx-brand" title="PiK's Digital Lab">PiK's Digital Lab</span>
+                <span class="cr-top-select" title="Workspace (demo)">Default <i data-lucide="chevron-down"></i></span>
+                <button type="button" class="cr-icon-btn" title="Panel (demo)"><i data-lucide="panel-right"></i></button>
+                <button type="button" class="cr-icon-btn" title="Notifikasi (demo)"><i data-lucide="bell"></i></button>
+                <button type="button" class="cr-icon-btn" title="Pengaturan (demo)"><i data-lucide="settings-2"></i></button>
+                <span class="cr-top-avatar" title="Personal Account">P</span>
+            </div>
+        </header>
+        <div class="cr-body">
+            <aside class="cr-sidenav" aria-label="Navigasi tools">
+                <label class="cr-search"><i data-lucide="search"></i><input type="search" placeholder="Search" aria-label="Search (demo)" title="Search (demo)"><kbd>⌘K</kbd></label>
+                <nav class="cr-side-nav">
+                    <button type="button" data-tl-nav="chat"><i data-lucide="message-square"></i> Chat</button>
+                    <button type="button" data-tl-nav="tasks"><i data-lucide="file-text"></i> Tasks</button>
+                    <button type="button" data-tl-nav="schedules"><i data-lucide="calendar-days"></i> Calendar</button>
+                    <button type="button" data-tl-nav="drive"><i data-lucide="hard-drive"></i> Drive</button>
+                    <button type="button" data-tl-nav="crm"><i data-lucide="contact-round"></i> CRM</button>
+                    <button type="button" data-tl-nav="library" title="Buka Library"><i data-lucide="library"></i> Library</button>
+                    <button type="button" data-tl-nav="mailbox" title="Buka Mailbox"><i data-lucide="mail"></i> Mailbox</button>
+                    <p class="cr-side-label">Employees</p>
+                    <button type="button" data-tl-nav="employees"><i data-lucide="users"></i> Employees</button>
+                    <button type="button" data-tl-nav="routine" title="Buka Routine"><i data-lucide="repeat"></i> Routine</button>
+                    <button type="button" data-tl-nav="knowledge" title="Buka Knowledge"><i data-lucide="book-open"></i> Knowledge</button>
+                    <button type="button" class="is-active" aria-current="page"><i data-lucide="wrench"></i> Tools</button>
+                    <p class="cr-side-label">Monitor</p>
+                    <button type="button" title="Performance (demo)"><i data-lucide="gauge"></i> Performance</button>
+                    <button type="button" data-tl-nav="team"><i data-lucide="bar-chart-3"></i> Teams</button>
+                    <button type="button" data-tl-nav="activity"><i data-lucide="activity"></i> Activity</button>
+                    <p class="cr-side-label">Account</p>
+                    <button type="button" data-tl-nav="employees"><i data-lucide="building"></i> Organization</button>
+                    <button type="button" data-tl-nav="settings"><i data-lucide="settings"></i> Settings</button>
+                </nav>
+                <div class="cr-credits" title="Workspace credits (demo)"><span>WORKSPACE CREDITS</span><strong>1,213</strong><span>of 2,500 used</span></div>
+                <div class="cr-personal"><i data-lucide="circle-user-round"></i> Personal Account <i data-lucide="chevron-down"></i></div>
+            </aside>
+            <aside class="cr-org" aria-label="Organization">
+                <div class="cr-org-head"><span><i data-lucide="building"></i> Organization</span><i data-lucide="chevron-down"></i></div>
+                <p class="cr-org-sub"><i data-lucide="users"></i> All Teams</p>
+                <div class="cr-employees" id="tl-employees"></div>
+                <p class="cr-see-more" title="See more (demo)">+ see more</p>
+                <div class="cr-org-status"><span class="cr-online-dot"></span><div><strong>Workspace online</strong><span>All agents available</span></div></div>
+            </aside>
+            <main class="cr-main tl-main">
+                <div class="cr-main-tabs">
+                    <button type="button" class="tl-tab" title="Alice (demo)"><span class="tl-tab-avatar" style="background:#d97706">A</span> Alice <span class="tl-tab-badge">Team</span></button>
+                    <button type="button" class="tl-tab" title="Team (demo)"><i data-lucide="users"></i> Team</button>
+                    <button type="button" class="tl-tab is-active" aria-current="page"><i data-lucide="wrench"></i> Tools</button>
+                </div>
+                <div class="tl-head">
+                    <h1>Team Tools and Apps</h1>
+                    <button type="button" class="tl-add-apps" data-tl-add-app title="Tambah aplikasi kustom"><i data-lucide="plus"></i> Add Apps</button>
+                </div>
+                <div class="tl-scroll" id="tl-scroll">
+                    <section class="tl-section" aria-label="Apps">
+                        <h2 class="tl-section-label">Apps <span class="tl-green-dot"></span></h2>
+                        <div class="tl-apps" id="tl-apps" aria-live="polite"></div>
+                    </section>
+                    <section class="tl-section" aria-label="Utilities">
+                        <h2 class="tl-section-label">Utilities <span class="tl-green-dot"></span></h2>
+                        <div class="tl-utilities" id="tl-utilities" aria-live="polite"></div>
+                    </section>
+                    <section class="tl-section" aria-label="Integrations">
+                        <h2 class="tl-section-label">Integrations</h2>
+                        <div class="tl-integrations" id="tl-integrations" aria-live="polite"></div>
+                    </section>
+                    <section class="tl-section" aria-label="System">
+                        <h2 class="tl-section-label">System <span class="tl-green-dot"></span></h2>
+                        <div class="tl-system" id="tl-system" aria-live="polite"></div>
+                    </section>
+                </div>
+            </main>
+            <aside class="cr-analysis" id="tl-activity-panel" aria-label="Activity"></aside>
+        </div>
+        <div class="tl-modal hidden" id="tl-modal" role="dialog" aria-modal="true" aria-label="Tools dialog">
+            <div class="tl-modal-card" id="tl-modal-body"></div>
+        </div>
+    </section>
 
     <!-- Mission Control — halaman depan (full-bleed di bawah top bar) -->
     <section id="view-mission" class="mission-shell hidden" aria-label="Mission Control PiK's Digital Lab">
@@ -467,7 +1558,7 @@
                     <span class="act-agency-bar" aria-hidden="true"><span id="act-agency-fill"></span></span>
                     <span class="act-agency-pct" id="act-agency-pct">100%</span>
                 </div>
-                <button type="button" class="act-icon-btn" data-act-nav="dashboard" title="Dasbor"><i data-lucide="layout-grid"></i></button>
+                <button type="button" class="act-icon-btn" data-act-nav="mission" title="Beranda"><i data-lucide="home"></i></button>
                 <button type="button" class="act-icon-btn" data-act-nav="office" title="Kantor AI"><i data-lucide="message-square"></i></button>
                 <button type="button" class="act-icon-btn" id="act-bell" title="Pemberitahuan">
                     <i data-lucide="bell"></i>
@@ -626,26 +1717,7 @@
                 </button>
             </div>
             <nav class="sidebar-menu">
-                <ul>
-                    <li data-view="mission"><a href="#mission"><span>Ruang / Office</span></a></li>
-                    <li data-view="dashboard"><a href="#dashboard"><span>Dasbor</span></a></li>
-                    <li data-view="composer"><a href="#composer"><span>Buat Postingan</span></a></li>
-                    <li data-view="queue"><a href="#queue"><span>Jadwal & Kalender</span></a></li>
-                    <li data-view="office"><a href="#office"><span>Kantor AI</span></a></li>
-                    <li data-view="activity"><a href="#activity"><span>Aktivitas</span></a></li>
-                    <li data-view="marketplace"><a href="#marketplace"><span>Rekrut Tim</span></a></li>
-                    <li data-view="organization"><a href="#organization"><span>Organisasi</span></a></li>
-                    <li data-view="accounts">
-                        <a href="#accounts">
-                            <span>Akun Terhubung</span>
-                            <span class="menu-counter" id="active-accounts-count">0</span>
-                        </a>
-                    </li>
-                    <li data-view="analytics"><a href="#analytics"><span>Analisis Konten</span></a></li>
-                    <li data-view="settings"><a href="#settings"><span>Pengaturan</span></a></li>
-                    <li data-view="layout"><a href="#layout"><span>Layout Kantor</span></a></li>
-                    <li data-view="about"><a href="#about"><span>Tentang Aplikasi</span></a></li>
-                </ul>
+                <div data-main-nav-list></div>
             </nav>
             <div class="sidebar-footer">
                 <button class="settings-btn" id="open-settings-btn" title="Pengaturan" type="button">
@@ -786,7 +1858,6 @@
                             <nav class="org-toolbar" aria-label="Jalan pintas halaman">
                                 <button type="button" data-org-nav="office"><i data-lucide="messages-square"></i> Obrolan</button>
                                 <button type="button" data-org-nav="tasks"><i data-lucide="list-checks"></i> Tugas</button>
-                                <button type="button" data-org-nav="dashboard"><i data-lucide="layout-grid"></i> Ringkasan</button>
                                 <button type="button" data-org-nav="mission"><i data-lucide="home"></i> Kantor</button>
                                 <button type="button" class="is-active" data-org-tab="employees"><i data-lucide="users"></i> Karyawan</button>
                                 <button type="button" data-org-nav="marketplace"><i data-lucide="store"></i> Pasar</button>
@@ -1021,161 +2092,59 @@
                     </div>
                 </section>
 
-                <!-- VIEW 1: DASHBOARD -->
-                <section id="view-dashboard" class="view-panel active">
-                    <!-- Konteks Departemen (multi-departemen) -->
-                    <div class="card dashboard-dept-bar">
-                        <div class="dashboard-dept-bar-text">
-                            <h2>Konteks Departemen</h2>
-                            <p class="text-secondary font-sm" id="dashboard-dept-desc">Menampilkan ringkasan semua departemen. Pilih satu studio untuk memfilter KPI, antrean perhatian, dan job Kantor AI.</p>
+                <!-- VIEW: PERALATAN (Tools untuk karyawan AI) -->
+                <section id="view-tools" class="view-panel" aria-label="Peralatan karyawan AI">
+                    <div class="tools-head">
+                        <div>
+                            <p class="tools-kicker">Peralatan Tim AI</p>
+                            <h2>Hubungkan Peralatan yang Dapat Dipakai Karyawan Anda</h2>
+                            <p class="tools-sub">Aplikasi, utilitas, dan integrasi untuk karyawan AI PiK's Digital Lab. Klik kartu untuk mengatur koneksi, persetujuan, aturan, dan pelatihan. Status tersimpan lokal di perangkat ini — tidak ada kredensial yang disimpan.</p>
                         </div>
-                        <label class="dashboard-dept-select-wrap">
-                            <span class="form-label">Departemen</span>
-                            <select id="dashboard-dept-filter" class="form-control">
-                                <option value="all">🏢 Semua Departemen</option>
-                            </select>
-                        </label>
-                    </div>
-                    <div class="dashboard-dept-grid" id="dashboard-dept-grid" aria-label="Ringkasan per departemen">
-                        <p class="text-secondary font-sm">Memuat struktur departemen…</p>
-                    </div>
-
-                    <!-- Grid Statistik -->
-                    <div class="stats-grid">
-                        <div class="stat-card">
-                            <div class="stat-icon icon-indigo">
-                                <i data-lucide="send"></i>
-                            </div>
-                            <div class="stat-data">
-                                <span class="stat-value" id="stats-total-posts">0</span>
-                                <span class="stat-label" id="stats-total-posts-label">Total Postingan</span>
-                            </div>
-                            <div class="stat-trend trend-up" id="stats-total-posts-trend">
-                                <i data-lucide="trending-up"></i>
-                                <span>—</span>
-                            </div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-icon icon-violet">
-                                <i data-lucide="clock-4"></i>
-                            </div>
-                            <div class="stat-data">
-                                <span class="stat-value" id="stats-scheduled-posts">0</span>
-                                <span class="stat-label" id="stats-scheduled-posts-label">Postingan Terjadwal</span>
-                            </div>
-                            <div class="stat-trend text-secondary" id="stats-scheduled-posts-trend">
-                                <span>Antrean</span>
-                            </div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-icon icon-emerald">
-                                <i data-lucide="link-2"></i>
-                            </div>
-                            <div class="stat-data">
-                                <span class="stat-value" id="stats-active-channels">0</span>
-                                <span class="stat-label" id="stats-active-channels-label">Saluran Aktif</span>
-                            </div>
-                            <div class="stat-trend trend-up" id="stats-active-channels-trend">
-                                <i data-lucide="check-circle-2"></i>
-                                <span>—</span>
-                            </div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-icon icon-pink">
-                                <i data-lucide="eye"></i>
-                            </div>
-                            <div class="stat-data">
-                                <span class="stat-value" id="stats-total-reach">142.8K</span>
-                                <span class="stat-label" id="stats-total-reach-label">Total Jangkauan</span>
-                            </div>
-                            <div class="stat-trend trend-up" id="stats-total-reach-trend">
-                                <i data-lucide="trending-up"></i>
-                                <span>—</span>
-                            </div>
+                        <div class="tools-head-actions">
+                            <span class="tools-connected-count" id="tools-connected-count">0 terhubung</span>
+                            <button type="button" class="btn btn-primary btn-sm" data-tools-add-app><i data-lucide="plus"></i> Tambah Aplikasi</button>
                         </div>
                     </div>
-
-                    <!-- Membutuhkan Perhatian Manusia (lintas departemen) -->
-                    <div class="card dashboard-attention-card" id="dashboard-attention-card">
-                        <div class="card-header">
-                            <h2>⚠️ Membutuhkan Perhatian Manusia</h2>
-                            <button class="btn-text" type="button" id="dashboard-attention-open-office">Buka Kantor AI</button>
+                    <div class="tools-toolbar">
+                        <div class="tools-tabs" role="tablist" aria-label="Saring aplikasi">
+                            <button type="button" class="is-active" data-tools-tab="all" role="tab" aria-selected="true">Semua Aplikasi</button>
+                            <button type="button" data-tools-tab="connected" role="tab" aria-selected="false">Terhubung</button>
+                            <button type="button" data-tools-tab="disconnected" role="tab" aria-selected="false">Belum Terhubung</button>
                         </div>
-                        <p class="text-secondary font-sm dashboard-attention-desc">Job yang menunggu persetujuan, perlu info tambahan, atau gagal — diprioritaskan agar tidak tenggelam di daftar job biasa.</p>
-                        <div class="dashboard-attention-list" id="dashboard-attention-list">
-                            <div class="empty-state-small"><p class="font-xs">Memuat antrean perhatian…</p></div>
-                        </div>
+                        <label class="tools-search"><i data-lucide="search"></i><input type="search" id="tools-search" placeholder="Cari aplikasi…" aria-label="Cari aplikasi" autocomplete="off"></label>
                     </div>
 
-                    <!-- Layout Utama Dasbor -->
-                    <div class="dashboard-layout" id="dashboard-main-layout">
-                        <!-- Kolom Kiri: Antrean Terdekat -->
-                        <div class="card col-main" id="dashboard-upcoming-card">
-                            <div class="card-header">
-                                <h2>Antrean Konten Mendatang</h2>
-                                <button class="btn-text" id="dashboard-view-queue-btn">Lihat Semua Antrean</button>
-                            </div>
-                            <p class="input-hint hidden" id="dashboard-content-dept-note"></p>
-                            <div class="upcoming-list" id="dashboard-upcoming-list">
-                                <!-- Konten Antrean Dinamis -->
-                                <div class="empty-state-small" id="dashboard-empty-queue">
-                                    <i data-lucide="calendar-days"></i>
-                                    <p>Belum ada postingan yang dijadwalkan.</p>
-                                    <button class="btn btn-sm btn-secondary" onclick="app.switchView('composer')">Buat Postingan Sekarang</button>
-                                </div>
-                            </div>
+                    <h3 class="tools-section-title">Aplikasi <span>APPS</span></h3>
+                    <div class="tools-grid" id="tools-apps"></div>
+
+                    <h3 class="tools-section-title">Utilitas <span>UTILITIES</span></h3>
+                    <div class="tools-grid tools-grid-util" id="tools-utilities"></div>
+
+                    <h3 class="tools-section-title">Integrasi <span>INTEGRATIONS</span></h3>
+                    <div class="tools-integrations" id="tools-integrations"></div>
+
+                    <div class="tools-system">
+                        <div class="tools-system-head">
+                            <div><h3 class="tools-section-title">Sistem <span>SYSTEM</span></h3>
+                            <h4>Penggunaan Tool per Karyawan</h4></div>
+                            <button type="button" class="btn btn-secondary btn-sm" data-tools-refresh-chart><i data-lucide="refresh-cw"></i> Segarkan Data</button>
                         </div>
+                        <div id="tools-chart"></div>
+                        <div class="tools-legend" id="tools-chart-legend"></div>
+                        <p class="tools-note" id="tools-chart-note">Memuat data penggunaan…</p>
+                    </div>
+                    <p class="tools-note">Semua status koneksi, mode persetujuan, aturan, instruksi, pelatihan, dan entri tambahan di halaman ini tersimpan lokal (kunci <code>piks-tools-v1</code>), mengikuti pola halaman Pasar/Organisasi/Tugas. Menghubungkan di sini mencatat preferensi lokal saja — kredensial OAuth aplikasi pihak ketiga tetap dikelola lewat halaman Akun Terhubung / server, bukan di halaman ini.</p>
+                    <aside class="tools-detail hidden" id="tools-detail" aria-label="Detail aplikasi"></aside>
+                    <div id="tools-modal-root" class="hidden"></div>
+                </section>
 
-                        <!-- Kolom Kanan: Diagram & Saluran Aktif -->
-                        <div class="col-side flex-column gap-6">
-                            <!-- Pembagian Konten per Saluran -->
-                            <div class="card" id="dashboard-channel-share-card">
-                                <div class="card-header">
-                                    <h2>Pembagian Saluran</h2>
-                                </div>
-                                <div class="chart-container" style="height: 180px; position: relative;">
-                                    <canvas id="dashboard-channel-chart"></canvas>
-                                </div>
-                            </div>
-
-                            <!-- Ringkasan Saluran Terhubung -->
-                            <div class="card" id="dashboard-connected-card">
-                                <div class="card-header">
-                                    <h2>Saluran Terhubung</h2>
-                                </div>
-                                <div class="dashboard-channel-list" id="dashboard-channel-list">
-                                    <!-- Diisi secara dinamis -->
-                                </div>
-                            </div>
-
-                            <!-- Apa berikutnya (insights) -->
-                            <div class="card office-nextup-card" id="dashboard-nextup-card">
-                                <div class="card-header">
-                                    <h2>Apa berikutnya</h2>
-                                    <button class="btn-text" type="button" id="dashboard-open-office-from-insights">Kantor AI</button>
-                                </div>
-                                <div id="dashboard-nextup-body" class="office-nextup-body">
-                                    <p class="text-secondary font-sm">Memuat insights…</p>
-                                </div>
-                            </div>
-
-                            <!-- Job AI terbaru → detail di Kantor AI -->
-                            <div class="card">
-                                <div class="card-header">
-                                    <h2>Kantor AI</h2>
-                                    <div class="card-header-actions">
-                                        <button class="btn-text" type="button" id="dashboard-refresh-jobs-btn">Segarkan</button>
-                                        <button class="btn-text" type="button" id="dashboard-open-office-btn">Buka Kantor AI</button>
-                                    </div>
-                                </div>
-                                <div class="ai-jobs-list" id="dashboard-ai-jobs-list">
-                                    <div class="empty-state-small" id="dashboard-empty-jobs">
-                                        <i data-lucide="building-2"></i>
-                                        <p>Belum ada job. Kirim brief di Kantor AI.</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                <!-- VIEW: PLACEHOLDER generik (menu yang belum punya halaman) -->
+                <section id="view-placeholder" class="view-panel" aria-label="Halaman dalam pengembangan">
+                    <div class="placeholder-empty">
+                        <span class="placeholder-icon" id="placeholder-icon"><i data-lucide="hard-drive"></i></span>
+                        <h2 id="placeholder-title">Drive</h2>
+                        <p class="placeholder-status">Masih dalam pengembangan</p>
+                        <p class="placeholder-desc">Halaman <span id="placeholder-heading">Drive</span> belum tersedia di PiK's Digital Lab dan sedang kami siapkan.</p>
                     </div>
                 </section>
 
@@ -2418,7 +3387,22 @@
     <script src="js/organization-page.js"></script>
     <script src="js/tasks-page.js"></script>
     <script src="js/calendar-page.js"></script>
+    <script src="js/tools-page.js"></script>
+    <script src="js/replica-activity.js"></script>
+    <script src="js/chat-page.js"></script>
+    <script src="js/tasks-replica-page.js"></script>
+    <script src="js/calendar-replica-page.js"></script>
+    <script src="js/drive-replica-page.js"></script>
+    <script src="js/crm-replica-page.js"></script>
+    <script src="js/library-replica-page.js"></script>
+    <script src="js/mailbox-replica-page.js"></script>
+    <script src="js/employees-replica-page.js"></script>
+    <script src="js/routine-replica-page.js"></script>
+    <script src="js/knowledge-replica-page.js"></script>
+    <script src="js/tools-replica-page.js"></script>
+    <script src="js/main-nav.js"></script>
     <script src="js/global-menu.js"></script>
+    <script src="js/replica-common.js"></script>
     <script src="app.js"></script>
 </body>
 </html>
