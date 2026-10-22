@@ -35,7 +35,8 @@ const appState = {
         chatMessages: []
     },
     mission: {
-        panelOpen: true,
+        // Panel kanan Mission: bawaan tertutup setiap kali halaman Mission dibuka.
+        panelOpen: false,
         workingPanelOpen: true,
         workboardOpen: false,
         tab: 'crew',
@@ -445,6 +446,9 @@ const app = {
             }
         }
         const isMission = viewName === 'mission';
+        // Setiap kali masuk Mission, panel kanan kembali tertutup (walau sempat
+        // dibuka manual pada kunjungan sebelumnya); renderMission menerapkannya.
+        if (isMission) appState.mission.panelOpen = false;
         const isActivity = viewName === 'activity';
         const isChat = viewName === 'chat';
         const isTasksReplica = viewName === 'tasks-replica';
