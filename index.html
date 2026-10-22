@@ -100,7 +100,12 @@
             <button type="button" data-mission-nav="dashboard">Dasbor</button>
             <button type="button" data-mission-nav="composer">Buat Postingan</button>
             <button type="button" data-mission-nav="queue">Jadwal &amp; Kalender</button>
+            <button type="button" data-mission-nav="calendar">Kalender Mingguan</button>
             <button type="button" data-mission-nav="office">Kantor AI</button>
+            <button type="button" data-mission-nav="tasks">Tugas</button>
+            <button type="button" data-mission-nav="activity">Aktivitas</button>
+            <button type="button" data-mission-nav="organization">Organisasi</button>
+            <button type="button" data-mission-nav="marketplace">Rekrut Tim</button>
             <button type="button" data-mission-nav="accounts">Akun Terhubung</button>
             <button type="button" data-mission-nav="analytics">Analisis Konten</button>
             <button type="button" data-mission-nav="settings">Pengaturan</button>
@@ -110,6 +115,90 @@
             <button type="button" id="mission-logout-btn" class="mission-nav-logout">Keluar</button>
         </nav>
     </header>
+
+    <!-- Menu kiri global: tampil di semua halaman setelah login (di Aktivitas digantikan menu bawaannya yang setara) -->
+    <div id="global-side-menu" class="global-side-menu" aria-label="Menu utama aplikasi">
+        <nav class="act-rail gm-rail" aria-label="Navigasi singkat">
+            <button type="button" data-gm-nav="mission" title="Beranda / Ruang"><i data-lucide="home"></i></button>
+            <button type="button" data-gm-nav="dashboard" title="Dasbor"><i data-lucide="layout-grid"></i></button>
+            <button type="button" data-gm-nav="composer" title="Buat postingan"><i data-lucide="inbox"></i></button>
+            <button type="button" data-gm-nav="activity" title="Aktivitas"><i data-lucide="users"></i></button>
+            <button type="button" data-gm-nav="organization" title="Organisasi"><i data-lucide="building-2"></i></button>
+            <button type="button" data-gm-nav="marketplace" title="Rekrut Tim"><i data-lucide="user-plus"></i></button>
+            <button type="button" data-gm-nav="calendar" title="Kalender Mingguan"><i data-lucide="calendar"></i></button>
+            <button type="button" data-gm-nav="queue" title="Jadwal &amp; Kalender (bulanan)"><i data-lucide="calendar-clock"></i></button>
+            <button type="button" data-gm-nav="analytics" title="Analisis"><i data-lucide="bar-chart-3"></i></button>
+            <button type="button" data-gm-nav="tasks" title="Tugas"><i data-lucide="list-checks"></i></button>
+            <button type="button" data-gm-nav="office" title="Kantor AI"><i data-lucide="messages-square"></i></button>
+            <button type="button" data-gm-nav="settings" title="Pengaturan"><i data-lucide="sliders-horizontal"></i></button>
+            <button type="button" data-gm-nav="accounts" title="Akun Terhubung"><i data-lucide="unplug"></i></button>
+            <button type="button" data-gm-nav="layout" title="Layout Kantor"><i data-lucide="folder"></i></button>
+            <button type="button" data-gm-nav="about" title="Tentang Aplikasi"><i data-lucide="ellipsis"></i></button>
+            <span class="gm-rail-spacer" aria-hidden="true"></span>
+            <button type="button" id="gm-toggle-roster" title="Buka panel tim" aria-expanded="false" aria-haspopup="true" aria-controls="gm-roster"><i data-lucide="panel-left"></i></button>
+        </nav>
+        <aside class="act-roster gm-roster" id="gm-roster" aria-label="Panel menu dan daftar tim">
+            <div class="act-search">
+                <i data-lucide="search"></i>
+                <input type="search" id="gm-search" placeholder="Cari" aria-label="Cari karyawan" autocomplete="off">
+                <kbd>⌘K</kbd>
+            </div>
+            <div class="gm-scroll">
+                <nav class="gm-nav-list" aria-label="Menu halaman">
+                    <button type="button" data-gm-nav="mission"><i data-lucide="home"></i><span>Ruang / Office</span></button>
+                    <button type="button" data-gm-nav="dashboard"><i data-lucide="layout-grid"></i><span>Dasbor</span></button>
+                    <button type="button" data-gm-nav="composer"><i data-lucide="inbox"></i><span>Buat Postingan</span></button>
+                    <button type="button" data-gm-nav="queue"><i data-lucide="calendar-clock"></i><span>Jadwal &amp; Kalender</span></button>
+                    <button type="button" data-gm-nav="calendar"><i data-lucide="calendar"></i><span>Kalender Mingguan</span></button>
+                    <button type="button" data-gm-nav="office"><i data-lucide="messages-square"></i><span>Kantor AI</span></button>
+                    <button type="button" data-gm-nav="tasks"><i data-lucide="list-checks"></i><span>Tugas</span></button>
+                    <button type="button" data-gm-nav="activity"><i data-lucide="users"></i><span>Aktivitas</span></button>
+                    <button type="button" data-gm-nav="marketplace"><i data-lucide="user-plus"></i><span>Rekrut Tim</span></button>
+                    <button type="button" data-gm-nav="organization"><i data-lucide="building-2"></i><span>Organisasi</span></button>
+                    <button type="button" data-gm-nav="accounts"><i data-lucide="unplug"></i><span>Akun Terhubung</span></button>
+                    <button type="button" data-gm-nav="analytics"><i data-lucide="bar-chart-3"></i><span>Analisis Konten</span></button>
+                    <button type="button" data-gm-nav="settings"><i data-lucide="sliders-horizontal"></i><span>Pengaturan</span></button>
+                    <button type="button" data-gm-nav="layout"><i data-lucide="folder"></i><span>Layout Kantor</span></button>
+                    <button type="button" data-gm-nav="about"><i data-lucide="ellipsis"></i><span>Tentang Aplikasi</span></button>
+                </nav>
+                <div class="act-tree gm-tree">
+                    <button type="button" class="act-tree-row" id="gm-org-toggle" aria-expanded="true">
+                        <i data-lucide="chevron-down" class="act-chevron"></i>
+                        <i data-lucide="building-2"></i>
+                        <span>Organisasi</span>
+                        <em>1</em>
+                    </button>
+                    <div id="gm-org-body">
+                        <button type="button" class="act-tree-row is-child" id="gm-team-toggle" aria-expanded="true">
+                            <i data-lucide="chevron-down" class="act-chevron"></i>
+                            <i data-lucide="users"></i>
+                            <span>Tim Saya</span>
+                            <em id="gm-team-count">11</em>
+                        </button>
+                        <div class="act-members" id="gm-members" role="listbox" aria-label="Anggota tim"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="act-roster-foot">
+                <div class="act-live">
+                    <p>Karyawan AI sedang bekerja</p>
+                    <strong id="gm-live-count">7</strong>
+                    <span id="gm-live-sub">dari 11 direkrut</span>
+                </div>
+                <div class="act-account">
+                    <button type="button" class="act-account-btn" id="gm-account-btn" aria-expanded="false" aria-controls="gm-account-menu">
+                        <span class="act-av act-av-sm" id="gm-account-av">P</span>
+                        <span id="gm-account-label">Akun Personal</span>
+                        <i data-lucide="chevron-down"></i>
+                    </button>
+                    <div class="act-account-menu hidden" id="gm-account-menu" role="menu">
+                        <button type="button" data-gm-account="personal" role="menuitem">Akun Personal</button>
+                        <button type="button" data-gm-account="agency" role="menuitem">Akun Agensi</button>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </div>
 
     <!-- Mission Control — halaman depan (full-bleed di bawah top bar) -->
     <section id="view-mission" class="mission-shell hidden" aria-label="Mission Control PiK's Digital Lab">
@@ -273,6 +362,10 @@
                     <i data-lucide="trash-2"></i>
                     <span>Bersihkan</span>
                 </button>
+                <button type="button" class="mission-workboard-toggle" data-tasks-open-page title="Buka halaman Tugas (papan kanban)">
+                    <i data-lucide="kanban-square"></i>
+                    <span>Halaman Tugas</span>
+                </button>
                 <span class="mission-workboard-hint">Klik job untuk detail &amp; approval di Kantor AI</span>
             </div>
             <div class="mission-standup" id="mission-standup" hidden>
@@ -344,6 +437,179 @@
         </footer>
     </section>
 
+    <section id="view-activity" class="activity-shell hidden" aria-label="Aktivitas tim">
+        <header class="act-top">
+            <div class="act-top-left">
+                <button type="button" class="act-logo" id="act-logo" title="Ke ruang kantor">
+                    <span class="act-logo-mark" aria-hidden="true">
+                        <svg viewBox="0 0 28 28" width="26" height="26">
+                            <path fill="#3b82f6" d="M14 1.8 25.2 8.2v11.6L14 26.2 2.8 19.8V8.2L14 1.8z"/>
+                            <path fill="none" stroke="#e0ecff" stroke-width="1.3" stroke-linejoin="round" d="M8.2 14.2 14 10.6l5.8 3.6L14 17.8z"/>
+                            <circle cx="14" cy="14.1" r="1.5" fill="#fff"/>
+                            <circle cx="8.2" cy="14.2" r="1.05" fill="#dbeafe"/>
+                            <circle cx="14" cy="10.6" r="1.05" fill="#dbeafe"/>
+                            <circle cx="19.8" cy="14.2" r="1.05" fill="#dbeafe"/>
+                        </svg>
+                    </span>
+                    <span class="act-logo-word">PiK's</span>
+                </button>
+                <div class="act-space" role="tablist" aria-label="Ruang">
+                    <button type="button" class="act-space-btn" data-act-space="market" role="tab" aria-selected="false">Pasar</button>
+                    <button type="button" class="act-space-btn is-active" data-act-space="workspace" role="tab" aria-selected="true">Ruang Kerja</button>
+                </div>
+            </div>
+            <button type="button" class="act-credits" id="act-credits">Dapatkan kredit gratis</button>
+            <div class="act-top-right">
+                <div class="act-agency" title="Kapasitas tim konten">
+                    <i data-lucide="building-2"></i>
+                    <span class="act-agency-name">Agensi</span>
+                    <span class="act-agency-value" id="act-agency-value">11 peran</span>
+                    <span class="act-agency-bar" aria-hidden="true"><span id="act-agency-fill"></span></span>
+                    <span class="act-agency-pct" id="act-agency-pct">100%</span>
+                </div>
+                <button type="button" class="act-icon-btn" data-act-nav="dashboard" title="Dasbor"><i data-lucide="layout-grid"></i></button>
+                <button type="button" class="act-icon-btn" data-act-nav="office" title="Kantor AI"><i data-lucide="message-square"></i></button>
+                <button type="button" class="act-icon-btn" id="act-bell" title="Pemberitahuan">
+                    <i data-lucide="bell"></i>
+                    <span class="act-badge">1</span>
+                </button>
+                <button type="button" class="act-icon-btn" id="act-theme" title="Tampilan gelap" aria-pressed="true"><i data-lucide="sun"></i></button>
+                <button type="button" class="act-avatar-btn" id="act-me" title="Akun">P</button>
+            </div>
+        </header>
+
+        <div class="act-body">
+            <nav class="act-rail" aria-label="Navigasi singkat">
+                <button type="button" data-act-nav="mission" title="Beranda"><i data-lucide="home"></i></button>
+                <button type="button" data-act-nav="composer" title="Buat postingan"><i data-lucide="inbox"></i></button>
+                <button type="button" class="is-active" data-act-nav="activity" title="Aktivitas"><i data-lucide="users"></i></button>
+                <button type="button" data-act-nav="queue" title="Kalender"><i data-lucide="calendar"></i></button>
+                <button type="button" data-act-nav="analytics" title="Analisis"><i data-lucide="bar-chart-3"></i></button>
+                <button type="button" data-act-nav="office" title="Obrolan tim"><i data-lucide="messages-square"></i></button>
+                <button type="button" data-act-nav="settings" title="Pengaturan"><i data-lucide="sliders-horizontal"></i></button>
+                <button type="button" data-act-nav="accounts" title="Integrasi"><i data-lucide="unplug"></i></button>
+                <button type="button" data-act-nav="layout" title="Berkas kantor"><i data-lucide="folder"></i></button>
+                <button type="button" data-act-nav="about" title="Lainnya"><i data-lucide="ellipsis"></i></button>
+            </nav>
+
+            <aside class="act-roster" id="act-roster" aria-label="Daftar tim">
+                <div class="act-search">
+                    <i data-lucide="search"></i>
+                    <input type="search" id="act-search" placeholder="Cari" aria-label="Cari karyawan" autocomplete="off">
+                    <kbd>⌘K</kbd>
+                </div>
+                <div class="act-tree" id="act-tree">
+                    <button type="button" class="act-tree-row" id="act-org-toggle" aria-expanded="true">
+                        <i data-lucide="chevron-down" class="act-chevron"></i>
+                        <i data-lucide="building-2"></i>
+                        <span>Organisasi</span>
+                        <em id="act-org-count">1</em>
+                    </button>
+                    <div id="act-org-body">
+                        <button type="button" class="act-tree-row is-child" id="act-team-toggle" aria-expanded="true">
+                            <i data-lucide="chevron-down" class="act-chevron"></i>
+                            <i data-lucide="users"></i>
+                            <span>Tim Saya</span>
+                            <em id="act-team-count">11</em>
+                        </button>
+                        <div class="act-members" id="act-members" role="listbox" aria-label="Anggota tim"></div>
+                    </div>
+                </div>
+                <div class="act-roster-foot">
+                    <div class="act-live">
+                        <p>Karyawan AI sedang bekerja</p>
+                        <strong id="act-live-count">7</strong>
+                        <span id="act-live-sub">dari 11 direkrut</span>
+                    </div>
+                    <div class="act-account">
+                        <button type="button" class="act-account-btn" id="act-account-btn" aria-expanded="false" aria-controls="act-account-menu">
+                            <span class="act-av act-av-sm" id="act-account-av">P</span>
+                            <span id="act-account-label">Akun Personal</span>
+                            <i data-lucide="chevron-down"></i>
+                        </button>
+                        <div class="act-account-menu hidden" id="act-account-menu" role="menu">
+                            <button type="button" data-act-account="personal" role="menuitem">Akun Personal</button>
+                            <button type="button" data-act-account="agency" role="menuitem">Akun Agensi</button>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <div class="act-stage" id="act-stage">
+                <div class="act-workspace" id="act-workspace">
+                    <section class="act-main" aria-label="Aktivitas terbaru">
+                        <div class="act-main-head">
+                            <div class="act-team-id">
+                                <div class="act-stack" id="act-stack" aria-hidden="true"></div>
+                                <div class="act-team-name">
+                                    <strong>Tim Saya</strong>
+                                    <span class="act-online-pill" id="act-online-pill">7</span>
+                                </div>
+                                <span class="act-view-pill">Aktivitas</span>
+                            </div>
+                            <div class="act-scope" role="tablist" aria-label="Lingkup aktivitas">
+                                <button type="button" data-act-scope="company" role="tab">Perusahaan</button>
+                                <button type="button" class="is-active" data-act-scope="team" role="tab" aria-selected="true">Tim Saya</button>
+                                <button type="button" data-act-scope="employee" role="tab">Karyawan</button>
+                            </div>
+                        </div>
+                        <div class="act-toolbar">
+                            <p class="act-audit-label">Audit setiap tindakan di seluruh tim</p>
+                            <div class="act-filter-wrap">
+                                <button type="button" class="act-filter" id="act-trigger-btn" aria-expanded="false" aria-controls="act-trigger-menu">
+                                    <i data-lucide="zap"></i>
+                                    <span>Pemicu</span>
+                                    <b id="act-trigger-label">Semua pemicu</b>
+                                    <i data-lucide="chevron-down"></i>
+                                </button>
+                                <div class="act-filter-menu hidden" id="act-trigger-menu" role="menu">
+                                    <button type="button" data-act-trigger="all" role="menuitem">Semua pemicu</button>
+                                    <button type="button" data-act-trigger="schedule" role="menuitem">Jadwal</button>
+                                    <button type="button" data-act-trigger="chat" role="menuitem">Obrolan</button>
+                                    <button type="button" data-act-trigger="manual" role="menuitem">Manual</button>
+                                </div>
+                            </div>
+                            <button type="button" class="act-icon-btn" id="act-refresh" title="Segarkan"><i data-lucide="refresh-cw"></i></button>
+                        </div>
+                        <div class="act-scroll" id="act-scroll">
+                            <div class="act-recent">
+                                <span>Aktivitas terbaru</span>
+                                <em id="act-recent-count">4</em>
+                            </div>
+                            <div id="act-feed"></div>
+                        </div>
+                        <button type="button" class="act-collapse act-collapse-roster" id="act-collapse-roster" title="Sembunyikan daftar tim" aria-controls="act-roster" aria-expanded="true">
+                            <i data-lucide="chevron-left"></i>
+                        </button>
+                        <button type="button" class="act-collapse act-collapse-side" id="act-collapse-side" title="Sembunyikan linimasa" aria-controls="act-side" aria-expanded="true">
+                            <i data-lucide="chevron-right"></i>
+                        </button>
+                    </section>
+                    <aside class="act-side" id="act-side" aria-label="Linimasa">
+                        <div class="act-side-tabs" role="tablist" aria-label="Linimasa">
+                            <button type="button" class="is-active" data-act-side="team" role="tab" aria-selected="true">Tim</button>
+                            <button type="button" data-act-side="company" role="tab">Perusahaan</button>
+                        </div>
+                        <div class="act-side-scroll" id="act-timeline"></div>
+                    </aside>
+                </div>
+                <div class="act-market hidden" id="act-market">
+                    <div class="act-market-card">
+                        <p class="act-audit-label">Pasar</p>
+                        <h2>Karyawan AI untuk disewa</h2>
+                        <p>Rekrut karyawan AI dan tempatkan mereka di departemen pilihan Anda di halaman Pasar.</p>
+                        <button type="button" class="act-market-back" data-act-nav="marketplace">Buka Pasar</button>
+                        <button type="button" class="act-market-back" data-act-space="workspace">Kembali ke Ruang Kerja</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <button type="button" class="act-fab" id="act-fab" title="Buka obrolan CEO">
+            <i data-lucide="message-circle"></i>
+        </button>
+        <div class="act-notice hidden" id="act-notice" role="status"></div>
+    </section>
+
     <div class="app-container">
         <!-- Sidebar legacy: disembunyikan — navigasi lewat top bar / hamburger -->
         <aside class="sidebar" id="sidebar" hidden aria-hidden="true">
@@ -366,6 +632,9 @@
                     <li data-view="composer"><a href="#composer"><span>Buat Postingan</span></a></li>
                     <li data-view="queue"><a href="#queue"><span>Jadwal & Kalender</span></a></li>
                     <li data-view="office"><a href="#office"><span>Kantor AI</span></a></li>
+                    <li data-view="activity"><a href="#activity"><span>Aktivitas</span></a></li>
+                    <li data-view="marketplace"><a href="#marketplace"><span>Rekrut Tim</span></a></li>
+                    <li data-view="organization"><a href="#organization"><span>Organisasi</span></a></li>
                     <li data-view="accounts">
                         <a href="#accounts">
                             <span>Akun Terhubung</span>
@@ -408,8 +677,369 @@
             <!-- Scrollable View Container -->
             <div class="view-viewport">
                 
+                <!-- VIEW: PASAR (marketplace karyawan AI) -->
+                <section id="view-marketplace" class="view-panel" aria-label="Rekrut Tim karyawan AI">
+                    <div class="mkt-layout">
+                        <aside class="mkt-sidebar" aria-label="Departemen">
+                            <div class="mkt-sidebar-head">
+                                <h3>Departemen</h3>
+                                <span class="mkt-total"><strong id="mkt-recruited-total">0</strong> direkrut</span>
+                            </div>
+                            <div class="mkt-depts" id="mkt-depts"></div>
+                            <button type="button" class="btn btn-secondary btn-sm mkt-add-dept" data-mkt-add-dept-open>
+                                <i data-lucide="plus"></i> Tambah Departemen
+                            </button>
+                            <button type="button" class="btn btn-primary mkt-recruit-cta" data-mkt-recruit-scroll>
+                                <i data-lucide="user-plus"></i> Rekrut Karyawan
+                            </button>
+                            <button type="button" class="btn btn-secondary mkt-add-dept" data-org-open-page>
+                                <i data-lucide="building-2"></i> Lihat Struktur Organisasi
+                            </button>
+                        </aside>
+
+                        <div class="mkt-center">
+                            <div class="mkt-head">
+                                <div>
+                                    <h2>Rekrut Tim</h2>
+                                    <p>Rekrut karyawan AI PiK's Digital Lab dan tempatkan mereka di departemen pilihan Anda.</p>
+                                </div>
+                            </div>
+                            <div class="mkt-tabs" role="tablist" aria-label="Jenis hasil pasar">
+                                <button type="button" class="is-active" data-mkt-tab="all" role="tab" aria-selected="true">Semua</button>
+                                <button type="button" data-mkt-tab="employees" role="tab" aria-selected="false">Karyawan</button>
+                                <button type="button" data-mkt-tab="teams" role="tab" aria-selected="false">Tim</button>
+                            </div>
+                            <div class="mkt-toolbar">
+                                <label class="mkt-search">
+                                    <i data-lucide="search"></i>
+                                    <input type="search" id="mkt-search" placeholder="Cari karyawan dan tim..." aria-label="Cari karyawan dan tim" autocomplete="off">
+                                </label>
+                                <span class="mkt-result-count" id="mkt-result-count">0 hasil</span>
+                                <div class="mkt-filter-wrap">
+                                    <button type="button" class="btn btn-secondary btn-sm" id="mkt-filter-btn" aria-expanded="false">
+                                        <i data-lucide="sliders-horizontal"></i> Filter
+                                    </button>
+                                    <div class="mkt-filter-menu hidden" id="mkt-filter-menu">
+                                        <label>Departemen
+                                            <select id="mkt-filter-dept" class="form-control">
+                                                <option value="all">Semua departemen</option>
+                                            </select>
+                                        </label>
+                                        <label>Status rekrut
+                                            <select id="mkt-filter-status" class="form-control">
+                                                <option value="all">Semua status</option>
+                                                <option value="recruited">Sudah direkrut</option>
+                                                <option value="available">Belum direkrut</option>
+                                            </select>
+                                        </label>
+                                        <button type="button" class="btn btn-secondary btn-sm" data-mkt-clear-filter>Bersihkan Filter</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <article class="mkt-team-card" id="mkt-team-card"></article>
+
+                            <div id="mkt-employees-section">
+                                <div class="mkt-section-head">
+                                    <h3>Susun Sendiri</h3>
+                                    <p>Pilih karyawan satu per satu dan tempatkan di departemen yang Anda atur sendiri.</p>
+                                </div>
+                                <div class="mkt-grid" id="mkt-employees"></div>
+                            </div>
+                        </div>
+
+                        <aside class="mkt-activity-panel" aria-label="Aktivitas rekrut">
+                            <h3>Aktivitas Rekrut</h3>
+                            <div id="mkt-activity"></div>
+                        </aside>
+                    </div>
+                    <div id="mkt-modal-root" class="hidden"></div>
+                </section>
+
+                <!-- VIEW: ORGANISASI (bagan tenaga kerja, departemen/studio, penempatan meja) -->
+                <section id="view-organization" class="view-panel" aria-label="Struktur organisasi">
+                    <div class="org-topbar">
+                        <div class="org-tabs" role="tablist" aria-label="Bagian organisasi">
+                            <button type="button" class="is-active" data-org-tab="organization" role="tab" aria-selected="true"><i data-lucide="building-2"></i> Organisasi</button>
+                            <button type="button" data-org-tab="employees" role="tab" aria-selected="false"><i data-lucide="users"></i> Karyawan</button>
+                        </div>
+                        <div class="org-topbar-actions">
+                            <button type="button" class="btn btn-primary btn-sm" data-org-nav="marketplace"><i data-lucide="user-plus"></i> Rekrut Karyawan</button>
+                            <button type="button" class="btn btn-secondary btn-sm" id="org-manage-btn" data-org-manage><i data-lucide="settings-2"></i> Kelola</button>
+                        </div>
+                    </div>
+
+                    <div class="org-layout">
+                        <aside class="org-sidebar" aria-label="Pohon organisasi">
+                            <div id="org-tree"></div>
+                            <button type="button" class="btn btn-secondary btn-sm org-create-dept-side" data-org-create-dept>
+                                <i data-lucide="plus"></i> Buat Departemen
+                            </button>
+                            <div class="org-account">
+                                <span class="org-avatar org-avatar-sm" aria-hidden="true">A</span>
+                                <span>Akun Personal</span>
+                                <i data-lucide="chevron-down"></i>
+                            </div>
+                        </aside>
+
+                        <div class="org-center">
+                            <nav class="org-toolbar" aria-label="Jalan pintas halaman">
+                                <button type="button" data-org-nav="office"><i data-lucide="messages-square"></i> Obrolan</button>
+                                <button type="button" data-org-nav="tasks"><i data-lucide="list-checks"></i> Tugas</button>
+                                <button type="button" data-org-nav="dashboard"><i data-lucide="layout-grid"></i> Ringkasan</button>
+                                <button type="button" data-org-nav="mission"><i data-lucide="home"></i> Kantor</button>
+                                <button type="button" class="is-active" data-org-tab="employees"><i data-lucide="users"></i> Karyawan</button>
+                                <button type="button" data-org-nav="marketplace"><i data-lucide="store"></i> Pasar</button>
+                                <button type="button" data-org-nav="queue"><i data-lucide="calendar"></i> Jadwal</button>
+                                <button type="button" data-org-nav="activity"><i data-lucide="activity"></i> Aktivitas</button>
+                                <button type="button" data-org-nav="layout"><i data-lucide="folder"></i> Layout Kantor</button>
+                                <button type="button" data-org-nav="settings"><i data-lucide="sliders-horizontal"></i> Pengaturan</button>
+                            </nav>
+
+                            <div class="org-chart-head">
+                                <div>
+                                    <h2>JELAJAHI TENAGA KERJA ANDA</h2>
+                                    <p id="org-summary">Memuat struktur organisasi…</p>
+                                </div>
+                                <div class="org-chart-actions">
+                                    <label class="org-search">
+                                        <i data-lucide="search"></i>
+                                        <input type="search" id="org-search" placeholder="Cari karyawan…" aria-label="Cari karyawan" autocomplete="off">
+                                    </label>
+                                    <button type="button" class="btn btn-secondary btn-sm" data-org-interviews><i data-lucide="messages-square"></i> Wawancara</button>
+                                    <button type="button" class="btn btn-primary btn-sm" data-org-create-dept><i data-lucide="plus"></i> Buat Departemen</button>
+                                </div>
+                            </div>
+
+                            <div class="org-you-wrap" aria-hidden="true">
+                                <div class="org-you"><span class="org-you-face">☺</span></div>
+                                <span class="org-you-label">Anda</span>
+                                <span class="org-you-line"></span>
+                            </div>
+
+                            <div class="org-columns-scroll">
+                                <button type="button" class="org-scroll-btn" data-org-scroll="left" aria-label="Gulir kolom ke kiri"><i data-lucide="chevron-left"></i></button>
+                                <div class="org-columns-wrap" id="org-columns-wrap">
+                                    <div class="org-columns" id="org-columns"></div>
+                                </div>
+                                <button type="button" class="org-scroll-btn" data-org-scroll="right" aria-label="Gulir kolom ke kanan"><i data-lucide="chevron-right"></i></button>
+                            </div>
+
+                            <p class="org-note">Penempatan departemen &amp; meja tersimpan lokal (kunci yang sama dengan Pasar). Nama studio departemen bawaan sama dengan registry server; label zona studio kantor 3D bersifat fisik/statis sehingga nama studio custom tampil di halaman ini &amp; Pasar, bukan mengubah label 3D. Nomor meja bawaan 3D mengikuti urutan peran di kantor 3D; meja custom adalah pemetaan organisasi di halaman ini.</p>
+                        </div>
+                    </div>
+                    <div id="org-modal-root" class="hidden"></div>
+                </section>
+
+                <!-- VIEW: TUGAS (papan kanban job tim AI) -->
+                <section id="view-tasks" class="view-panel" aria-label="Papan tugas tim AI">
+                    <div class="tasks-topbar">
+                        <div class="tasks-tabs" role="tablist" aria-label="Bagian organisasi dan tugas">
+                            <button type="button" data-tasks-nav="organization" role="tab" aria-selected="false"><i data-lucide="building-2"></i> Organisasi</button>
+                            <button type="button" class="is-active" role="tab" aria-selected="true"><i data-lucide="list-checks"></i> Tugas</button>
+                            <button type="button" data-tasks-nav="calendar" role="tab" aria-selected="false"><i data-lucide="calendar-days"></i> Kalender</button>
+                        </div>
+                        <div class="tasks-top-actions">
+                            <button type="button" class="btn btn-secondary btn-sm" data-tasks-refresh><i data-lucide="refresh-cw"></i> Segarkan</button>
+                            <button type="button" class="btn btn-primary btn-sm" data-tasks-create><i data-lucide="plus"></i> Buat Tugas</button>
+                        </div>
+                    </div>
+
+                    <div class="tasks-head">
+                        <div>
+                            <h2>Lacak Pekerjaan di Seluruh Organisasi Anda</h2>
+                            <p class="tasks-sub">Papan tugas dari job Kantor AI yang nyata. Klik kartu untuk detail, jawaban, dan persetujuan resmi.</p>
+                        </div>
+                        <div class="tasks-head-actions">
+                            <div class="tasks-mode" role="tablist" aria-label="Mode tampilan tugas">
+                                <button type="button" class="is-active" data-tasks-mode="board" role="tab" aria-selected="true"><i data-lucide="kanban-square"></i> Papan</button>
+                                <button type="button" data-tasks-mode="list" role="tab" aria-selected="false"><i data-lucide="list"></i> Daftar</button>
+                            </div>
+                            <div class="tasks-filter-wrap">
+                                <button type="button" class="btn btn-secondary btn-sm" data-tasks-filter-toggle aria-expanded="false"><i data-lucide="sliders-horizontal"></i> Filter</button>
+                                <div class="tasks-filter-menu hidden" id="tasks-filter-menu">
+                                    <label>Status
+                                        <select id="tasks-filter-status" class="form-control">
+                                            <option value="all">Semua status</option>
+                                            <option value="queued">Antri</option>
+                                            <option value="needs_info">Perlu info</option>
+                                            <option value="awaiting_approval">Menunggu persetujuan</option>
+                                            <option value="publishing">Sedang menerbitkan</option>
+                                            <option value="done">Selesai</option>
+                                            <option value="failed">Gagal</option>
+                                        </select>
+                                    </label>
+                                    <label>Prioritas
+                                        <select id="tasks-filter-priority" class="form-control">
+                                            <option value="all">Semua prioritas</option>
+                                            <option value="high">Tinggi</option>
+                                            <option value="medium">Sedang</option>
+                                            <option value="low">Rendah</option>
+                                        </select>
+                                    </label>
+                                    <label>Penanggung jawab
+                                        <select id="tasks-filter-agent" class="form-control">
+                                            <option value="all">Semua penanggung jawab</option>
+                                        </select>
+                                    </label>
+                                    <button type="button" class="btn btn-secondary btn-sm" data-tasks-clear-filter>Bersihkan Filter</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tasks-agents" id="tasks-agents" aria-label="Saring per karyawan AI"></div>
+
+                    <article class="tasks-summary" aria-label="Ringkasan putaran kerja">
+                        <div class="tasks-ring-wrap" aria-hidden="true">
+                            <svg class="tasks-ring" viewBox="0 0 64 64">
+                                <circle class="tasks-ring-bg" cx="32" cy="32" r="26"></circle>
+                                <circle class="tasks-ring-fg" id="tasks-ring-fg" cx="32" cy="32" r="26"></circle>
+                            </svg>
+                            <strong id="tasks-pct">0%</strong>
+                        </div>
+                        <div class="tasks-summary-text">
+                            <p class="tasks-summary-title"><strong>Putaran Kerja</strong> <span class="tasks-open-badge">Terbuka</span> <span class="tasks-summary-meta" id="tasks-summary-meta">0 job</span></p>
+                            <p id="tasks-summary-text">Memuat tugas dari server…</p>
+                        </div>
+                    </article>
+
+                    <div class="tasks-board" id="tasks-board"></div>
+                    <div class="tasks-list" id="tasks-list" hidden></div>
+
+                    <p class="tasks-note">Seret kartu hanya mengubah <strong>pengelompokan lokal</strong> di perangkat ini (tersimpan sebagai <code>piks-tasks-board-v1</code>), bukan status job di server. Status resmi berubah lewat detail job di Kantor AI — jawaban, persetujuan, dan publish tetap melewati gate otonomi yang berlaku. Kolom: Backlog = Antri/Perlu info · Tugas = Menunggu persetujuan · Sedang Berjalan = Sedang menerbitkan · Selesai = Selesai/Gagal (kartu gagal berpenanda merah).</p>
+                </section>
+
+                <!-- VIEW: KALENDER MINGGUAN (pekerjaan terencana + Buat Tugas) -->
+                <section id="view-calendar" class="view-panel" aria-label="Kalender mingguan pekerjaan terencana">
+                    <div class="tasks-topbar">
+                        <div class="tasks-tabs" role="tablist" aria-label="Bagian organisasi, tugas, dan kalender">
+                            <button type="button" data-cal-nav="organization" role="tab" aria-selected="false"><i data-lucide="building-2"></i> Organisasi</button>
+                            <button type="button" data-cal-nav="tasks" role="tab" aria-selected="false"><i data-lucide="list-checks"></i> Tugas</button>
+                            <button type="button" class="is-active" role="tab" aria-selected="true"><i data-lucide="calendar-days"></i> Kalender</button>
+                        </div>
+                        <div class="tasks-top-actions">
+                            <button type="button" class="btn btn-secondary btn-sm" data-cal-refresh><i data-lucide="refresh-cw"></i> Segarkan</button>
+                            <button type="button" class="btn btn-primary btn-sm" data-cal-create><i data-lucide="plus"></i> Buat Tugas</button>
+                        </div>
+                    </div>
+
+                    <div class="tasks-head">
+                        <div>
+                            <h2>Lihat Pekerjaan Terencana di Seluruh Perusahaan Anda</h2>
+                            <p class="tasks-sub">Kalender mingguan dari postingan terjadwal dan job Kantor AI yang nyata. Klik blok acara untuk detailnya, atau klik slot kosong untuk membuat tugas pada jam itu.</p>
+                        </div>
+                        <div class="tasks-head-actions">
+                            <div class="tasks-filter-wrap">
+                                <button type="button" class="btn btn-secondary btn-sm" data-cal-filter-toggle aria-expanded="false"><i data-lucide="sliders-horizontal"></i> Filter</button>
+                                <div class="tasks-filter-menu hidden" id="cal-filter-menu">
+                                    <label>Jenis
+                                        <select id="cal-filter-kind" class="form-control">
+                                            <option value="all">Semua jenis</option>
+                                            <option value="post">Postingan terjadwal</option>
+                                            <option value="job">Tugas / job AI</option>
+                                        </select>
+                                    </label>
+                                    <label>Agen penanggung jawab
+                                        <select id="cal-filter-agent" class="form-control"><option value="all">Semua agen</option></select>
+                                    </label>
+                                    <button type="button" class="btn btn-secondary btn-sm" data-cal-clear-filter>Bersihkan Filter</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="cal-weekbar">
+                        <div class="cal-weeknav">
+                            <button type="button" class="btn btn-secondary btn-sm" data-cal-prev aria-label="Minggu sebelumnya"><i data-lucide="chevron-left"></i></button>
+                            <button type="button" class="btn btn-secondary btn-sm" data-cal-today>Hari Ini</button>
+                            <button type="button" class="btn btn-secondary btn-sm" data-cal-next aria-label="Minggu berikutnya"><i data-lucide="chevron-right"></i></button>
+                            <span class="cal-range"><i data-lucide="calendar"></i> <strong id="cal-range">—</strong></span>
+                        </div>
+                        <div class="cal-legend">
+                            <span><i class="cal-dot is-post"></i> Postingan terjadwal</span>
+                            <span><i class="cal-dot is-job"></i> Tugas AI (warna = agen)</span>
+                            <span class="cal-legend-note">Job tanpa jadwal tampil “Sepanjang Hari” di hari dibuatnya</span>
+                        </div>
+                    </div>
+
+                    <div class="cal-layout">
+                        <aside class="cal-side" aria-label="Saring per agen — Tim AI">
+                            <p class="cal-side-title"><i data-lucide="building-2"></i> Organisasi</p>
+                            <p class="cal-side-sub"><i data-lucide="users"></i> Tim AI</p>
+                            <div class="cal-agents" id="cal-agents"></div>
+                        </aside>
+                        <div class="cal-main">
+                            <div class="cal-scroller" id="cal-scroller"><div class="cal-grid" id="cal-grid"></div></div>
+                            <p class="tasks-note">Postingan memakai waktu <code>publishDate</code> dari antrean. Job Kantor AI tidak punya kolom jadwal di API: tugas dari panel “Buat Tugas” menulis jamnya sebagai baris <code>Mulai:</code>/<code>Selesai:</code> di brief job (jalur resmi <code>POST /api/ai/jobs</code>) dan kalender membaca baris itu. Membuat tugas tidak menerbitkan apa pun — publish tetap melewati gerbang persetujuan/otonomi server. Kalender bulanan postingan tetap di menu “Jadwal &amp; Kalender”.</p>
+                        </div>
+
+                        <aside class="cal-panel" id="cal-panel" hidden aria-label="Buat Tugas">
+                            <form id="cal-form">
+                                <div class="cal-panel-head"><h3>Buat Tugas</h3><button type="button" class="cal-close" data-cal-close aria-label="Tutup panel"><i data-lucide="x"></i></button></div>
+                                <p class="cal-pause-note" id="cal-pause-note" hidden>Jeda darurat (emergency pause) sedang aktif — tugas tetap bisa dibuat sebagai antrean, tetapi tidak akan diterbitkan sampai jeda dilepas.</p>
+                                <label>Ditugaskan kepada *
+                                    <select id="cal-f-assignee" class="form-control" required></select>
+                                </label>
+                                <label>Judul *
+                                    <input type="text" id="cal-f-title" class="form-control" placeholder="Judul tugas" required>
+                                </label>
+                                <label>Deskripsi
+                                    <textarea id="cal-f-desc" class="form-control" rows="3" placeholder="Tambahkan deskripsi…"></textarea>
+                                </label>
+                                <label>Status
+                                    <select id="cal-f-status" class="form-control"><option>Tugas</option><option>Backlog</option><option>Sedang Berjalan</option></select>
+                                    <span class="cal-hint">Status resmi job ditentukan server saat dibuat (Antri/Perlu info); pilihan ini dicatat di brief.</span>
+                                </label>
+                                <label>Prioritas
+                                    <select id="cal-f-priority" class="form-control"><option>Rendah</option><option selected>Sedang</option><option>Tinggi</option></select>
+                                </label>
+                                <label>Proyek
+                                    <input type="text" id="cal-f-project" class="form-control" placeholder="Tanpa proyek">
+                                </label>
+                                <label>Sprint / putaran
+                                    <input type="text" id="cal-f-sprint" class="form-control" placeholder="Tanpa sprint">
+                                </label>
+                                <label>Mulai
+                                    <input type="datetime-local" id="cal-f-start" class="form-control">
+                                </label>
+                                <label>Selesai
+                                    <input type="datetime-local" id="cal-f-end" class="form-control">
+                                </label>
+                                <label>Berulang
+                                    <select id="cal-f-repeat" class="form-control"><option>Tidak berulang — sekali jalan</option><option disabled>Berulang (belum tersedia)</option></select>
+                                    <span class="cal-hint">Tugas ini terjadi sekali. Untuk pekerjaan yang kembali berirama, belum ada rutinitas tugas di aplikasi ini — buat tugas per tanggal lewat panel ini.</span>
+                                </label>
+                                <p class="cal-created">Dibuat <span>Belum dibuat</span></p>
+                                <p class="cal-form-msg" id="cal-form-msg" hidden></p>
+                                <div class="cal-panel-actions">
+                                    <button type="button" class="btn btn-secondary btn-sm" data-cal-ask><i data-lucide="message-square"></i> Tanya Maya tentang ini</button>
+                                    <button type="submit" class="btn btn-primary btn-sm" id="cal-submit"><i data-lucide="play"></i> Mulai Sekarang</button>
+                                </div>
+                            </form>
+                        </aside>
+                    </div>
+                </section>
+
                 <!-- VIEW 1: DASHBOARD -->
                 <section id="view-dashboard" class="view-panel active">
+                    <!-- Konteks Departemen (multi-departemen) -->
+                    <div class="card dashboard-dept-bar">
+                        <div class="dashboard-dept-bar-text">
+                            <h2>Konteks Departemen</h2>
+                            <p class="text-secondary font-sm" id="dashboard-dept-desc">Menampilkan ringkasan semua departemen. Pilih satu studio untuk memfilter KPI, antrean perhatian, dan job Kantor AI.</p>
+                        </div>
+                        <label class="dashboard-dept-select-wrap">
+                            <span class="form-label">Departemen</span>
+                            <select id="dashboard-dept-filter" class="form-control">
+                                <option value="all">🏢 Semua Departemen</option>
+                            </select>
+                        </label>
+                    </div>
+                    <div class="dashboard-dept-grid" id="dashboard-dept-grid" aria-label="Ringkasan per departemen">
+                        <p class="text-secondary font-sm">Memuat struktur departemen…</p>
+                    </div>
+
                     <!-- Grid Statistik -->
                     <div class="stats-grid">
                         <div class="stat-card">
@@ -418,11 +1048,11 @@
                             </div>
                             <div class="stat-data">
                                 <span class="stat-value" id="stats-total-posts">0</span>
-                                <span class="stat-label">Total Postingan</span>
+                                <span class="stat-label" id="stats-total-posts-label">Total Postingan</span>
                             </div>
-                            <div class="stat-trend trend-up">
+                            <div class="stat-trend trend-up" id="stats-total-posts-trend">
                                 <i data-lucide="trending-up"></i>
-                                <span>+12%</span>
+                                <span>—</span>
                             </div>
                         </div>
                         <div class="stat-card">
@@ -431,9 +1061,9 @@
                             </div>
                             <div class="stat-data">
                                 <span class="stat-value" id="stats-scheduled-posts">0</span>
-                                <span class="stat-label">Postingan Terjadwal</span>
+                                <span class="stat-label" id="stats-scheduled-posts-label">Postingan Terjadwal</span>
                             </div>
-                            <div class="stat-trend text-secondary">
+                            <div class="stat-trend text-secondary" id="stats-scheduled-posts-trend">
                                 <span>Antrean</span>
                             </div>
                         </div>
@@ -443,11 +1073,11 @@
                             </div>
                             <div class="stat-data">
                                 <span class="stat-value" id="stats-active-channels">0</span>
-                                <span class="stat-label">Saluran Aktif</span>
+                                <span class="stat-label" id="stats-active-channels-label">Saluran Aktif</span>
                             </div>
-                            <div class="stat-trend trend-up">
+                            <div class="stat-trend trend-up" id="stats-active-channels-trend">
                                 <i data-lucide="check-circle-2"></i>
-                                <span>100% Ok</span>
+                                <span>—</span>
                             </div>
                         </div>
                         <div class="stat-card">
@@ -456,23 +1086,36 @@
                             </div>
                             <div class="stat-data">
                                 <span class="stat-value" id="stats-total-reach">142.8K</span>
-                                <span class="stat-label">Total Jangkauan</span>
+                                <span class="stat-label" id="stats-total-reach-label">Total Jangkauan</span>
                             </div>
-                            <div class="stat-trend trend-up">
+                            <div class="stat-trend trend-up" id="stats-total-reach-trend">
                                 <i data-lucide="trending-up"></i>
-                                <span>+8.4%</span>
+                                <span>—</span>
                             </div>
                         </div>
                     </div>
 
+                    <!-- Membutuhkan Perhatian Manusia (lintas departemen) -->
+                    <div class="card dashboard-attention-card" id="dashboard-attention-card">
+                        <div class="card-header">
+                            <h2>⚠️ Membutuhkan Perhatian Manusia</h2>
+                            <button class="btn-text" type="button" id="dashboard-attention-open-office">Buka Kantor AI</button>
+                        </div>
+                        <p class="text-secondary font-sm dashboard-attention-desc">Job yang menunggu persetujuan, perlu info tambahan, atau gagal — diprioritaskan agar tidak tenggelam di daftar job biasa.</p>
+                        <div class="dashboard-attention-list" id="dashboard-attention-list">
+                            <div class="empty-state-small"><p class="font-xs">Memuat antrean perhatian…</p></div>
+                        </div>
+                    </div>
+
                     <!-- Layout Utama Dasbor -->
-                    <div class="dashboard-layout">
+                    <div class="dashboard-layout" id="dashboard-main-layout">
                         <!-- Kolom Kiri: Antrean Terdekat -->
-                        <div class="card col-main">
+                        <div class="card col-main" id="dashboard-upcoming-card">
                             <div class="card-header">
                                 <h2>Antrean Konten Mendatang</h2>
                                 <button class="btn-text" id="dashboard-view-queue-btn">Lihat Semua Antrean</button>
                             </div>
+                            <p class="input-hint hidden" id="dashboard-content-dept-note"></p>
                             <div class="upcoming-list" id="dashboard-upcoming-list">
                                 <!-- Konten Antrean Dinamis -->
                                 <div class="empty-state-small" id="dashboard-empty-queue">
@@ -486,7 +1129,7 @@
                         <!-- Kolom Kanan: Diagram & Saluran Aktif -->
                         <div class="col-side flex-column gap-6">
                             <!-- Pembagian Konten per Saluran -->
-                            <div class="card">
+                            <div class="card" id="dashboard-channel-share-card">
                                 <div class="card-header">
                                     <h2>Pembagian Saluran</h2>
                                 </div>
@@ -496,7 +1139,7 @@
                             </div>
 
                             <!-- Ringkasan Saluran Terhubung -->
-                            <div class="card">
+                            <div class="card" id="dashboard-connected-card">
                                 <div class="card-header">
                                     <h2>Saluran Terhubung</h2>
                                 </div>
@@ -1179,6 +1822,7 @@
                                 <h2>Struktur Departemen &amp; Spesialis</h2>
                             </div>
                             <p class="input-hint">Tenaga kerja AI per studio (10 departemen, 11 spesialis). Klik nama spesialis untuk melihat profil dan mulai chat.</p>
+                            <button type="button" class="btn btn-sm btn-secondary" data-org-open-page><i data-lucide="building-2"></i> Buka Halaman Organisasi (bagan & penempatan meja)</button>
                             <div id="dept-structure-tree"><p class="input-hint">Memuat struktur…</p></div>
                             <div id="dept-specialist-profile"></div>
                             <div class="dept-onboarding">
@@ -1769,6 +2413,12 @@
     <script src="ai-office-3d.js"></script>
     <script src="js/auth-ui.js"></script>
     <script src="js/office-api.js"></script>
+    <script src="js/activity-page.js"></script>
+    <script src="js/marketplace-page.js"></script>
+    <script src="js/organization-page.js"></script>
+    <script src="js/tasks-page.js"></script>
+    <script src="js/calendar-page.js"></script>
+    <script src="js/global-menu.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

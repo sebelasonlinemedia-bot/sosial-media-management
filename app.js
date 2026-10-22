@@ -46,6 +46,8 @@ const appState = {
     serverMode: 'sandbox',  // 'sandbox' | 'real'
     authStatus: null,
     user: null,
+    departments: null,
+    dashboardDept: 'all',
     currentView: 'mission',
     composerSelectedPlatforms: [],
     composerMedia: null,
@@ -171,9 +173,19 @@ const app = {
         if (refreshJobsBtn) {
             refreshJobsBtn.addEventListener('click', async () => {
                 await this.loadAiJobsFromServer();
-                this.renderAiJobs();
+                if (appState.currentView === 'dashboard') this.renderDashboard();
+                else this.renderAiJobs();
                 lucide.createIcons();
             });
+        }
+        const deptFilter = document.getElementById('dashboard-dept-filter');
+        if (deptFilter) {
+            try { appState.dashboardDept = localStorage.getItem('piks-dashboard-dept') || 'all'; } catch { /* abaikan */ }
+            deptFilter.addEventListener('change', () => this._setDashboardDept(deptFilter.value));
+        }
+        const attentionOfficeBtn = document.getElementById('dashboard-attention-open-office');
+        if (attentionOfficeBtn) {
+            attentionOfficeBtn.addEventListener('click', () => this.switchView('office'));
         }
         const openOfficeBtn = document.getElementById('dashboard-open-office-btn');
         if (openOfficeBtn) {
@@ -182,13 +194,18 @@ const app = {
         this.setupOfficeEvents();
         this.setupLayoutEditorEvents();
         this.setupMissionEvents();
+        if (window.ActivityPage) ActivityPage.bind(this);
+        if (window.MarketplacePage) MarketplacePage.bind(this);
+        if (window.OrganizationPage) OrganizationPage.bind(this);
+        if (window.TasksPage) TasksPage.bind(this);
+        if (window.CalendarPage) CalendarPage.bind(this);
 
         // Periksa jika ada callback OAuth dari server di URL
         this.handleOAuthCallback();
 
         // Render pertama — Mission Control sebagai halaman depan
         const hashView = (location.hash || '').replace(/^#/, '').trim();
-        const allowed = ['mission', 'dashboard', 'composer', 'queue', 'office', 'accounts', 'analytics', 'settings', 'layout', 'about'];
+        const allowed = ['mission', 'dashboard', 'composer', 'queue', 'office', 'accounts', 'analytics', 'settings', 'layout', 'about', 'activity', 'marketplace', 'organization', 'tasks', 'calendar'];
         this.switchView(allowed.includes(hashView) ? hashView : 'mission');
         lucide.createIcons();
     },
@@ -213,10 +230,12 @@ const app = {
         }
     },
     showLoginGate(message) {
-        document.body.classList.remove('is-mission-mode');
+        document.body.classList.remove('is-mission-mode', 'is-activity-mode');
         document.body.classList.add('is-login-mode');
         const missionEl = document.getElementById('view-mission');
+        const activityEl = document.getElementById('view-activity');
         if (missionEl) missionEl.classList.add('hidden');
+        if (activityEl) activityEl.classList.add('hidden');
         const topbar = document.getElementById('app-shell-topbar');
         if (topbar) topbar.classList.add('hidden');
         if (typeof PiksAuthUI !== 'undefined') return PiksAuthUI.showLoginGate(this, message);
@@ -407,9 +426,17 @@ const app = {
     switchView(viewName) {
         appState.currentView = viewName;
         const isMission = viewName === 'mission';
+        const isActivity = viewName === 'activity';
         const missionEl = document.getElementById('view-mission');
+        const activityEl = document.getElementById('view-activity');
         document.body.classList.toggle('is-mission-mode', isMission);
+        document.body.classList.toggle('is-activity-mode', isActivity);
         if (missionEl) missionEl.classList.toggle('hidden', !isMission);
+        if (activityEl) activityEl.classList.toggle('hidden', !isActivity);
+        const topbar = document.getElementById('app-shell-topbar');
+        if (topbar && !document.body.classList.contains('is-login-mode')) {
+            topbar.classList.toggle('hidden', isActivity);
+        }
 
         document.querySelectorAll('.sidebar-menu li').forEach(li => {
             li.classList.toggle('active', li.getAttribute('data-view') === viewName);
@@ -421,6 +448,7 @@ const app = {
         document.querySelectorAll('[data-mission-nav]').forEach(btn => {
             btn.classList.toggle('is-active', btn.getAttribute('data-mission-nav') === viewName);
         });
+        if (window.GlobalSideMenu) GlobalSideMenu.sync(viewName);
 
         const sectionLabel = document.getElementById('app-shell-section-label');
         if (sectionLabel) {
@@ -434,7 +462,12 @@ const app = {
                 analytics: 'ANALISIS',
                 settings: 'PENGATURAN',
                 layout: 'LAYOUT KANTOR',
-                about: 'TENTANG'
+                about: 'TENTANG',
+                activity: 'AKTIVITAS',
+                marketplace: 'REKRUT TIM',
+                organization: 'ORGANISASI',
+                tasks: 'TUGAS',
+                calendar: 'KALENDER'
             };
             sectionLabel.textContent = labels[viewName] || 'APP';
         }
@@ -467,7 +500,12 @@ const app = {
             analytics: { title: 'Analisis Konten', subtitle: 'Analisis jangkauan, impresi, interaksi, dan rasio keberhasilan postingan.' },
             settings: { title: 'Pengaturan', subtitle: 'Otonomi & pengamanan karyawan AI — tingkat otonomi, notifikasi, izin platform per peran, dan LLM / Chat CEO.' },
             layout: { title: 'Layout Kantor', subtitle: 'Atur denah kantor 3D — tinggi dinding, ukuran gedung, meja agen, dan tata letak mebel.' },
-            about: { title: 'Tentang Aplikasi', subtitle: "Profil PiK's Digital Lab, fitur, dan kemampuan masing-masing agen Tim Konten AI." }
+            about: { title: 'Tentang Aplikasi', subtitle: "Profil PiK's Digital Lab, fitur, dan kemampuan masing-masing agen Tim Konten AI." },
+            activity: { title: 'Aktivitas', subtitle: 'Audit setiap tindakan di seluruh tim konten.' },
+            marketplace: { title: 'Rekrut Tim', subtitle: 'Rekrut karyawan AI dan tempatkan mereka di departemen pilihan Anda.' },
+            organization: { title: 'Organisasi', subtitle: 'Bagan tenaga kerja PiK\'s Digital Lab — departemen, ruang/studio, dan penempatan meja agen.' },
+            tasks: { title: 'Tugas', subtitle: 'Lacak pekerjaan tim AI — papan kanban dari job Kantor AI yang nyata.' },
+            calendar: { title: 'Kalender Mingguan', subtitle: 'Lihat pekerjaan terencana di seluruh perusahaan — postingan terjadwal & job AI per minggu.' }
         };
 
         const titleEl = document.getElementById('view-title');
@@ -496,6 +534,11 @@ const app = {
         else if (viewName === 'analytics') this.renderAnalytics();
         else if (viewName === 'settings') this.renderSettings();
         else if (viewName === 'layout') this.renderLayoutEditor();
+        else if (viewName === 'activity' && window.ActivityPage) ActivityPage.open();
+        else if (viewName === 'marketplace' && window.MarketplacePage) MarketplacePage.open();
+        else if (viewName === 'organization' && window.OrganizationPage) OrganizationPage.open();
+        else if (viewName === 'tasks' && window.TasksPage) TasksPage.open();
+        else if (viewName === 'calendar' && window.CalendarPage) CalendarPage.open();
 
         lucide.createIcons();
     },
@@ -540,8 +583,240 @@ const app = {
 // ============================================================
 // Dashboard
 // ============================================================
+/** Alias roleId lama → baru (samakan dengan lib/ai-roles.js ROLE_ALIASES). */
+app._deptRoleAliases = {
+    'social-media': 'strategist',
+    'content-writer': 'copywriter',
+    'customer-service': 'community-manager',
+    'ads-analyst': 'analyst'
+};
+
+app._dashboardDeptId = function () {
+    return appState.dashboardDept || 'all';
+};
+
+app._setDashboardDept = function (deptId) {
+    appState.dashboardDept = deptId || 'all';
+    try { localStorage.setItem('piks-dashboard-dept', appState.dashboardDept); } catch { /* abaikan */ }
+    const sel = document.getElementById('dashboard-dept-filter');
+    if (sel) sel.value = appState.dashboardDept;
+    this.renderDashboard();
+};
+
+/** Muat struktur departemen sekali, lalu render ulang dasbor bila sudah tiba. */
+app._ensureDashboardDepartments = async function () {
+    if (appState.departments || appState._deptLoading) return;
+    appState._deptLoading = true;
+    try {
+        const data = await api.get('/api/ai/departments');
+        if (data.success) appState.departments = data.departments || [];
+    } catch { /* grid menampilkan pesan fallback */ }
+    appState._deptLoading = false;
+    if (appState.currentView === 'dashboard') this.renderDashboard();
+};
+
+/** Petakan job AI → id departemen lewat peran spesialisnya (roleId/employeeRole/nama). */
+app._jobDeptId = function (job) {
+    if (!job || !Array.isArray(appState.departments)) return null;
+    const wanted = [job.roleId, job.employeeRole]
+        .filter(Boolean)
+        .map(v => this._deptRoleAliases[String(v).trim()] || String(v).trim());
+    const name = String(job.employeeName || '').trim().toLowerCase();
+    for (const dept of appState.departments) {
+        for (const sp of dept.specialists || []) {
+            if (wanted.includes(sp.id)) return dept.id;
+            if (name && (sp.name.toLowerCase() === name || `kak ${sp.name.toLowerCase()}` === name)) return dept.id;
+        }
+    }
+    return null;
+};
+
+app._deptName = function (deptId) {
+    if (!deptId) return 'Belum terpetakan';
+    const dept = (appState.departments || []).find(d => d.id === deptId);
+    return dept ? `${dept.emoji} ${dept.name}` : deptId;
+};
+
+app._dashboardJobs = function () {
+    const sel = this._dashboardDeptId();
+    const jobs = appState.aiJobs || [];
+    if (sel === 'all') return jobs;
+    return jobs.filter(j => this._jobDeptId(j) === sel);
+};
+
+const DASH_ACTIVE_STATUSES = ['queued', 'needs_info', 'awaiting_approval', 'publishing'];
+const DASH_ATTENTION_STATUSES = ['needs_info', 'awaiting_approval', 'failed'];
+
+app._deptJobCounts = function (jobs) {
+    return {
+        total: jobs.length,
+        active: jobs.filter(j => DASH_ACTIVE_STATUSES.includes(j.status)).length,
+        attention: jobs.filter(j => DASH_ATTENTION_STATUSES.includes(j.status)).length,
+        done: jobs.filter(j => j.status === 'done').length
+    };
+};
+
+app.renderDashboardDeptGrid = function () {
+    const grid = document.getElementById('dashboard-dept-grid');
+    const select = document.getElementById('dashboard-dept-filter');
+    const desc = document.getElementById('dashboard-dept-desc');
+    const sel = this._dashboardDeptId();
+    const esc = (v) => (this._escapeHtml ? this._escapeHtml(v) : String(v ?? ''));
+
+    if (select && Array.isArray(appState.departments)) {
+        const current = select.value || sel;
+        select.innerHTML = '<option value="all">🏢 Semua Departemen</option>' +
+            appState.departments.map(d => `<option value="${esc(d.id)}">${esc(d.emoji)} ${esc(d.name)} — ${esc(d.studio)}</option>`).join('');
+        select.value = [...select.options].some(o => o.value === sel) ? sel : 'all';
+        if (select.value !== current && sel === 'all') select.value = 'all';
+    }
+
+    const selectedDept = (appState.departments || []).find(d => d.id === sel);
+    if (desc) {
+        desc.textContent = selectedDept
+            ? `${selectedDept.emoji} ${selectedDept.name} · ${selectedDept.studio} — ${selectedDept.description}`
+            : 'Menampilkan ringkasan semua departemen. Pilih satu studio untuk memfilter KPI, antrean perhatian, dan job Kantor AI.';
+    }
+    if (!grid) return;
+    if (!Array.isArray(appState.departments)) {
+        grid.innerHTML = '<p class="text-secondary font-sm">Struktur departemen belum bisa dimuat — KPI & job tetap ditampilkan global.</p>';
+        return;
+    }
+
+    const cardHtml = (dept, jobs) => {
+        const c = this._deptJobCounts(jobs);
+        const isAll = dept.id === 'all';
+        return `
+        <button type="button" class="dashboard-dept-card${sel === dept.id ? ' active' : ''}" data-dept-id="${esc(dept.id)}" style="--dept-color:${esc(dept.color || '#6366f1')}">
+            <div class="dashboard-dept-card-head"><span class="dashboard-dept-card-emoji">${esc(dept.emoji)}</span><strong>${esc(dept.name)}</strong></div>
+            <div class="dashboard-dept-card-studio">${esc(dept.studio)}${isAll ? '' : ` · ${(dept.specialists || []).length} spesialis`}${dept.comingSoon ? ' · Segera hadir' : ''}</div>
+            <div class="dashboard-dept-card-stats">
+                <span><b>${c.active}</b>Aktif</span>
+                <span class="dept-stat-attention"><b>${c.attention}</b>Perhatian</span>
+                <span><b>${c.done}</b>Selesai</span>
+            </div>
+        </button>`;
+    };
+
+    const allJobs = appState.aiJobs || [];
+    grid.innerHTML = cardHtml({ id: 'all', name: 'Semua', studio: 'Lintas departemen', emoji: '🏢', color: '#6366f1' }, allJobs) +
+        appState.departments.map(d => cardHtml(d, allJobs.filter(j => this._jobDeptId(j) === d.id))).join('');
+    grid.querySelectorAll('.dashboard-dept-card').forEach(card => {
+        card.addEventListener('click', () => this._setDashboardDept(card.getAttribute('data-dept-id')));
+    });
+};
+
+app.renderDashboardStats = function () {
+    const sel = this._dashboardDeptId();
+    const jobs = this._dashboardJobs();
+    const set = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value; };
+    const setTrend = (id, text) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const span = el.querySelector('span');
+        if (span) span.textContent = text;
+    };
+    const isContent = sel === 'all' || sel === 'marketing';
+
+    if (isContent) {
+        const scheduled = (appState.posts || []).filter(p => p.status === 'scheduled')
+            .sort((a, b) => new Date(a.publishDate) - new Date(b.publishDate));
+        const published = (appState.posts || []).filter(p => p.status === 'published').length;
+        const connected = (appState.accounts || []).filter(a => a.connected).length;
+        set('stats-total-posts-label', 'Total Postingan');
+        set('stats-scheduled-posts-label', 'Postingan Terjadwal');
+        set('stats-active-channels-label', 'Saluran Aktif');
+        set('stats-total-reach-label', 'Total Jangkauan');
+        set('stats-total-posts', (appState.posts || []).length);
+        set('stats-scheduled-posts', scheduled.length);
+        set('stats-active-channels', connected);
+        set('stats-total-reach', '142.8K');
+        setTrend('stats-total-posts-trend', `${published} terbit`);
+        setTrend('stats-scheduled-posts-trend', scheduled.length
+            ? `Terdekat ${new Date(scheduled[0].publishDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}`
+            : 'Kosong');
+        setTrend('stats-active-channels-trend', `${connected}/${(appState.accounts || []).length} terhubung`);
+        setTrend('stats-total-reach-trend', appState.serverMode === 'sandbox' ? 'SANDBOX' : 'Live');
+        return;
+    }
+
+    const c = this._deptJobCounts(jobs);
+    const dept = (appState.departments || []).find(d => d.id === sel);
+    set('stats-total-posts-label', 'Job Departemen Ini');
+    set('stats-scheduled-posts-label', 'Job Aktif');
+    set('stats-active-channels-label', 'Menunggu Manusia');
+    set('stats-total-reach-label', 'Job Selesai');
+    set('stats-total-posts', c.total);
+    set('stats-scheduled-posts', c.active);
+    set('stats-active-channels', c.attention);
+    set('stats-total-reach', c.done);
+    setTrend('stats-total-posts-trend', dept ? dept.studio : 'Departemen');
+    setTrend('stats-scheduled-posts-trend', 'Berjalan');
+    setTrend('stats-active-channels-trend', c.attention ? 'Prioritas' : 'Aman');
+    setTrend('stats-total-reach-trend', 'Tuntas');
+};
+
+app.renderDashboardAttention = function () {
+    const list = document.getElementById('dashboard-attention-list');
+    if (!list) return;
+    const esc = (v) => (this._escapeHtml ? this._escapeHtml(v) : String(v ?? ''));
+    const jobs = this._dashboardJobs()
+        .filter(j => DASH_ATTENTION_STATUSES.includes(j.status))
+        .sort((a, b) => new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0))
+        .slice(0, 5);
+
+    if (!jobs.length) {
+        list.innerHTML = '<div class="empty-state-small"><p class="font-xs">✅ Tidak ada job yang menunggu manusia saat ini.</p></div>';
+        return;
+    }
+    list.innerHTML = '';
+    jobs.forEach(job => {
+        const row = document.createElement('button');
+        row.type = 'button';
+        row.className = 'dashboard-attention-row';
+        row.title = 'Buka di Kantor AI';
+        row.addEventListener('click', () => {
+            appState.office.selectedJobId = job.id;
+            this.switchView('office');
+        });
+        const badge = this._statusBadge ? this._statusBadge(job.status) : 'badge-indigo';
+        const label = this._statusLabel ? this._statusLabel(job.status) : job.status;
+        row.innerHTML = `
+            <div class="ai-job-meta">
+                <span class="ai-job-brief">${esc(job.brief || '(tanpa brief)')}</span>
+                <span class="ai-job-id">${esc(job.employeeName || job.roleId || 'AI')} · ${esc(this._deptName(this._jobDeptId(job)))}</span>
+            </div>
+            <span class="badge ${badge}">${esc(label)}</span>`;
+        list.appendChild(row);
+    });
+};
+
 app.renderDashboard = function () {
     this.updateActiveAccountsCounter();
+    this._ensureDashboardDepartments();
+    this.renderDashboardDeptGrid();
+    this.renderDashboardStats();
+    this.renderDashboardAttention();
+
+    const sel = this._dashboardDeptId();
+    const isContent = sel === 'all' || sel === 'marketing';
+    ['dashboard-channel-share-card', 'dashboard-connected-card', 'dashboard-nextup-card'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.toggle('hidden', !isContent);
+    });
+    const contentNote = document.getElementById('dashboard-content-dept-note');
+    if (contentNote) {
+        contentNote.classList.toggle('hidden', isContent);
+        if (!isContent) {
+            contentNote.textContent = 'Konten saluran dikelola Studio Marketing — departemen ini fokus pada job & antrean perhatian manusia di atas.';
+        }
+    }
+    // Antrean Konten Mendatang khusus Studio Marketing (termasuk disembunyikan di "Semua Departemen")
+    const showUpcoming = sel === 'marketing';
+    const upcomingCard = document.getElementById('dashboard-upcoming-card');
+    if (upcomingCard) upcomingCard.classList.toggle('hidden', !showUpcoming);
+    const mainLayout = document.getElementById('dashboard-main-layout');
+    if (mainLayout) mainLayout.classList.toggle('no-upcoming', !showUpcoming);
 
     const channelList = document.getElementById('dashboard-channel-list');
     channelList.innerHTML = '';
@@ -566,10 +841,16 @@ app.renderDashboard = function () {
         });
     }
 
-    const scheduledPosts = appState.posts.filter(p => p.status === 'scheduled').sort((a, b) => new Date(a.publishDate) - new Date(b.publishDate));
+    const scheduledPosts = (showUpcoming ? appState.posts : []).filter(p => p.status === 'scheduled').sort((a, b) => new Date(a.publishDate) - new Date(b.publishDate));
     const upcomingList = document.getElementById('dashboard-upcoming-list');
     const emptyQueue = document.getElementById('dashboard-empty-queue');
     upcomingList.querySelectorAll('.upcoming-item').forEach(el => el.remove());
+    const emptyQueueText = emptyQueue ? emptyQueue.querySelector('p') : null;
+    if (emptyQueueText) {
+        emptyQueueText.textContent = showUpcoming
+            ? 'Belum ada postingan yang dijadwalkan.'
+            : 'Antrean konten hanya untuk Studio Marketing — lihat job departemen ini di panel Kantor AI & Perhatian Manusia.';
+    }
 
     if (scheduledPosts.length === 0) {
         emptyQueue.classList.remove('hidden');
@@ -612,7 +893,7 @@ app.renderDashboard = function () {
 
     this.renderChannelShareChart();
     this.renderAiJobs();
-    this.loadAndRenderInsights('dashboard-nextup-body');
+    if (isContent) this.loadAndRenderInsights('dashboard-nextup-body');
     lucide.createIcons();
 };
 
@@ -623,34 +904,23 @@ app.renderAiJobs = function () {
     const empty = document.getElementById('dashboard-empty-jobs');
     list.querySelectorAll('.ai-job-row').forEach(el => el.remove());
 
-    const jobs = (appState.aiJobs || []).slice(0, 5);
+    const jobs = this._dashboardJobs().slice(0, 5);
     if (jobs.length === 0) {
-        if (empty) empty.classList.remove('hidden');
+        if (empty) {
+            empty.classList.remove('hidden');
+            const p = empty.querySelector('p');
+            if (p) {
+                p.textContent = this._dashboardDeptId() === 'all'
+                    ? 'Belum ada job. Kirim brief di Kantor AI.'
+                    : 'Belum ada job untuk departemen ini. Kirim brief di Kantor AI.';
+            }
+        }
         return;
     }
     if (empty) empty.classList.add('hidden');
 
-    const badgeFor = (status) => {
-        const map = {
-            queued: 'badge-indigo',
-            needs_info: 'badge-yellow',
-            publishing: 'badge-violet',
-            done: 'badge-emerald',
-            failed: 'badge-red'
-        };
-        return map[status] || 'badge-indigo';
-    };
-
-    const labelFor = (status) => {
-        const map = {
-            queued: 'Antri',
-            needs_info: 'Perlu info',
-            publishing: 'Publish…',
-            done: 'Selesai',
-            failed: 'Gagal'
-        };
-        return map[status] || status;
-    };
+    const badgeFor = (status) => (this._statusBadge ? this._statusBadge(status) : 'badge-indigo');
+    const labelFor = (status) => (this._statusLabel ? this._statusLabel(status) : status);
 
     jobs.forEach(job => {
         const row = document.createElement('div');
@@ -662,10 +932,11 @@ app.renderAiJobs = function () {
         });
         const brief = (job.brief || '(tanpa brief)').replace(/</g, '&lt;');
         const who = (job.employeeName || job.roleId || 'AI').replace(/</g, '&lt;');
+        const dept = this._deptName(this._jobDeptId(job)).replace(/</g, '&lt;');
         row.innerHTML = `
             <div class="ai-job-meta">
                 <span class="ai-job-brief" title="${brief}">${brief}</span>
-                <span class="ai-job-id">${who} · ${job.id}</span>
+                <span class="ai-job-id">${who} · ${dept} · ${job.id}</span>
             </div>
             <span class="badge ${badgeFor(job.status)}">${labelFor(job.status)}</span>`;
         list.appendChild(row);
@@ -883,7 +1154,7 @@ app.setupMissionEvents = function () {
     window.addEventListener('hashchange', () => {
         if (!appState.user) return;
         const hashView = (location.hash || '').replace(/^#/, '').trim();
-        const allowed = ['mission', 'dashboard', 'composer', 'queue', 'office', 'accounts', 'analytics', 'settings', 'layout', 'about'];
+        const allowed = ['mission', 'dashboard', 'composer', 'queue', 'office', 'accounts', 'analytics', 'settings', 'layout', 'about', 'activity', 'marketplace', 'organization', 'tasks', 'calendar'];
         if (allowed.includes(hashView) && hashView !== appState.currentView) {
             this.switchView(hashView);
         }
